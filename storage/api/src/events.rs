@@ -1,7 +1,7 @@
-use actix_web::{delete, get, post, put, HttpResponse, Responder};
-use actix_web::web::{Data, Json, Path};
-use dlc_storage_common::models::{NewEvent, UpdateEvent};
 use crate::DbPool;
+use actix_web::web::{Data, Json, Path};
+use actix_web::{delete, get, post, put, HttpResponse, Responder};
+use dlc_storage_common::models::{NewEvent, UpdateEvent};
 use dlc_storage_reader;
 use dlc_storage_writer;
 
@@ -31,9 +31,15 @@ pub async fn create_event(pool: Data<DbPool>, event: Json<NewEvent>) -> impl Res
 }
 
 #[put("/events/{uuid}")]
-pub async fn update_event(pool: Data<DbPool>, uuid: Path<String>, event: Json<UpdateEvent>) -> impl Responder {
+pub async fn update_event(
+    pool: Data<DbPool>,
+    uuid: Path<String>,
+    event: Json<UpdateEvent>,
+) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
-    let events = dlc_storage_writer::update_event(&mut conn, &uuid.into_inner(),event.into_inner()).unwrap();
+    let events =
+        dlc_storage_writer::update_event(&mut conn, &uuid.into_inner(), event.into_inner())
+            .unwrap();
     HttpResponse::Ok().json(events)
 }
 

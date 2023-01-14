@@ -4,14 +4,14 @@ mod events;
 use contracts::*;
 use events::*;
 extern crate log;
-use actix_web::{App, error, HttpResponse, HttpServer, web};
-use diesel::PgConnection;
+use crate::events::get_events;
+use actix_web::web::Data;
+use actix_web::{error, web, App, HttpResponse, HttpServer};
 use diesel::r2d2::{self, ConnectionManager};
+use diesel::PgConnection;
+use dlc_storage_writer::apply_migrations;
 use dotenv::dotenv;
 use std::env;
-use actix_web::web::Data;
-use dlc_storage_writer::apply_migrations;
-use crate::events::get_events;
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -22,11 +22,14 @@ async fn main() -> std::io::Result<()> {
     // e.g.: DATABASE_URL=postgresql://postgres:changeme@localhost:5432/postgres
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
-    let pool: DbPool = r2d2::Pool::builder().build(manager).expect("Failed to create pool.");
+    let pool: DbPool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool.");
     let mut conn = pool.get().expect("Failed to get connection from pool");
     let migrate: bool = env::var("MIGRATE")
         .unwrap_or("false".to_string())
-        .parse().unwrap();
+        .parse()
+        .unwrap();
     if migrate {
         apply_migrations(&mut conn);
     }
@@ -34,14 +37,14 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(Data::new(pool.clone()))
             .app_data(web::JsonConfig::default().error_handler(|err, _req| {
-                          error::InternalError::from_response(
-                                  "",
-                                  HttpResponse::BadRequest()
-                                          .content_type("application/json")
-                                          .body(format!(r#"{{"error":"{}"}}"#, err)),
-                              )
-                              .into()
-                          }))
+                error::InternalError::from_response(
+                    "",
+                    HttpResponse::BadRequest()
+                        .content_type("application/json")
+                        .body(format!(r#"{{"error":"{}"}}"#, err)),
+                )
+                .into()
+            }))
             .service(get_contracts)
             .service(get_contract)
             .service(get_contracts_by_state)
@@ -56,7 +59,7 @@ async fn main() -> std::io::Result<()> {
             .service(delete_event)
             .service(delete_events)
     })
-        .bind("127.0.0.1:8100")?
-        .run()
-        .await
+    .bind("127.0.0.1:8100")?
+    .run()
+    .await
 }

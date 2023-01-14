@@ -1,6 +1,6 @@
 use displaydoc::Display;
-use thiserror::Error;
 use dlc_clients::ApiError;
+use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, OracleError>;
 

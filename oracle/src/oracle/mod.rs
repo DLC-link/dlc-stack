@@ -60,7 +60,7 @@ impl Oracle {
 }
 
 pub mod oracle_queryable;
-pub mod vault;
 pub mod secret_key;
+pub mod vault;
 
 pub use oracle_queryable::messaging::EventDescriptor;

@@ -1,16 +1,14 @@
+use crate::oracle::vault::{get_secret_key, set_secret_key, OraclePrivateKey};
+use gethostname::gethostname;
 use log::info;
 use log::warn;
+use secp256k1_zkp::{rand, All, KeyPair, Secp256k1, SecretKey};
 use std::env;
 use std::fs::File;
+use std::io::prelude::*;
 use std::path::Path;
 use std::str::FromStr;
-use std::{
-    io::{prelude::*}
-};
-use secp256k1_zkp::{rand, KeyPair, Secp256k1, SecretKey, All};
 use vaultrs::error::ClientError;
-use crate::oracle::vault::{get_secret_key, OraclePrivateKey, set_secret_key};
-use gethostname::gethostname;
 
 /// This function returns a `KeyPair` for the given `Secp256k1` context.
 ///
@@ -31,10 +29,14 @@ use gethostname::gethostname;
 /// # Returns
 ///
 /// A `KeyPair` created from the secret key and the given `Secp256k1` context.
-pub async fn get_or_generate_keypair(secp: &Secp256k1<All>, secret_key_file: Option<std::path::PathBuf>) -> KeyPair {
+pub async fn get_or_generate_keypair(
+    secp: &Secp256k1<All>,
+    secret_key_file: Option<std::path::PathBuf>,
+) -> KeyPair {
     let use_vault: bool = env::var("VAULT_ENABLED")
         .unwrap_or("false".to_string())
-        .parse().unwrap();
+        .parse()
+        .unwrap();
     let secret_key: SecretKey;
     if use_vault {
         secret_key = get_or_generate_secret_from_vault(&secp).await.unwrap();
@@ -58,28 +60,41 @@ async fn get_or_generate_secret_from_vault(secp: &Secp256k1<All>) -> anyhow::Res
                 if code == 404 {
                     let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
                     let secret_str = new_key.display_secret().to_string();
-                    let res = set_secret_key(&oracle_key, secret_mount, OraclePrivateKey{private_key_value: secret_str}).await?;
+                    let res = set_secret_key(
+                        &oracle_key,
+                        secret_mount,
+                        OraclePrivateKey {
+                            private_key_value: secret_str,
+                        },
+                    )
+                    .await?;
                     warn!("Resource not found: {}", errors.join(","));
                     res
                 } else {
                     panic!("Unexpected client error. Exiting ...");
                 }
-            },
+            }
             _ => {
                 panic!("Unexpected server error. Exiting ...");
-            },
+            }
         },
     };
     Ok(SecretKey::from_str(&vault_key.private_key_value)?)
 }
 
-fn get_or_generate_secret_from_config(secp: &Secp256k1<All>, secret_key_file: Option<std::path::PathBuf>) -> anyhow::Result<SecretKey> {
+fn get_or_generate_secret_from_config(
+    secp: &Secp256k1<All>,
+    secret_key_file: Option<std::path::PathBuf>,
+) -> anyhow::Result<SecretKey> {
     let mut secret_key = String::new();
     let secret_key = match secret_key_file {
         None => {
             let path = Path::new("config/secret.key");
             if path.exists() {
-                info!("reading secret key from {} (default)", path.file_name().unwrap().to_string_lossy());
+                info!(
+                    "reading secret key from {} (default)",
+                    path.file_name().unwrap().to_string_lossy()
+                );
                 File::open(path)?.read_to_string(&mut secret_key)?;
                 secret_key.retain(|c| !c.is_whitespace());
                 SecretKey::from_str(&secret_key)?

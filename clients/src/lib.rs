@@ -1,8 +1,8 @@
 extern crate serde;
 
-use std::{error, fmt};
-use std::fmt::{Debug, Formatter};
 use reqwest::{Client, Error, Response, Url};
+use std::fmt::{Debug, Formatter};
+use std::{error, fmt};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,7 +28,7 @@ pub struct ApiResult {
 #[derive(Debug, Clone)]
 pub struct ApiError {
     pub message: String,
-    pub status: u16
+    pub status: u16,
 }
 
 impl fmt::Display for ApiError {
@@ -84,7 +84,7 @@ pub struct UpdateEvent {
 
 pub struct WalletBackendClient {
     client: Client,
-    host: String
+    host: String,
 }
 
 impl Default for WalletBackendClient {
@@ -100,19 +100,20 @@ impl Debug for WalletBackendClient {
 }
 
 impl WalletBackendClient {
-
     pub fn new(host: String) -> Self {
-        Self { client: Client::new(), host: host }
+        Self {
+            client: Client::new(),
+            host: host,
+        }
     }
 
-    pub async fn post_offer_and_accept(&self, offer_request: OfferRequest) -> Result<ApiResult, Error> {
+    pub async fn post_offer_and_accept(
+        &self,
+        offer_request: OfferRequest,
+    ) -> Result<ApiResult, Error> {
         let uri = format!("{}/offer", String::as_str(&self.host.clone()));
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = self.client
-            .post(url)
-            .json(&offer_request)
-            .send()
-            .await?;
+        let res = self.client.post(url).json(&offer_request).send().await?;
         let result = ApiResult {
             status: res.status().as_u16(),
             response: res,
@@ -123,11 +124,7 @@ impl WalletBackendClient {
     pub async fn put_accept(&self, accept_request: AcceptMessage) -> Result<ApiResult, Error> {
         let uri = format!("{}/offer/accept", String::as_str(&self.host.clone()));
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = self.client
-            .put(url)
-            .json(&accept_request)
-            .send()
-            .await?;
+        let res = self.client.put(url).json(&accept_request).send().await?;
         let result = ApiResult {
             status: res.status().as_u16(),
             response: res,
@@ -138,7 +135,7 @@ impl WalletBackendClient {
 
 pub struct OracleBackendClient {
     client: Client,
-    host: String
+    host: String,
 }
 
 impl Default for OracleBackendClient {
@@ -155,16 +152,20 @@ impl Debug for OracleBackendClient {
 
 impl OracleBackendClient {
     pub fn new(host: String) -> Self {
-        Self { client: Client::new(), host: host }
+        Self {
+            client: Client::new(),
+            host: host,
+        }
     }
 
     pub async fn create_event(&self, uuid: String) -> Result<ApiResult, Error> {
-        let uri = format!("{}/v1/create_event/{}?maturation=2022-10-08T13:48:00Z", String::as_str(&self.host.clone()), uuid.as_str());
+        let uri = format!(
+            "{}/v1/create_event/{}?maturation=2022-10-08T13:48:00Z",
+            String::as_str(&self.host.clone()),
+            uuid.as_str()
+        );
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = self.client
-            .get(url)
-            .send()
-            .await?;
+        let res = self.client.get(url).send().await?;
         let result = ApiResult {
             status: res.status().as_u16(),
             response: res,
@@ -173,12 +174,14 @@ impl OracleBackendClient {
     }
 
     pub async fn get_attestation(&self, uuid: String, outcome: String) -> Result<ApiResult, Error> {
-        let uri = format!("{}/v1/attest/{}?outcome={}", String::as_str(&self.host.clone()), uuid.as_str(), outcome.as_str());
+        let uri = format!(
+            "{}/v1/attest/{}?outcome={}",
+            String::as_str(&self.host.clone()),
+            uuid.as_str(),
+            outcome.as_str()
+        );
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = self.client
-            .get(url)
-            .send()
-            .await?;
+        let res = self.client.get(url).send().await?;
         let result = ApiResult {
             status: res.status().as_u16(),
             response: res,
@@ -190,7 +193,7 @@ impl OracleBackendClient {
 #[derive(Clone)]
 pub struct StorageApiClient {
     client: Client,
-    host: String
+    host: String,
 }
 
 impl Default for StorageApiClient {
@@ -207,7 +210,10 @@ impl Debug for StorageApiClient {
 
 impl StorageApiClient {
     pub fn new(host: String) -> Self {
-        Self { client: Client::new(), host: host }
+        Self {
+            client: Client::new(),
+            host: host,
+        }
     }
 
     pub async fn get_contracts(&self) -> Result<Vec<Contract>, ApiError> {
@@ -215,17 +221,31 @@ impl StorageApiClient {
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.get(url).send().await {
             Ok(result) => result,
-            Err(e) => return Err(ApiError { message: e.to_string(), status: 0 }),
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
         };
         let status = res.status();
         if status.is_success() {
             let status_clone = status.clone();
-            let contracts: Vec<Contract> = res.json().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
+            let contracts: Vec<Contract> = res.json().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
             Ok(contracts)
         } else {
             let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
-            Err(ApiError { message: msg, status: status_clone.as_u16() })
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
         }
     }
 
@@ -234,175 +254,351 @@ impl StorageApiClient {
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.get(url).send().await {
             Ok(result) => result,
-            Err(e) => return Err(ApiError { message: e.to_string(), status: 0 }),
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
         };
         let status = res.status();
         if status.is_success() {
             let status_clone = status.clone();
-            let events: Vec<Event> = res.json().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
+            let events: Vec<Event> = res.json().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
             Ok(events)
         } else {
             let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
-            Err(ApiError { message: msg, status: status_clone.as_u16() })
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
         }
     }
 
     pub async fn get_event(&self, uuid: String) -> Result<Option<Event>, ApiError> {
-        let uri = format!("{}/events/{}", String::as_str(&self.host.clone()), uuid.as_str());
+        let uri = format!(
+            "{}/events/{}",
+            String::as_str(&self.host.clone()),
+            uuid.as_str()
+        );
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.get(url).send().await {
             Ok(result) => result,
-            Err(e) => return Err(ApiError { message: e.to_string(), status: 0 }),
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
         };
         let status = res.status();
         if status.is_success() {
             let status_clone = status.clone();
-            let event: Event = res.json().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
+            let event: Event = res.json().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
             Ok(Some(event))
         } else if status.clone().as_u16() == 404 {
             Ok(None)
         } else {
             let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
-            Err(ApiError { message: msg, status: status_clone.as_u16() })
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
         }
     }
 
     pub async fn get_contracts_by_state(&self, state: String) -> Result<Vec<Contract>, ApiError> {
-        let uri = format!("{}/contracts/state/{}", String::as_str(&self.host.clone()), state);
+        let uri = format!(
+            "{}/contracts/state/{}",
+            String::as_str(&self.host.clone()),
+            state
+        );
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.get(url).send().await {
             Ok(result) => result,
-            Err(e) => return Err(ApiError { message: e.to_string(), status: 0 }),
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
         };
         let status = res.status();
         if status.is_success() {
             let status_clone = status.clone();
-            let contracts: Vec<Contract> = res.json().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
+            let contracts: Vec<Contract> = res.json().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
             Ok(contracts)
         } else {
             let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
-            Err(ApiError { message: msg, status: status_clone.as_u16() })
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
         }
     }
 
     pub async fn get_contract(&self, uuid: String) -> Result<Option<Contract>, ApiError> {
-        let uri = format!("{}/contracts/{}", String::as_str(&self.host.clone()), uuid.as_str());
+        let uri = format!(
+            "{}/contracts/{}",
+            String::as_str(&self.host.clone()),
+            uuid.as_str()
+        );
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.get(url).send().await {
             Ok(result) => result,
-            Err(e) => return Err(ApiError { message: e.to_string(), status: 0 }),
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
         };
         let status = res.status();
         if status.is_success() {
             let status_clone = status.clone();
-            let contract: Contract = res.json().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
+            let contract: Contract = res.json().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
             Ok(Some(contract))
         } else if status.clone().as_u16() == 404 {
             Ok(None)
         } else {
             let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
-            Err(ApiError { message: msg, status: status_clone.as_u16() })
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
         }
     }
 
     pub async fn create_contract(&self, contract: NewContract) -> Result<Contract, ApiError> {
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()));
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.post(url).json(&contract).header("Content-type", "application/json").send().await {
+        let res = match self
+            .client
+            .post(url)
+            .json(&contract)
+            .header("Content-type", "application/json")
+            .send()
+            .await
+        {
             Ok(result) => result,
-            Err(e) => return Err(ApiError { message: e.to_string(), status: 0 }),
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
         };
         let status = res.status();
         if status.is_success() {
             let status_clone = status.clone();
-            let contract: Contract = res.json().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
+            let contract: Contract = res.json().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
             Ok(contract)
         } else {
             let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
-            Err(ApiError { message: msg, status: status_clone.as_u16() })
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
         }
     }
 
     pub async fn create_event(&self, event: NewEvent) -> Result<Event, ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()));
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.post(url).header("Content-Type", "application/json").json(&event).send().await {
+        let res = match self
+            .client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .json(&event)
+            .send()
+            .await
+        {
             Ok(result) => result,
-            Err(e) => return Err(ApiError { message: e.to_string(), status: 0 }),
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
         };
         let status = res.status();
         if status.is_success() {
             let status_clone = status.clone();
-            let event: Event = res.json().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
+            let event: Event = res.json().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
             Ok(event)
         } else {
             let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
-            Err(ApiError { message: msg, status: status_clone.as_u16() })
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
         }
     }
 
     pub async fn update_event(&self, uuid: String, event: UpdateEvent) -> Result<(), ApiError> {
-        let uri = format!("{}/events/{}", String::as_str(&self.host.clone()), uuid.as_str());
+        let uri = format!(
+            "{}/events/{}",
+            String::as_str(&self.host.clone()),
+            uuid.as_str()
+        );
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.put(url).json(&event).header("Content-type", "application/json").send().await {
+        let res = match self
+            .client
+            .put(url)
+            .json(&event)
+            .header("Content-type", "application/json")
+            .send()
+            .await
+        {
             Ok(result) => result,
-            Err(e) => return Err(ApiError { message: e.to_string(), status: 0 }),
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
         };
         let status = res.status();
         if status.is_success() {
             Ok(())
         } else {
             let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
-            Err(ApiError { message: msg, status: status_clone.as_u16() })
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
         }
     }
 
-    pub async fn update_contract(&self, uuid: String, contract: UpdateContract) -> Result<(), ApiError> {
-        let uri = format!("{}/contracts/{}", String::as_str(&self.host.clone()), uuid.as_str());
+    pub async fn update_contract(
+        &self,
+        uuid: String,
+        contract: UpdateContract,
+    ) -> Result<(), ApiError> {
+        let uri = format!(
+            "{}/contracts/{}",
+            String::as_str(&self.host.clone()),
+            uuid.as_str()
+        );
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.put(url).header("Content-type", "application/json").json(&contract).send().await {
+        let res = match self
+            .client
+            .put(url)
+            .header("Content-type", "application/json")
+            .json(&contract)
+            .send()
+            .await
+        {
             Ok(result) => result,
-            Err(e) => return Err(ApiError { message: e.to_string(), status: 0 }),
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
         };
         let status = res.status();
         if status.is_success() {
             Ok(())
         } else {
             let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
-            Err(ApiError { message: msg, status: status_clone.as_u16() })
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
         }
     }
 
     pub async fn delete_event(&self, uuid: String) -> Result<(), ApiError> {
-        self.delete_resource(uuid.clone(), "events".to_string()).await
+        self.delete_resource(uuid.clone(), "events".to_string())
+            .await
     }
 
     pub async fn delete_contract(&self, uuid: String) -> Result<(), ApiError> {
-        self.delete_resource(uuid.clone(), "contracts".to_string()).await
+        self.delete_resource(uuid.clone(), "contracts".to_string())
+            .await
     }
 
     async fn delete_resource(&self, uuid: String, path: String) -> Result<(), ApiError> {
-        let uri = format!("{}/{}/{}", String::as_str(&self.host.clone()), path.as_str(), uuid.as_str());
+        let uri = format!(
+            "{}/{}/{}",
+            String::as_str(&self.host.clone()),
+            path.as_str(),
+            uuid.as_str()
+        );
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.delete(url).send().await {
             Ok(result) => result,
-            Err(e) => return Err(ApiError { message: e.to_string(), status: 0 }),
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
         };
         let status = res.status();
         if status.is_success() {
             Ok(())
         } else {
             let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
-            Err(ApiError { message: msg, status: status_clone.as_u16() })
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
         }
     }
 
@@ -419,15 +615,26 @@ impl StorageApiClient {
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.delete(url).send().await {
             Ok(result) => result,
-            Err(e) => return Err(ApiError { message: e.to_string(), status: 0 }),
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
         };
         let status = res.status();
         if status.is_success() {
             Ok(())
         } else {
             let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError { message: e.to_string(), status: status_clone.as_u16() })?;
-            Err(ApiError { message: msg, status: status_clone.as_u16() })
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
         }
     }
 }

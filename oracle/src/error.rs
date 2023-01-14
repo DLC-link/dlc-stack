@@ -1,6 +1,6 @@
 use displaydoc::Display;
-use thiserror::Error;
 use sibyls::oracle::OracleError;
+use thiserror::Error;
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug, Display, Error)]

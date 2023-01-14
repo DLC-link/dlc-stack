@@ -1,7 +1,7 @@
-use actix_web::{delete, get, post, put, HttpResponse, Responder};
-use actix_web::web::{Data, Json, Path};
-use dlc_storage_common::models::{NewContract, UpdateContract};
 use crate::DbPool;
+use actix_web::web::{Data, Json, Path};
+use actix_web::{delete, get, post, put, HttpResponse, Responder};
+use dlc_storage_common::models::{NewContract, UpdateContract};
 use dlc_storage_reader;
 use dlc_storage_writer;
 
@@ -26,7 +26,8 @@ pub async fn get_contract(pool: Data<DbPool>, uuid: Path<String>) -> impl Respon
 #[get("/contracts/state/{state}")]
 pub async fn get_contracts_by_state(pool: Data<DbPool>, state: Path<String>) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
-    let contracts = dlc_storage_reader::get_contracts_by_state(&mut conn, &state.into_inner()).unwrap();
+    let contracts =
+        dlc_storage_reader::get_contracts_by_state(&mut conn, &state.into_inner()).unwrap();
     HttpResponse::Ok().json(contracts)
 }
 
@@ -38,9 +39,15 @@ pub async fn create_contract(pool: Data<DbPool>, contract: Json<NewContract>) ->
 }
 
 #[put("/contracts/{uuid}")]
-pub async fn update_contract(pool: Data<DbPool>, uuid: Path<String>, contract: Json<UpdateContract>) -> impl Responder {
+pub async fn update_contract(
+    pool: Data<DbPool>,
+    uuid: Path<String>,
+    contract: Json<UpdateContract>,
+) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
-    let contract = dlc_storage_writer::update_contract(&mut conn, &uuid.into_inner(),contract.into_inner()).unwrap();
+    let contract =
+        dlc_storage_writer::update_contract(&mut conn, &uuid.into_inner(), contract.into_inner())
+            .unwrap();
     HttpResponse::Ok().json(contract)
 }
 

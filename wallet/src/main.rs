@@ -16,23 +16,27 @@ use std::{
 
 use bitcoin_rpc_provider::BitcoinCoreProvider;
 use bitcoincore_rpc::{Auth, Client};
-use dlc_manager::{contract::{
-    contract_input::{ContractInput, ContractInputInfo, OracleInput},
-    Contract,
-}, manager::Manager, Oracle, Storage, SystemTimeProvider, Wallet};
+use dlc_manager::{
+    contract::{
+        contract_input::{ContractInput, ContractInputInfo, OracleInput},
+        Contract,
+    },
+    manager::Manager,
+    Oracle, Storage, SystemTimeProvider, Wallet,
+};
 use dlc_messages::{AcceptDlc, Message};
 use log::{info, warn};
 
+use crate::storage::storage_provider::StorageProvider;
 use oracle_client::P2PDOracleClient;
 use rouille::Response;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utils::get_numerical_contract_info;
-use crate::storage::storage_provider::StorageProvider;
 
 mod oracle_client;
-mod utils;
 mod storage;
+mod utils;
 #[macro_use]
 mod macros;
 
@@ -47,16 +51,14 @@ type DlcManager<'a> = Manager<
 const NUM_CONFIRMATIONS: u32 = 2;
 const COUNTER_PARTY_PK: &str = "02fc8e97419286cf05e5d133f41ff6d51f691dda039e9dc007245a421e2c7ec61c";
 
-#[derive(Serialize)]
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ErrorResponse {
     message: String,
-    code: Option<u64>
+    code: Option<u64>,
 }
 
-#[derive(Serialize)]
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ErrorsResponse {
     errors: Vec<ErrorResponse>,
@@ -86,7 +88,11 @@ fn main() {
     let auth = Auth::UserPass(rpc_user, rpc_pass);
     let rpc = Client::new(&format!("http://{}", btc_rpc_url), auth.clone()).unwrap();
     let bitcoin_core = Arc::new(BitcoinCoreProvider { client: rpc });
-    let p2p_client : P2PDOracleClient =  retry!(P2PDOracleClient::new(&oracle_url), 10, "oracle client creation");
+    let p2p_client: P2PDOracleClient = retry!(
+        P2PDOracleClient::new(&oracle_url),
+        10,
+        "oracle client creation"
+    );
     let oracle = Arc::new(p2p_client);
     let oracles: HashMap<secp256k1_zkp::schnorrsig::PublicKey, Arc<P2PDOracleClient>> =
         HashMap::from([(oracle.get_public_key(), oracle.clone())]);
@@ -281,10 +287,24 @@ fn create_new_offer(
     let (_event_descriptor, descriptor) =
         get_numerical_contract_info(accept_collateral, offer_collateral, total_outcomes);
     let announcement_res = oracle.get_announcement(&event_id);
-    info!("Creating new offer with event id: {}, accept collateral: {}, offer_collateral: {}", event_id.clone(), accept_collateral, offer_collateral);
+    info!(
+        "Creating new offer with event id: {}, accept collateral: {}, offer_collateral: {}",
+        event_id.clone(),
+        accept_collateral,
+        offer_collateral
+    );
     let maturity = match announcement_res {
         Ok(a) => a.oracle_event.event_maturity_epoch,
-        Err(_e) => return Response::json(&ErrorsResponse{status: 400, errors: vec![ErrorResponse{message: "OracleEventNotFoundError".to_string(), code: None}]}).with_status_code(400),
+        Err(_e) => {
+            return Response::json(&ErrorsResponse {
+                status: 400,
+                errors: vec![ErrorResponse {
+                    message: "OracleEventNotFoundError".to_string(),
+                    code: None,
+                }],
+            })
+            .with_status_code(400)
+        }
     };
 
     let contract_info = ContractInputInfo {
@@ -315,8 +335,15 @@ fn create_new_offer(
         Ok(dlc) => Response::json(dlc),
         Err(e) => {
             info!("DLC manager - send offer error: {}", e.to_string());
-            Response::json(&ErrorsResponse{status: 400, errors: vec![ErrorResponse{message: e.to_string(), code: None}]}).with_status_code(400)
-        },
+            Response::json(&ErrorsResponse {
+                status: 400,
+                errors: vec![ErrorResponse {
+                    message: e.to_string(),
+                    code: None,
+                }],
+            })
+            .with_status_code(400)
+        }
     }
 }
 
@@ -334,8 +361,17 @@ fn accept_offer(accept_dlc: AcceptDlc, manager: Arc<Mutex<DlcManager>>) -> Respo
         Ok(dlc) => dlc,
         Err(e) => {
             info!("DLC manager - accept offer error: {}", e.to_string());
-            return add_access_control_headers(Response::json(&ErrorsResponse{status: 400, errors: vec![ErrorResponse{message: e.to_string(), code: None}]}).with_status_code(400))
-        },
+            return add_access_control_headers(
+                Response::json(&ErrorsResponse {
+                    status: 400,
+                    errors: vec![ErrorResponse {
+                        message: e.to_string(),
+                        code: None,
+                    }],
+                })
+                .with_status_code(400),
+            );
+        }
     } {
         add_access_control_headers(Response::json(&sign))
     } else {

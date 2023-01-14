@@ -15,20 +15,17 @@ use secp256k1_zkp::{
     All, KeyPair, Message, Secp256k1, Signing, XOnlyPublicKey as SchnorrPublicKey,
 };
 use secp256k1_zkp_5::rand::RngCore;
-use std::{
-    env,
-    io::Cursor,
-};
+use std::{env, io::Cursor};
 
 use serde::{Deserialize, Serialize};
 
 use sled::IVec;
+use std::path::PathBuf;
 use std::{
     collections::HashMap,
     fs::{self, File},
     io::Read,
 };
-use std::path::PathBuf;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use sibyls::{
@@ -284,13 +281,19 @@ async fn create_event(
     info!("Inserting new event ...[uuid: {}]", uuid.clone());
     if oracle.event_handler.storage_api.is_some() {
         oracle
-            .event_handler.storage_api.as_ref().unwrap()
+            .event_handler
+            .storage_api
+            .as_ref()
+            .unwrap()
             .insert(uuid.clone(), new_event.clone())
             .await
             .unwrap();
     } else {
         oracle
-            .event_handler.sled_db.as_ref().unwrap()
+            .event_handler
+            .sled_db
+            .as_ref()
+            .unwrap()
             .insert(uuid.clone().into_bytes(), new_event.clone())
             .unwrap();
     }
@@ -322,7 +325,10 @@ async fn attest(
     let mut event: DbValue;
     if oracle.event_handler.storage_api.is_some() {
         let event_vec = match oracle
-            .event_handler.storage_api.as_ref().unwrap()
+            .event_handler
+            .storage_api
+            .as_ref()
+            .unwrap()
             .get(uuid.clone())
             .await
             .map_err(SibylsError::OracleDatabaseError)?
@@ -333,7 +339,10 @@ async fn attest(
         event = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).unwrap();
     } else {
         let event_ivec = match oracle
-            .event_handler.sled_db.as_ref().unwrap()
+            .event_handler
+            .sled_db
+            .as_ref()
+            .unwrap()
             .get(path.as_bytes())
             .map_err(SibylsError::DatabaseError)?
         {
@@ -388,7 +397,10 @@ async fn attest(
 
     if oracle.event_handler.storage_api.is_some() {
         let _insert_event = match oracle
-            .event_handler.storage_api.as_ref().unwrap()
+            .event_handler
+            .storage_api
+            .as_ref()
+            .unwrap()
             .insert(path.clone(), new_event.clone())
             .await
             .map_err(SibylsError::OracleDatabaseError)?
@@ -398,7 +410,10 @@ async fn attest(
         };
     } else {
         let _insert_event = match oracle
-            .event_handler.sled_db.as_ref().unwrap()
+            .event_handler
+            .sled_db
+            .as_ref()
+            .unwrap()
             .insert(path.clone().as_bytes(), new_event.clone())
             .map_err(SibylsError::DatabaseError)?
         {
@@ -426,16 +441,26 @@ async fn announcements(
     }
     if oracle.event_handler.storage_api.is_some() {
         return Ok(HttpResponse::Ok().json(
-         oracle
-             .event_handler.storage_api.as_ref().unwrap()
-             .get_all().await.unwrap().unwrap().iter()
-             .map(|result| parse_database_entry(result.clone().1.into()))
-             .collect::<Vec<_>>()
+            oracle
+                .event_handler
+                .storage_api
+                .as_ref()
+                .unwrap()
+                .get_all()
+                .await
+                .unwrap()
+                .unwrap()
+                .iter()
+                .map(|result| parse_database_entry(result.clone().1.into()))
+                .collect::<Vec<_>>(),
         ));
     } else {
         return Ok(HttpResponse::Ok().json(
             oracle
-                .event_handler.sled_db.as_ref().unwrap()
+                .event_handler
+                .sled_db
+                .as_ref()
+                .unwrap()
                 .iter()
                 .map(|result| parse_database_entry(result.unwrap().1))
                 .collect::<Vec<_>>(),
@@ -465,8 +490,12 @@ async fn get_announcement(
     info!("retrieving oracle event with uuid {}", uuid);
     if oracle.event_handler.storage_api.is_some() {
         let event = match oracle
-            .event_handler.storage_api.as_ref().unwrap()
-            .get(uuid.clone()).await
+            .event_handler
+            .storage_api
+            .as_ref()
+            .unwrap()
+            .get(uuid.clone())
+            .await
             .map_err(SibylsError::OracleDatabaseError)?
         {
             Some(val) => val,
@@ -475,7 +504,10 @@ async fn get_announcement(
         Ok(HttpResponse::Ok().json(parse_database_entry(event.into())))
     } else {
         let event = match oracle
-            .event_handler.sled_db.as_ref().unwrap()
+            .event_handler
+            .sled_db
+            .as_ref()
+            .unwrap()
             .get(uuid.as_bytes())
             .map_err(SibylsError::DatabaseError)?
         {

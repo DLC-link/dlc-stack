@@ -1,45 +1,56 @@
-extern crate tokio;
 extern crate base64;
-use log::info;
-use std::env;
-use dlc_manager::{ContractId, Storage};
-use dlc_manager::contract::{Contract, PreClosedContract};
+extern crate tokio;
+use super::storage_api::StorageApiProvider;
+use crate::storage::memory_storage::MemoryStorage;
 use dlc_manager::contract::offered_contract::OfferedContract;
 use dlc_manager::contract::signed_contract::SignedContract;
+use dlc_manager::contract::{Contract, PreClosedContract};
 use dlc_manager::error::Error;
+use dlc_manager::{ContractId, Storage};
 use dlc_sled_storage_provider::SledStorageProvider;
-use crate::storage::memory_storage::MemoryStorage;
-use super::storage_api::StorageApiProvider;
+use log::info;
+use std::env;
 
 pub struct StorageProvider {
-
     memory_storage: MemoryStorage,
 
     sled_storage: Option<SledStorageProvider>,
 
     storage_api: Option<StorageApiProvider>,
-
 }
 
 impl StorageProvider {
-
     pub fn new() -> Self {
         let memory_storage = MemoryStorage::new();
         let use_storage_api: bool = env::var("STORAGE_API_ENABLED")
             .unwrap_or("false".to_string())
-            .parse().unwrap();
+            .parse()
+            .unwrap();
         let use_sled: bool = env::var("SLED_ENABLED")
             .unwrap_or("false".to_string())
-            .parse().unwrap();
+            .parse()
+            .unwrap();
         let sled_path: String = env::var("SLED_PATH").unwrap_or("contracts_db".to_string());
         if use_storage_api {
             info!("Storage API enabled: {}", use_storage_api);
-            Self {memory_storage: memory_storage, sled_storage: None, storage_api: Some(StorageApiProvider::new())}
+            Self {
+                memory_storage: memory_storage,
+                sled_storage: None,
+                storage_api: Some(StorageApiProvider::new()),
+            }
         } else if use_sled {
             info!("Sled enabled: {}", use_sled);
-            Self {memory_storage: memory_storage, sled_storage: Some(SledStorageProvider::new(sled_path.as_str()).unwrap()), storage_api: None}
+            Self {
+                memory_storage: memory_storage,
+                sled_storage: Some(SledStorageProvider::new(sled_path.as_str()).unwrap()),
+                storage_api: None,
+            }
         } else {
-            Self {memory_storage: memory_storage, sled_storage: None, storage_api: None}
+            Self {
+                memory_storage: memory_storage,
+                sled_storage: None,
+                storage_api: None,
+            }
         }
     }
 
@@ -61,7 +72,6 @@ impl Default for StorageProvider {
 }
 
 impl Storage for StorageProvider {
-    
     fn get_contract(&self, id: &ContractId) -> Result<Option<Contract>, Error> {
         if self.storage_api.is_some() {
             self.storage_api.as_ref().unwrap().get_contract(id)
@@ -86,7 +96,10 @@ impl Storage for StorageProvider {
         if self.storage_api.is_some() {
             self.storage_api.as_mut().unwrap().create_contract(contract)
         } else if self.sled_storage.is_some() {
-            self.sled_storage.as_mut().unwrap().create_contract(contract)
+            self.sled_storage
+                .as_mut()
+                .unwrap()
+                .create_contract(contract)
         } else {
             self.memory_storage.create_contract(contract)
         }
@@ -106,7 +119,10 @@ impl Storage for StorageProvider {
         if self.storage_api.is_some() {
             self.storage_api.as_mut().unwrap().update_contract(contract)
         } else if self.sled_storage.is_some() {
-            self.sled_storage.as_mut().unwrap().update_contract(contract)
+            self.sled_storage
+                .as_mut()
+                .unwrap()
+                .update_contract(contract)
         } else {
             self.memory_storage.update_contract(contract)
         }
@@ -136,7 +152,10 @@ impl Storage for StorageProvider {
         if self.storage_api.is_some() {
             self.storage_api.as_ref().unwrap().get_confirmed_contracts()
         } else if self.sled_storage.is_some() {
-            self.sled_storage.as_ref().unwrap().get_confirmed_contracts()
+            self.sled_storage
+                .as_ref()
+                .unwrap()
+                .get_confirmed_contracts()
         } else {
             self.memory_storage.get_confirmed_contracts()
         }
@@ -146,7 +165,10 @@ impl Storage for StorageProvider {
         if self.storage_api.is_some() {
             self.storage_api.as_ref().unwrap().get_preclosed_contracts()
         } else if self.sled_storage.is_some() {
-            self.sled_storage.as_ref().unwrap().get_preclosed_contracts()
+            self.sled_storage
+                .as_ref()
+                .unwrap()
+                .get_preclosed_contracts()
         } else {
             self.memory_storage.get_preclosed_contracts()
         }

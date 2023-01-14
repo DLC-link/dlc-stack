@@ -1,6 +1,6 @@
+use super::schema::*;
 use diesel::{AsChangeset, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
-use super::schema::*;
 
 #[derive(Insertable, Serialize, Deserialize, Queryable, Debug)]
 #[diesel(table_name = contracts)]

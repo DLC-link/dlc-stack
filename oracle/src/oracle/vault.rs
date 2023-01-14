@@ -1,20 +1,17 @@
-use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
-use std::{
-    env
-};
-use vaultrs::api::kv2::responses::SecretVersionMetadata;
-use vaultrs::kv2;
-use vaultrs::error::ClientError;
 use serde::{Deserialize, Serialize};
+use std::env;
+use vaultrs::api::kv2::responses::SecretVersionMetadata;
+use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
+use vaultrs::error::ClientError;
+use vaultrs::kv2;
 
 /// A struct representing a connection to a Vault server.
 pub struct VaultConn {
     /// The `VaultClient` instance used to communicate with the Vault server.
-    pub client: VaultClient
+    pub client: VaultClient,
 }
 
 impl VaultConn {
-
     /// Creates a new `VaultConn` instance.
     ///
     /// # Arguments
@@ -33,8 +30,9 @@ impl VaultConn {
                 .address(address)
                 .token(token)
                 .build()
-                .unwrap()
-        ).unwrap();
+                .unwrap(),
+        )
+        .unwrap();
         Self { client }
     }
 }
@@ -59,7 +57,10 @@ pub struct OraclePrivateKey {
 /// # Returns
 ///
 /// * `Result<OraclePrivateKey, ClientError>` - The `OraclePrivateKey` struct containing the private key, or an error if one occurred.
-pub async fn get_secret_key(secret_path: &str, secret_mount: &str) -> Result<OraclePrivateKey, ClientError> {
+pub async fn get_secret_key(
+    secret_path: &str,
+    secret_mount: &str,
+) -> Result<OraclePrivateKey, ClientError> {
     let client = VaultConn::new().client;
     let secret: OraclePrivateKey = kv2::read(&client, secret_mount, secret_path).await?;
     Ok(secret)
@@ -75,9 +76,13 @@ pub async fn get_secret_key(secret_path: &str, secret_mount: &str) -> Result<Ora
 /// # Returns
 ///
 /// * `Result<OraclePrivateKey, ClientError>` - The `OraclePrivateKey` struct containing the private key, or an error if one occurred.
-pub async fn set_secret_key(secret_path: &str, secret_mount: &str, value: OraclePrivateKey) -> Result<OraclePrivateKey, ClientError> {
+pub async fn set_secret_key(
+    secret_path: &str,
+    secret_mount: &str,
+    value: OraclePrivateKey,
+) -> Result<OraclePrivateKey, ClientError> {
     let client = VaultConn::new().client;
-    let _ : SecretVersionMetadata = kv2::set(&client, secret_mount, secret_path, &value.clone()).await?;
+    let _: SecretVersionMetadata =
+        kv2::set(&client, secret_mount, secret_path, &value.clone()).await?;
     Ok(value.clone())
 }
-
