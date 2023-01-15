@@ -6,7 +6,7 @@ use dlc_manager::contract::signed_contract::SignedContract;
 use dlc_manager::contract::{Contract, PreClosedContract};
 use dlc_manager::error::Error;
 use dlc_manager::{ContractId, Storage};
-use log::info;
+use log::{info, debug};
 use std::{
     collections::HashMap,
     env,
@@ -26,6 +26,7 @@ pub struct StorageApiProvider {
 
 impl StorageApiProvider {
     pub fn new() -> Self {
+        info!("Creating storage API provider");
         let contract_mutexes: Arc<Mutex<HashMap<String, Mutex<()>>>> =
             Arc::new(Mutex::new(HashMap::new()));
         let storage_api_endpoint: String =
@@ -38,10 +39,12 @@ impl StorageApiProvider {
     }
 
     pub fn delete_contracts(&self) {
+        info!("Delete all contracts by storage api ...");
         let _res = self.runtime.block_on(self.client.delete_contracts());
     }
 
     pub fn get_contracts_by_state(&self, state: String) -> Result<Vec<Contract>, Error> {
+        debug!("Get contracts by state - {}", state.clone());
         let contracts_res: Result<Vec<dlc_clients::Contract>, ApiError> = self
             .runtime
             .block_on(self.client.get_contracts_by_state(state.clone()));
@@ -63,6 +66,7 @@ impl Storage for StorageApiProvider {
     fn get_contract(&self, id: &ContractId) -> Result<Option<Contract>, Error> {
         let bytes = id.to_vec();
         let cid = base64::encode(&bytes);
+        info!("Get contract by id (base 64 encoded) - {}", cid.clone());
         let contract_res: Result<Option<dlc_clients::Contract>, ApiError> =
             self.runtime.block_on(self.client.get_contract(cid.clone()));
         let unw_contract = contract_res.unwrap();
@@ -71,12 +75,13 @@ impl Storage for StorageApiProvider {
             let contract = deserialize_contract(&bytes)?;
             Ok(Some(contract))
         } else {
-            info!("Contract not found with id: {}", cid);
+            info!("Contract not found with id: {} (base64 encoded)", cid.clone());
             Ok(None)
         }
     }
 
     fn get_contracts(&self) -> Result<Vec<Contract>, Error> {
+        info!("Get all contracts ...");
         let contracts_res: Result<Vec<dlc_clients::Contract>, ApiError> =
             self.runtime.block_on(self.client.get_contracts());
         let mut contents: Vec<String> = vec![];
@@ -96,9 +101,10 @@ impl Storage for StorageApiProvider {
         let data = serialize_contract(&Contract::Offered(contract.clone()))?;
         let bytes = contract.id.to_vec();
         let uuid = base64::encode(&bytes);
+        info!("Create new contract with contract id {} (base64 encoded)", uuid.clone());
         let mut mutex = self.contract_mutexes.lock().unwrap();
-        let lock = mutex.entry(uuid.clone()).or_insert(Mutex::new(()));
-        let _guard = lock.lock();
+        let uuid_lock = mutex.entry(uuid.clone()).or_insert(Mutex::new(()));
+        let _guard = uuid_lock.lock();
         let req = NewContract {
             uuid: uuid.clone(),
             state: "offered".to_string(),
@@ -111,9 +117,10 @@ impl Storage for StorageApiProvider {
     fn delete_contract(&mut self, id: &ContractId) -> Result<(), Error> {
         let bytes = id.to_vec();
         let cid = base64::encode(&bytes);
+        info!("Delete contract with contract id {} (base64 encoded)", cid.clone());
         let mut mutex = self.contract_mutexes.lock().unwrap();
-        let lock = mutex.entry(cid.clone()).or_insert(Mutex::new(()));
-        let _guard = lock.lock();
+        let child_lock = mutex.entry(cid.clone()).or_insert(Mutex::new(()));
+        let _guard = child_lock.lock();
         let _result = self
             .runtime
             .block_on(self.client.delete_contract(cid.clone()));
@@ -124,6 +131,7 @@ impl Storage for StorageApiProvider {
         let c_id = contract.get_id();
         let bytes = c_id.to_vec();
         let contract_id: String = base64::encode(&bytes);
+        info!("Update contract with contract id {} (base64 encoded)", contract_id.clone());
         let curr_state = get_contract_state_str(contract);
         match contract {
             a @ Contract::Accepted(_) | a @ Contract::Signed(_) => {
@@ -131,6 +139,7 @@ impl Storage for StorageApiProvider {
             }
             _ => {}
         };
+        info!("Get contract with contract id {} (base64 encoded) before updating ...", contract_id.clone());
         let contract_res: Result<Option<dlc_clients::Contract>, ApiError> = self
             .runtime
             .block_on(self.client.get_contract(contract_id.clone()));
@@ -138,6 +147,7 @@ impl Storage for StorageApiProvider {
         let data = serialize_contract(contract).unwrap();
         let encoded_content = base64::encode(&data);
         if unw_contract.is_some() {
+            info!("As contract exists with contract id {} (base64 encoded), update contract ...", contract_id.clone());
             let _res = self.runtime.block_on(self.client.update_contract(
                 contract_id.clone(),
                 UpdateContract {
@@ -147,6 +157,7 @@ impl Storage for StorageApiProvider {
             ));
             Ok(())
         } else {
+            info!("As contract does not exist with contract id {} (base64 encoded), create contract ...", contract_id.clone());
             let _res = self
                 .runtime
                 .block_on(self.client.create_contract(NewContract {
