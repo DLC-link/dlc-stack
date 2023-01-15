@@ -7,7 +7,7 @@ use dlc_manager::contract::accepted_contract::AcceptedContract;
 use dlc_manager::contract::ser::Serializable;
 use dlc_manager::contract::{ClosedContract, FailedAcceptContract, FailedSignContract};
 
-fn to_storage_error<T>(e: T) -> Error
+pub fn to_storage_error<T>(e: T) -> Error
 where
     T: std::fmt::Display,
 {
