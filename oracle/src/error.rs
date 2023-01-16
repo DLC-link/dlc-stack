@@ -19,6 +19,9 @@ pub enum SibylsError {
 
     /// oracle specific database error: {0}
     OracleDatabaseError(#[from] OracleError),
+
+    /// storage api error: {0}
+    StorageApiError(#[from] dlc_clients::ApiError),
 }
 
 impl actix_web::error::ResponseError for SibylsError {

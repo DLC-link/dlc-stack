@@ -140,10 +140,7 @@ impl Storage for StorageApiProvider {
                 return Ok(r);
             }
             Err(err) => {
-                info!(
-                    "Contract deletion has been failed with id {}",
-                    cid.clone()
-                );
+                info!("Contract deletion has been failed with id {}", cid.clone());
                 return Err(to_storage_error(err));
             }
         }

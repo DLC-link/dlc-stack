@@ -84,18 +84,28 @@ impl StorageApiConn {
             let update_event = UpdateEvent {
                 content: Some(new_content.clone()),
             };
-            let _res = self
+            let res = self
                 .client
                 .update_event(event_id.clone(), update_event)
                 .await;
-            Ok(Some(new_event.clone()))
+            match res {
+                Ok(_) => Ok(Some(new_event.clone())),
+                Err(err) => {
+                    return Err(OracleError::StorageApiError(err));
+                }
+            }
         } else {
             let event = NewEvent {
                 event_id: event_id.clone(),
                 content: new_content.clone(),
             };
-            let _res = self.client.create_event(event).await;
-            Ok(Some(new_event.clone()))
+            let res = self.client.create_event(event).await;
+            match res {
+                Ok(_) => Ok(Some(new_event.clone())),
+                Err(err) => {
+                    return Err(OracleError::StorageApiError(err));
+                }
+            }
         }
     }
 
