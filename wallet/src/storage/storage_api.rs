@@ -6,13 +6,8 @@ use dlc_manager::contract::signed_contract::SignedContract;
 use dlc_manager::contract::{Contract, PreClosedContract};
 use dlc_manager::error::Error;
 use dlc_manager::{ContractId, Storage};
-use log::{debug, info};
-use std::sync::MutexGuard;
-use std::{
-    collections::HashMap,
-    env,
-    sync::{Arc, Mutex},
-};
+use log::{debug, info, warn};
+use std::env;
 use tokio::runtime::Runtime;
 
 use crate::storage::utils::to_storage_error;
@@ -23,8 +18,6 @@ pub struct StorageApiProvider {
     client: StorageApiClient,
 
     runtime: Runtime,
-
-    contract_mutexes: Arc<HashMap<String, ValueMutex<String>>>,
 }
 
 impl StorageApiProvider {
@@ -35,7 +28,6 @@ impl StorageApiProvider {
         Self {
             client: StorageApiClient::new(storage_api_endpoint),
             runtime: Runtime::new().unwrap(),
-            contract_mutexes: Arc::new(HashMap::new()),
         }
     }
 
@@ -108,34 +100,6 @@ impl Storage for StorageApiProvider {
             "Create new contract with contract id {} (base64 encoded)",
             uuid.clone()
         );
-        // lock by contract id
-        let mutexes = Arc::get_mut(&mut self.contract_mutexes).unwrap();
-        let mutex = mutexes
-            .entry(uuid.clone())
-            .or_insert_with(|| ValueMutex::new(uuid.clone()));
-        let guard = mutex.lock(uuid.clone());
-
-        // TODO: workaround to avoid duplication error - but expect any other error 
-        info!(
-            "Get contract by id (base64 encoded) - {} (before creating contract)",
-            uuid.clone()
-        );
-        let contract_res: Result<Option<dlc_clients::Contract>, ApiError> = self
-            .runtime
-            .block_on(self.client.get_contract(uuid.clone()));
-        if let Some(_) = contract_res.map_err(to_storage_error)? {
-            info!(
-                "Contract with id '{}' would be created again. Skipping ...",
-                uuid.clone()
-            );
-            return Ok(());
-        } else {
-            info!(
-                "Contract not found with id: {} (base64 encoded) before creating contract",
-                uuid.clone()
-            );
-        }
-
         let req = NewContract {
             uuid: uuid.clone(),
             state: "offered".to_string(),
@@ -144,13 +108,14 @@ impl Storage for StorageApiProvider {
         let res = self.runtime.block_on(self.client.create_contract(req));
         match res {
             Ok(_) => {
-                drop(guard);
-                mutexes.remove(&uuid);
+                info!(
+                    "Contract has been successfully created with id {} and state 'offered'",
+                    uuid.clone()
+                );
                 return Ok(());
             }
             Err(err) => {
-                drop(guard);
-                mutexes.remove(&uuid);
+                info!("Contract creation has failed with id {}", uuid.clone());
                 return Err(to_storage_error(err));
             }
         }
@@ -163,25 +128,22 @@ impl Storage for StorageApiProvider {
             "Delete contract with contract id {} (base64 encoded)",
             cid.clone()
         );
-        // lock by contract id
-        let mutexes = Arc::get_mut(&mut self.contract_mutexes).unwrap();
-        let mutex = mutexes
-            .entry(cid.clone())
-            .or_insert_with(|| ValueMutex::new(cid.clone()));
-        let guard = mutex.lock(cid.clone());
-
         let res = self
             .runtime
             .block_on(self.client.delete_contract(cid.clone()));
         match res {
             Ok(r) => {
-                drop(guard);
-                mutexes.remove(&cid);
+                info!(
+                    "Contract has been successfully deleted with id {} and state 'offered'",
+                    cid.clone()
+                );
                 return Ok(r);
             }
             Err(err) => {
-                drop(guard);
-                mutexes.remove(&cid);
+                info!(
+                    "Contract deletion has been failed with id {} and state 'offered'",
+                    cid.clone()
+                );
                 return Err(to_storage_error(err));
             }
         }
@@ -191,25 +153,51 @@ impl Storage for StorageApiProvider {
         let c_id = contract.get_id();
         let bytes = c_id.to_vec();
         let contract_id: String = base64::encode(&bytes);
-        info!(
-            "Update contract with contract id {} (base64 encoded)",
-            contract_id.clone()
-        );
         let curr_state = get_contract_state_str(contract);
+        info!(
+            "Update contract with contract id {} (base64 encoded) - state: {}",
+            contract_id.clone(),
+            curr_state.clone()
+        );
         match contract {
             a @ Contract::Accepted(_) | a @ Contract::Signed(_) => {
-                let _res = self.delete_contract(&a.get_temporary_id());
+                let res = self.delete_contract(&a.get_temporary_id());
+                let del_vec = &a.get_temporary_id().to_vec();
+                let del_con_id = base64::encode(&del_vec);
+                match res {
+                    Ok(_) => {
+                        info!("Contract has been successfully deleted (during update) with id {} (base64 encoded) and state 'offered'", del_con_id);
+                    }
+                    Err(err) => {
+                        warn!("Deleting contract has been failed (during update) with id {} (base64 encoded) and state '{}'", del_con_id, curr_state.clone());
+                        return Err(to_storage_error(err));
+                    }
+                }
             }
             _ => {}
         };
         info!(
-            "Get contract with contract id {} (base64 encoded) before updating ...",
-            contract_id.clone()
+            "Get contract with contract id {} (base64 encoded) before updating (state: {}) ...",
+            contract_id.clone(),
+            curr_state.clone()
         );
         let contract_res: Result<Option<dlc_clients::Contract>, ApiError> = self
             .runtime
             .block_on(self.client.get_contract(contract_id.clone()));
-        let unw_contract = contract_res.unwrap();
+        let unw_contract = match contract_res {
+            Ok(res) => res,
+            Err(api_err) => {
+                if api_err.status == 404 {
+                    info!(
+                        "Not found API error has been thrown by storage API with contract id {}",
+                        contract_id.clone()
+                    );
+                    None
+                } else {
+                    return Err(to_storage_error(api_err));
+                }
+            }
+        };
         let data = serialize_contract(contract).unwrap();
         let encoded_content = base64::encode(&data);
         if unw_contract.is_some() {
@@ -227,14 +215,31 @@ impl Storage for StorageApiProvider {
             Ok(())
         } else {
             info!("As contract does not exist with contract id {} (base64 encoded), create contract ...", contract_id.clone());
-            let _res = self
+            let create_res = self
                 .runtime
                 .block_on(self.client.create_contract(NewContract {
                     uuid: contract_id.clone(),
                     state: curr_state.clone(),
                     content: encoded_content,
                 }));
-            Ok(())
+            match create_res {
+                Ok(_) => {
+                    info!(
+                        "Contract has been successfully created with id {} and state '{}'",
+                        contract_id.clone(),
+                        curr_state.clone()
+                    );
+                    return Ok(());
+                }
+                Err(err) => {
+                    info!(
+                        "Contract creation has been failed (during update) with id {}, staate: {}",
+                        contract_id.clone(),
+                        curr_state.clone()
+                    );
+                    return Err(to_storage_error(err));
+                }
+            }
         }
     }
 
@@ -284,27 +289,5 @@ impl Storage for StorageApiProvider {
             }
         }
         return Ok(res);
-    }
-}
-
-struct ValueMutex<T> {
-    value: T,
-    mutex: Mutex<()>,
-}
-
-impl<T: Eq + Clone> ValueMutex<T> {
-    fn new(value: T) -> Self {
-        ValueMutex {
-            value,
-            mutex: Mutex::new(()),
-        }
-    }
-
-    fn lock(&self, value: T) -> MutexGuard<'_, ()> {
-        if self.value == value {
-            self.mutex.lock().unwrap()
-        } else {
-            panic!("Locked with a different value")
-        }
     }
 }
