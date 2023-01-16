@@ -134,14 +134,14 @@ impl Storage for StorageApiProvider {
         match res {
             Ok(r) => {
                 info!(
-                    "Contract has been successfully deleted with id {} and state 'offered'",
+                    "Contract has been successfully deleted with id {}",
                     cid.clone()
                 );
                 return Ok(r);
             }
             Err(err) => {
                 info!(
-                    "Contract deletion has been failed with id {} and state 'offered'",
+                    "Contract deletion has been failed with id {}",
                     cid.clone()
                 );
                 return Err(to_storage_error(err));
