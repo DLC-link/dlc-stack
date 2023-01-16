@@ -7,6 +7,8 @@ services:
       platforms:
         - "linux/amd64"
     command: "./start.sh"
+    ports:
+      - 3004:3004
     volumes:
       - .bitcoin:/root/.bitcoin
 networks: 

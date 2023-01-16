@@ -12,6 +12,7 @@ fi
 if [[ "$bitcoin_address" == "" ]]; then
   bitcoin_address=$(docker exec devnet-bitcoind-electrs-1 /bitcoin/bin/bitcoin-cli -regtest -rpcwallet=alice getnewaddress "legacy")
 fi
+bitcoin_address=$(echo "$bitcoin_address" | tr '[:upper:]' '[:lower:]')
 echo "Address to use: $bitcoin_address"
 
 cat <<EOT >> $STACKS_ALL_LOCATION/deployments/send.yml
