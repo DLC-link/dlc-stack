@@ -6,6 +6,7 @@ use dlc_manager::error::Error;
 use dlc_manager::contract::accepted_contract::AcceptedContract;
 use dlc_manager::contract::ser::Serializable;
 use dlc_manager::contract::{ClosedContract, FailedAcceptContract, FailedSignContract};
+use std::fmt::Write as _;
 
 pub fn to_storage_error<T>(e: T) -> Error
 where
@@ -137,4 +138,13 @@ pub fn get_contract_state_str(contract: &Contract) -> String {
         Contract::FailedSign(_) => "failed_sign",
     };
     return state.to_string();
+}
+
+pub fn get_contract_id_string(contract_id: [u8; 32]) -> String {
+    let mut string_id = String::with_capacity(32 * 2 + 2);
+    string_id.push_str("0x");
+    for i in &contract_id {
+        write!(string_id, "{:02x}", i).unwrap();
+    }
+    string_id
 }

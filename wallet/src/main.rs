@@ -25,7 +25,7 @@ use dlc_manager::{
     Oracle, Storage, SystemTimeProvider, Wallet,
 };
 use dlc_messages::{AcceptDlc, Message};
-use log::{info, warn, debug};
+use log::{debug, info, warn};
 
 use crate::storage::storage_provider::StorageProvider;
 use oracle_client::P2PDOracleClient;
@@ -333,9 +333,12 @@ fn create_new_offer(
         .send_offer(&contract_input, COUNTER_PARTY_PK.parse().unwrap())
     {
         Ok(dlc) => {
-            debug!("Create new offer dlc output: {}", serde_json::to_string(dlc).unwrap());
+            debug!(
+                "Create new offer dlc output: {}",
+                serde_json::to_string(dlc).unwrap()
+            );
             Response::json(dlc)
-        },
+        }
         Err(e) => {
             info!("DLC manager - send offer error: {}", e.to_string());
             Response::json(&ErrorsResponse {
@@ -376,8 +379,11 @@ fn accept_offer(accept_dlc: AcceptDlc, manager: Arc<Mutex<DlcManager>>) -> Respo
             );
         }
     } {
-        debug!("Accept offer - signed dlc output: {}", serde_json::to_string(&sign).unwrap());
-        add_access_control_headers( Response::json(&sign))
+        debug!(
+            "Accept offer - signed dlc output: {}",
+            serde_json::to_string(&sign).unwrap()
+        );
+        add_access_control_headers(Response::json(&sign))
     } else {
         panic!();
     }
