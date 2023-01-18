@@ -184,21 +184,40 @@ impl Storage for StorageApiProvider {
         let encoded_content = base64::encode(&data);
         if unw_contract.is_some() {
             info!(
-                "As contract exists with contract id {}, update contract ...",
-                contract_id.clone()
+                "As contract exists with contract id {}, update contract (to state '{}')",
+                contract_id.clone(),
+                curr_state.clone()
             );
-            let _res = self.runtime.block_on(self.client.update_contract(
+            let update_res = self.runtime.block_on(self.client.update_contract(
                 contract_id.clone(),
                 UpdateContract {
                     state: Some(curr_state.clone()),
                     content: Some(encoded_content),
                 },
             ));
-            Ok(())
+            match update_res {
+                Ok(_) => {
+                    info!(
+                        "Contract has been successfully updated with id {} and state '{}'",
+                        contract_id.clone(),
+                        curr_state.clone()
+                    );
+                    return Ok(());
+                }
+                Err(err) => {
+                    info!(
+                        "Contract update has been failed with id {}, state: {}",
+                        contract_id.clone(),
+                        curr_state.clone()
+                    );
+                    return Err(to_storage_error(err));
+                }
+            }
         } else {
             info!(
-                "As contract does not exist with contract id {}, create contract ...",
-                contract_id.clone()
+                "As contract does not exist with contract id {}, create contract (with state '{}')",
+                contract_id.clone(),
+                curr_state.clone()
             );
             let create_res = self
                 .runtime
@@ -218,7 +237,7 @@ impl Storage for StorageApiProvider {
                 }
                 Err(err) => {
                     info!(
-                        "Contract creation has been failed (during update) with id {}, staate: {}",
+                        "Contract creation has been failed (during update) with id {}, state: {}",
                         contract_id.clone(),
                         curr_state.clone()
                     );

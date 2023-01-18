@@ -5,9 +5,9 @@ use dlc_manager::contract::{
 };
 use dlc_manager::Storage;
 use dlc_manager::{error::Error as DaemonError, ContractId};
+use log::info;
 use std::collections::HashMap;
 use std::sync::RwLock;
-use log::info;
 
 use crate::storage::utils::{get_contract_id_string, get_contract_state_str};
 
