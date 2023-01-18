@@ -7,6 +7,9 @@ use dlc_manager::Storage;
 use dlc_manager::{error::Error as DaemonError, ContractId};
 use std::collections::HashMap;
 use std::sync::RwLock;
+use log::info;
+
+use crate::storage::utils::{get_contract_id_string, get_contract_state_str};
 
 pub struct MemoryStorage {
     contracts: RwLock<HashMap<ContractId, Contract>>,
@@ -41,6 +44,8 @@ impl Default for MemoryStorage {
 impl Storage for MemoryStorage {
     fn get_contract(&self, id: &ContractId) -> Result<Option<Contract>, DaemonError> {
         let map = self.contracts.read().expect("Could not get read lock");
+        let uuid = get_contract_id_string(*id);
+        info!("Get contract with contract id {}", uuid.clone());
         Ok(map.get(id).cloned())
     }
 
@@ -56,6 +61,8 @@ impl Storage for MemoryStorage {
 
     fn create_contract(&mut self, contract: &OfferedContract) -> Result<(), DaemonError> {
         let mut map = self.contracts.write().expect("Could not get write lock");
+        let uuid = get_contract_id_string(contract.id);
+        info!("Create new contract with contract id {}", uuid.clone());
         let res = map.insert(contract.id, Contract::Offered(contract.clone()));
         match res {
             None => Ok(()),
@@ -67,12 +74,21 @@ impl Storage for MemoryStorage {
 
     fn delete_contract(&mut self, id: &ContractId) -> Result<(), DaemonError> {
         let mut map = self.contracts.write().expect("Could not get write lock");
+        let uuid = get_contract_id_string(*id);
+        info!("Delete contract with contract id {}", uuid.clone());
         map.remove(id);
         Ok(())
     }
 
     fn update_contract(&mut self, contract: &Contract) -> Result<(), DaemonError> {
         let mut map = self.contracts.write().expect("Could not get write lock");
+        let contract_id: String = get_contract_id_string(contract.get_id());
+        let curr_state = get_contract_state_str(contract);
+        info!(
+            "Update contract with contract id {} - state: {}",
+            contract_id.clone(),
+            curr_state.clone()
+        );
         match contract {
             a @ Contract::Accepted(_) | a @ Contract::Signed(_) => {
                 map.remove(&a.get_temporary_id());
