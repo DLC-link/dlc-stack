@@ -332,7 +332,10 @@ fn create_new_offer(
         })
         .send_offer(&contract_input, COUNTER_PARTY_PK.parse().unwrap())
     {
-        Ok(dlc) => Response::json(dlc),
+        Ok(dlc) => {
+            info!("Create new offer dlc output: {}", serde_json::to_string(dlc).unwrap());
+            Response::json(dlc)
+        },
         Err(e) => {
             info!("DLC manager - send offer error: {}", e.to_string());
             Response::json(&ErrorsResponse {
@@ -373,7 +376,8 @@ fn accept_offer(accept_dlc: AcceptDlc, manager: Arc<Mutex<DlcManager>>) -> Respo
             );
         }
     } {
-        add_access_control_headers(Response::json(&sign))
+        info!("Accept offer - signed dlc output: {}", serde_json::to_string(&sign).unwrap());
+        add_access_control_headers( Response::json(&sign))
     } else {
         panic!();
     }
