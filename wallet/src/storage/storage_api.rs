@@ -167,7 +167,13 @@ impl Storage for StorageApiProvider {
             .runtime
             .block_on(self.client.get_contract(contract_id.clone()));
         let unw_contract = match contract_res {
-            Ok(res) => res,
+            Ok(res) => {
+                info!(
+                    "Contract has been gathered sucessfully with id {}.",
+                    contract_id.clone()
+                );
+                res
+            }
             Err(api_err) => {
                 if api_err.status == 404 {
                     info!(
@@ -176,6 +182,10 @@ impl Storage for StorageApiProvider {
                     );
                     None
                 } else {
+                    info!(
+                        "Cannot get contract with id {} by storage API",
+                        contract_id.clone()
+                    );
                     return Err(to_storage_error(api_err));
                 }
             }
