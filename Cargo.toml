@@ -4,6 +4,7 @@ members = [
     "oracle-discovery",
     "wallet",
     "clients",
+    "blockcypher-blockchain-provider",
     "storage/reader",
     "storage/writer",
     "storage/common",

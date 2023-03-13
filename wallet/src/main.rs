@@ -15,6 +15,7 @@ use std::{
     vec,
 };
 
+use blockcypher_blockchain_provider::BlockcypherBlockchainProvider;
 use dlc_manager::{
     contract::{
         contract_input::{ContractInput, ContractInputInfo, OracleInput},
@@ -44,12 +45,12 @@ mod utils;
 mod macros;
 
 type DlcManager<'a> = Manager<
-    Arc<SimpleWallet<Arc<ElectrsBlockchainProvider>, Arc<SledStorageProvider>>>,
-    Arc<ElectrsBlockchainProvider>,
+    Arc<SimpleWallet<Arc<BlockcypherBlockchainProvider>, Arc<SledStorageProvider>>>,
+    Arc<BlockcypherBlockchainProvider>,
     Box<StorageProvider>,
     Arc<P2PDOracleClient>,
     Arc<SystemTimeProvider>,
-    Arc<ElectrsBlockchainProvider>,
+    Arc<BlockcypherBlockchainProvider>,
 >;
 
 const NUM_CONFIRMATIONS: u32 = 2;
@@ -83,11 +84,19 @@ fn main() {
 
     // Setup Blockchain Connection Object
     // ELECTRUM / ELECTRS
-    let electrs_host =
-        env::var("ELECTRUM_API_URL").unwrap_or("https://blockstream.info/testnet/api/".to_string());
-    let blockchain = Arc::new(ElectrsBlockchainProvider::new(
-        electrs_host.to_string(),
-        bitcoin::Network::Testnet,
+    // let electrs_host =
+    //     env::var("ELECTRUM_API_URL").unwrap_or("https://blockstream.info/testnet/api/".to_string());
+    // let blockchain = Arc::new(ElectrsBlockchainProvider::new(
+    //     electrs_host.to_string(),
+    //     bitcoin::Network::Testnet,
+    // ));
+
+    // Blockcypher
+    let blockcypher_host =
+        env::var("BLOCKCYPHER_API_URL").unwrap_or("https://api.blockcypher.com/".to_string());
+    let blockchain = Arc::new(BlockcypherBlockchainProvider::new(
+        blockcypher_host.to_string(),
+        bitcoin::Network::Regtest,
     ));
 
     // Set up DLC store
@@ -140,7 +149,7 @@ fn main() {
     info!("periodic_check loop thread starting");
     debug!("Wallet address: {:?}", wallet.get_new_address());
     thread::spawn(move || loop {
-        check_close(
+        periodic_check(
             man2.clone(),
             blockchain.clone(),
             funded_url.clone(),
@@ -148,7 +157,7 @@ fn main() {
         );
         debug!("Wallet balance: {}", wallet.get_balance());
         wallet
-            .refresh()
+            .refresh() //Do I really need to call this every 10 seconds?
             .unwrap_or_else(|e| println!("Error refreshing wallet {e}"));
         thread::sleep(Duration::from_millis(
             cmp::max(10, bitcoin_check_interval_seconds) * 1000,
@@ -230,7 +239,7 @@ impl FromStr for OfferType {
     }
 }
 
-fn check_close(
+fn periodic_check(
     manager: Arc<Mutex<DlcManager>>,
     blockchain: Arc<dyn Blockchain>,
     funded_url: String,
