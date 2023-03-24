@@ -230,27 +230,6 @@ fn main() {
     });
 }
 
-enum OfferType {
-    Enumerated,
-    Numerical,
-}
-
-enum Error {
-    BadError(String),
-}
-
-impl FromStr for OfferType {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "enumerated" => Ok(OfferType::Enumerated),
-            "numerical" => Ok(OfferType::Numerical),
-            _ => Err(Error::BadError("Unknown contract type".to_string())),
-        }
-    }
-}
-
 fn periodic_check(
     manager: Arc<Mutex<DlcManager>>,
     blockchain: Arc<dyn Blockchain>,

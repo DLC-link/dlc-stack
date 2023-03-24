@@ -28,7 +28,7 @@ paths:
     post:
       tags:
         - contract
-      description: Get an offer message for an enumerated event
+      description: Get an offer message for an event
       requestBody:
         content:
           application/json:
