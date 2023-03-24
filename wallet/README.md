@@ -27,6 +27,8 @@ Docker Compose example:
 
 - go into docker folder and create a .env like this:
 
+
+** Make updates here **
 ```
 ORACLE_URL="https://dev-oracle.dlc.link"
 BTC_RPC_URL="electrs-btc2.dlc.link:18443/wallet/alice"

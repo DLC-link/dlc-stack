@@ -15,6 +15,8 @@ use std::{
     vec,
 };
 
+use bitcoin::Address;
+use blockcypher_blockchain_provider::BlockcypherBlockchainProvider;
 use dlc_manager::{
     contract::{
         contract_input::{ContractInput, ContractInputInfo, OracleInput},
@@ -25,7 +27,7 @@ use dlc_manager::{
 };
 use dlc_messages::{AcceptDlc, Message};
 use dlc_sled_storage_provider::SledStorageProvider;
-use electrs_blockchain_provider::ElectrsBlockchainProvider;
+use lightning::chain::chaininterface::{ConfirmationTarget, FeeEstimator};
 use log::{debug, info, warn};
 use simple_wallet::SimpleWallet;
 
@@ -44,12 +46,12 @@ mod utils;
 mod macros;
 
 type DlcManager<'a> = Manager<
-    Arc<SimpleWallet<Arc<ElectrsBlockchainProvider>, Arc<SledStorageProvider>>>,
-    Arc<ElectrsBlockchainProvider>,
+    Arc<SimpleWallet<Arc<BlockcypherBlockchainProvider>, Arc<SledStorageProvider>>>,
+    Arc<BlockcypherBlockchainProvider>,
     Box<StorageProvider>,
     Arc<P2PDOracleClient>,
     Arc<SystemTimeProvider>,
-    Arc<ElectrsBlockchainProvider>,
+    Arc<BlockcypherBlockchainProvider>,
 >;
 
 const NUM_CONFIRMATIONS: u32 = 2;
@@ -82,27 +84,48 @@ fn main() {
     let mut funded_uuids: Vec<String> = vec![];
 
     // Setup Blockchain Connection Object
+    let active_network = match env::var("BITCOIN_NETWORK").as_deref() {
+        Ok("bitcoin") => bitcoin::Network::Bitcoin,
+        Ok("testnet") => bitcoin::Network::Testnet,
+        Ok("signet") => bitcoin::Network::Signet,
+        Ok("regtest") => bitcoin::Network::Regtest,
+        _ => panic!(
+            "Unknown Bitcoin Network, make sure to set BITCOIN_NETWORK in your env variables"
+        ),
+    };
+
     // ELECTRUM / ELECTRS
-    let electrs_host =
-        env::var("ELECTRUM_API_URL").unwrap_or("https://blockstream.info/testnet/api/".to_string());
-    let blockchain = Arc::new(ElectrsBlockchainProvider::new(
-        electrs_host.to_string(),
-        bitcoin::Network::Testnet,
+    // let electrs_host =
+    //     env::var("ELECTRUM_API_URL").unwrap_or("https://blockstream.info/testnet/api/".to_string());
+    // let blockchain = Arc::new(ElectrsBlockchainProvider::new(
+    //     electrs_host.to_string(),
+    //     active_network,
+    // ));
+
+    // Blockcypher
+    let blockcypher_host =
+        env::var("BLOCKCYPHER_API_URL").unwrap_or("https://api.blockcypher.com/".to_string());
+    let blockchain = Arc::new(BlockcypherBlockchainProvider::new(
+        blockcypher_host.to_string(),
+        active_network,
     ));
 
     // Set up DLC store
     let store = StorageProvider::new();
 
     // Set up wallet store
-    let sled_path: String = env::var("SLED_PATH").unwrap_or("wallet_db".to_string());
+    let root_sled_path: String = env::var("SLED_WALLET_PATH").unwrap_or("wallet_db".to_string());
+    let sled_path = format!("{root_sled_path}_{}", active_network);
     let wallet_store = Arc::new(SledStorageProvider::new(sled_path.as_str()).unwrap());
 
     // Set up wallet
     let wallet = Arc::new(SimpleWallet::new(
         blockchain.clone(),
         wallet_store.clone(),
-        bitcoin::Network::Testnet,
+        active_network,
     ));
+
+    let wallet2 = wallet.clone();
 
     // Set up Oracle Client
     let p2p_client: P2PDOracleClient = retry!(
@@ -131,25 +154,26 @@ fn main() {
     ));
 
     // Start periodic_check thread
-
     let bitcoin_check_interval_seconds: u64 = env::var("BITCOIN_CHECK_INTERVAL_SECONDS")
         .unwrap_or("10".to_string())
         .parse::<u64>()
         .unwrap_or(10);
-    let man2 = manager.clone();
+
+    let manager2 = manager.clone();
+    let blockchain2 = blockchain.clone();
     info!("periodic_check loop thread starting");
-    debug!("Wallet address: {:?}", wallet.get_new_address());
+    debug!("Wallet address: {:?}", wallet.get_new_address()); // When supporting a more complete wallet type, consider whether to create a new address on each startup.
     thread::spawn(move || loop {
-        check_close(
-            man2.clone(),
-            blockchain.clone(),
+        periodic_check(
+            manager2.clone(),
+            blockchain2.clone(),
             funded_url.clone(),
             &mut funded_uuids,
         );
         debug!("Wallet balance: {}", wallet.get_balance());
         wallet
             .refresh()
-            .unwrap_or_else(|e| println!("Error refreshing wallet {e}"));
+            .unwrap_or_else(|e| warn!("Error refreshing wallet {e}"));
         thread::sleep(Duration::from_millis(
             cmp::max(10, bitcoin_check_interval_seconds) * 1000,
         ));
@@ -169,6 +193,12 @@ fn main() {
                         Response::json(&("Disabled".to_string())).with_status_code(400)
                     }
                 },
+                (GET) (/unlockutxos) => {
+                    unlock_utxos(wallet2.clone(), Response::json(&("OK".to_string())).with_status_code(200))
+                },
+                (GET) (/empty_to_address/{address: String}) => {
+                    empty_to_address(address, wallet2.clone(), Response::json(&("OK".to_string())).with_status_code(200))
+                },
                 (POST) (/offer) => {
                     info!("Call POST (create) offer {:?}", request);
                     #[derive(Deserialize)]
@@ -180,7 +210,7 @@ fn main() {
                         total_outcomes: u64
                     }
                     let req: OfferRequest = try_or_400!(rouille::input::json_input(request));
-                    add_access_control_headers(create_new_offer(manager.clone(), oracle.clone(), req.uuid, req.accept_collateral, req.offer_collateral, req.total_outcomes))
+                    add_access_control_headers(create_new_offer(manager.clone(), oracle.clone(), blockchain.clone(), active_network, req.uuid, req.accept_collateral, req.offer_collateral, req.total_outcomes))
                 },
                 (OPTIONS) (/offer) => {
                     add_access_control_headers(Response::empty_204())
@@ -196,7 +226,6 @@ fn main() {
                         accept_message: String,
                     }
                     let json: AcceptOfferRequest = try_or_400!(rouille::input::json_input(request));
-                    info!("Accept message: {}", json.accept_message.clone());
                     let accept_dlc: AcceptDlc = match serde_json::from_str(&json.accept_message)
                     {
                         Ok(dlc) => dlc,
@@ -230,7 +259,7 @@ impl FromStr for OfferType {
     }
 }
 
-fn check_close(
+fn periodic_check(
     manager: Arc<Mutex<DlcManager>>,
     blockchain: Arc<dyn Blockchain>,
     funded_url: String,
@@ -342,6 +371,8 @@ fn check_close(
 fn create_new_offer(
     manager: Arc<Mutex<DlcManager>>,
     oracle: Arc<P2PDOracleClient>,
+    blockchain: Arc<BlockcypherBlockchainProvider>,
+    active_network: bitcoin::Network,
     event_id: String,
     accept_collateral: u64,
     offer_collateral: u64,
@@ -365,10 +396,16 @@ fn create_new_offer(
         contract_descriptor: descriptor,
     };
 
+    // Some regtest networks have an unreliable fee estimation service
+    let fee_rate = match active_network {
+        bitcoin::Network::Regtest => 1,
+        _ => blockchain.get_est_sat_per_1000_weight(ConfirmationTarget::HighPriority) as u64,
+    };
+
     let contract_input = ContractInput {
         offer_collateral: offer_collateral,
         accept_collateral: accept_collateral,
-        fee_rate: 2,
+        fee_rate,
         contract_infos: vec![contract_info],
     };
 
@@ -376,13 +413,7 @@ fn create_new_offer(
         &contract_input,
         STATIC_COUNTERPARTY_NODE_ID.parse().unwrap(),
     ) {
-        Ok(dlc) => {
-            debug!(
-                "Create new offer dlc output: {}",
-                serde_json::to_string(dlc).unwrap()
-            );
-            Response::json(dlc)
-        }
+        Ok(dlc) => Response::json(dlc),
         Err(e) => {
             info!("DLC manager - send offer error: {}", e.to_string());
             Response::json(&ErrorsResponse {
@@ -417,10 +448,6 @@ fn accept_offer(accept_dlc: AcceptDlc, manager: Arc<Mutex<DlcManager>>) -> Respo
             );
         }
     } {
-        debug!(
-            "Accept offer - signed dlc output: {}",
-            serde_json::to_string(&sign).unwrap()
-        );
         add_access_control_headers(Response::json(&sign))
     } else {
         panic!();
@@ -428,8 +455,31 @@ fn accept_offer(accept_dlc: AcceptDlc, manager: Arc<Mutex<DlcManager>>) -> Respo
 }
 
 fn delete_all_offers(manager: Arc<Mutex<DlcManager>>, response: Response) -> Response {
+    info!("Deleting all contracts from dlc-store");
     let man = manager.lock().unwrap();
     man.get_store().delete_contracts();
+    return response;
+}
+
+fn unlock_utxos(
+    wallet: Arc<SimpleWallet<Arc<BlockcypherBlockchainProvider>, Arc<SledStorageProvider>>>,
+    response: Response,
+) -> Response {
+    info!("Unlocking UTXOs");
+    wallet.unreserve_all_utxos();
+    return response;
+}
+
+fn empty_to_address(
+    address: String,
+    wallet: Arc<SimpleWallet<Arc<BlockcypherBlockchainProvider>, Arc<SledStorageProvider>>>,
+    response: Response,
+) -> Response {
+    info!("Unlocking UTXOs");
+    match wallet.empty_to_address(&Address::from_str(&address).unwrap()) {
+        Ok(_) => info!("Emptied bitcoin to {address}"),
+        Err(_) => warn!("Failed emptying bitcoin to {address}"),
+    }
     return response;
 }
 

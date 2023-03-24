@@ -12,6 +12,11 @@
 /events_db*
 /contracts_db
 /wallet_db
+/wallet_db_bitcoin
+/wallet_db_testnet
+/wallet_db_signet
+/wallet_db_regtest
+
 .vscode
 .env
 !.env.tempalte
