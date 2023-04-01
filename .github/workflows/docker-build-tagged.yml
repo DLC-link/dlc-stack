@@ -9,7 +9,7 @@ on:
 
 jobs:
     build:
-        name: Build Private Image and Push to ECR on Master
+        name: Build Private Image and Push to ECR on Tag
         runs-on: ubuntu-latest
         steps:
         - name: Check out code
@@ -35,7 +35,7 @@ jobs:
             docker build -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG -f docker/Dockerfile .
             docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
     build-wallet-public:
-        name: Build Protocol Wallet and Push to ECR Public on Master
+        name: Build Protocol Wallet and Push to ECR Public on Tag
         runs-on: ubuntu-latest
         steps:
         - name: Check out code
