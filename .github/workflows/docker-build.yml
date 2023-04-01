@@ -2,7 +2,7 @@ name: Build docker
 
 on:
   push:
-    branches: [ master, feat/add-tls-package-to-electrs-blockchain-provider ]
+    branches: [ master, build-old-versions-to-docker ]
 
 jobs:
   build:
