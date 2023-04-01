@@ -9,8 +9,6 @@ jobs:
     name: Build Image
     runs-on: ubuntu-latest
     steps:
-    - name: Install xmllint
-      run: sudo apt-get install -y ca-certificates
     - name: Check out code
       uses: actions/checkout@v3
     - name: Build and push docker image
