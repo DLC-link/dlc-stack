@@ -16,7 +16,7 @@ dlc-manager = {version = "0.4.0", git = "https://github.com/dlc-link/rust-dlc", 
 dlc-messages = {version = "0.4.0", git = "https://github.com/dlc-link/rust-dlc", branch="feat/add-tls-package-to-electrs-blockchain-provider", features = ["use-serde"]}
 dlc-trie = {version = "0.4.0", git = "https://github.com/dlc-link/rust-dlc", branch="feat/add-tls-package-to-electrs-blockchain-provider", features = ["use-serde"]}
 dlc-sled-storage-provider = {version = "0.1.0", git = "https://github.com/dlc-link/rust-dlc", branch="feat/add-tls-package-to-electrs-blockchain-provider", features=["wallet"]}
-electrs-blockchain-provider = {version = "0.1.0", git = "https://github.com/dlc-link/rust-dlc", branch="feat/add-tls-package-to-electrs-blockchain-provider"}
+electrs-blockchain-provider = {git = "https://github.com/dlc-link/rust-dlc", branch="feat/add-tls-package-to-electrs-blockchain-provider"}
 env_logger = "0.9.0"
 lightning = {version = "0.0.113" }
 hex = "0.4"
