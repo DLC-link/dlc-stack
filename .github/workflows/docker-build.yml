@@ -2,7 +2,7 @@ name: Build docker
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, build-old-versions-to-docker ]
 
 jobs:
   # build:
