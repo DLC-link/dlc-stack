@@ -4,7 +4,7 @@ name: Build docker
 
 on:
   push:
-    branches-ignore: [ master ]
+    branches: [ master ]
     tags:
       - v[0-9]*
 
