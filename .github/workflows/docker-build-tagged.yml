@@ -1,23 +1,47 @@
+# Build and push docker image when not master, but was tagged with v[0-9]*
+
 name: Build docker
 
 on:
   push:
+    branches-ignore: [ master ]
     tags:
       - v[0-9]*
 
 jobs:
-  build-tagged:
-    name: Build Image
+# build:
+#   name: Build Image
+#   runs-on: ubuntu-latest
+#   steps:
+#   - name: Check out code
+#     uses: actions/checkout@v3
+#   - name: Build and push docker image
+#     uses: mr-smithers-excellent/docker-build-push@v6
+#     with:
+#       image: dlc-link-stack
+#       registry: 903295530547.dkr.ecr.us-east-1.amazonaws.com
+#       addLatest: true
+#       dockerfile: docker/Dockerfile
+#     env:
+#       AWS_ACCESS_KEY_ID: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
+#       AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
+  build-wallet-public:
+    name: Build wallet public
     runs-on: ubuntu-latest
     steps:
-        - name: Check out code
-          uses: actions/checkout@v3
-        - name: Build and push docker image
-          uses: mr-smithers-excellent/docker-build-push@v6
-          with:
-            image: dlc-link-stack
-            registry: ${{ secrets.TF_AWS_ACCOUNT_NUMBER }}.dkr.ecr.us-east-1.amazonaws.com
-            addLatest: false
-          env:
-            AWS_ACCESS_KEY_ID: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
-            AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
+    - name: Check out code
+      uses: actions/checkout@v3
+    - name: Login to Amazon ECR Public
+      id: login-ecr-public
+      uses: aws-actions/amazon-ecr-login@v1
+      with:
+        registry-type: public
+    - name: Build and push docker image
+      env:
+        REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+        REGISTRY_ALIAS: dlc-link
+        REPOSITORY: dlc-protocol-wallet
+        IMAGE_TAG: ${{ github.ref }},latest
+      run: |
+        docker build -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG -f wallet/Dockerfile .
+        docker push $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG
