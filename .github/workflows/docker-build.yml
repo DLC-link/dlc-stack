@@ -39,6 +39,9 @@ jobs:
     #   run: |
     #     docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f docker/Dockerfile .
     #     docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+
+    # Put this back
     # - name: Login to Amazon ECR Public
     #   id: login-ecr-public
     #   uses: aws-actions/amazon-ecr-login@v1
