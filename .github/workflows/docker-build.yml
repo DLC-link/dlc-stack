@@ -5,7 +5,7 @@ on:
     branches: [ master, build-old-versions-to-docker ]
 
 env:
-  AWS_ACCOUNT_NUMBER: ${{ secrets.TF_AWS_ACCOUNT_NUMBER }}
+  REGISTRY: ${{ secrets.TF_AWS_ACCOUNT_NUMBER }}.dkr.ecr.us-east-1.amazonaws.com
 
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
       uses: mr-smithers-excellent/docker-build-push@v6
       with:
         image: dlc-link-stack
-        registry: $AWS_ACCOUNT_NUMBER.dkr.ecr.us-east-1.amazonaws.com
+        registry: $REGISTRY
         addLatest: true
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
