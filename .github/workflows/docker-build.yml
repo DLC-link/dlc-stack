@@ -43,7 +43,7 @@ jobs:
         REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
         REGISTRY_ALIAS: dlc-link
         REPOSITORY: dlc-protocol-wallet
-        IMAGE_TAG: ${{ github.ref }},latest
+        IMAGE_TAG: ${{ github.ref }}
       run: |
-        docker build -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG -f wallet/Dockerfile .
+        docker build -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:latest -f wallet/Dockerfile .
         docker push $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG
