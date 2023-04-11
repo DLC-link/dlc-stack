@@ -28,7 +28,7 @@ use dlc_messages::{AcceptDlc, Message};
 use dlc_sled_storage_provider::SledStorageProvider;
 use electrs_blockchain_provider::ElectrsBlockchainProvider;
 use lightning::chain::chaininterface::{ConfirmationTarget, FeeEstimator};
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use simple_wallet::SimpleWallet;
 
 use crate::storage::storage_provider::StorageProvider;
@@ -386,7 +386,7 @@ fn create_new_offer(
     ) {
         Ok(dlc) => Response::json(dlc),
         Err(e) => {
-            info!("DLC manager - send offer error: {}", e.to_string());
+            error!("DLC manager - send offer error: {}", e.to_string());
             Response::json(&ErrorsResponse {
                 status: 400,
                 errors: vec![ErrorResponse {
