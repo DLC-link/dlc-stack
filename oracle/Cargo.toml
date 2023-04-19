@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 actix-web = "4.0.1"
+actix-cors = "0.6.4"
 #actix-rt = "2.7.0"
 anyhow = "1.0.57"
 async-trait = "0.1.53"

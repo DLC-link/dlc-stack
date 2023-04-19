@@ -2,6 +2,7 @@
 extern crate log;
 extern crate core;
 use ::hex::ToHex;
+use actix_cors::Cors;
 use actix_web::{get, web, App, HttpResponse, HttpServer};
 use clap::Parser;
 
@@ -613,7 +614,13 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(8080);
     info!("starting server on port {port}");
     HttpServer::new(move || {
+        let cors = Cors::default();
+        let cors = cors
+            .allow_any_origin()
+            .allowed_methods(vec!["GET", "POST"])
+            .max_age(3600);
         App::new()
+            .wrap(cors)
             .app_data(web::Data::new(oracles.clone()))
             .service(
                 web::scope("/v1")
