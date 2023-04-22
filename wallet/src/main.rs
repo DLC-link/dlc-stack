@@ -21,8 +21,8 @@ use dlc_manager::{
         contract_input::{ContractInput, ContractInputInfo, OracleInput},
         Contract,
     },
-    manager::Manager,
-    Blockchain, Oracle, Storage, SystemTimeProvider, Wallet,
+    manager::{Manager, ManagerOptions},
+    Oracle, Storage, SystemTimeProvider, Wallet,
 };
 use dlc_messages::{AcceptDlc, Message};
 use dlc_sled_storage_provider::SledStorageProvider;
@@ -54,8 +54,6 @@ type DlcManager<'a> = Manager<
     Arc<ElectrsBlockchainProvider>,
 >;
 
-const NUM_CONFIRMATIONS: u32 = 2;
-
 // The contracts in dlc-manager expect a node id, but web extensions often don't have this, so hardcode it for now. Should not have any ramifications.
 const STATIC_COUNTERPARTY_NODE_ID: &str =
     "02fc8e97419286cf05e5d133f41ff6d51f691dda039e9dc007245a421e2c7ec61c";
@@ -81,7 +79,7 @@ fn main() {
     let funded_url: String = env::var("FUNDED_URL")
         .unwrap_or("https://stacks-observer-mocknet.herokuapp.com/funded".to_string());
     let wallet_backend_port: String = env::var("WALLET_BACKEND_PORT").unwrap_or("8085".to_string());
-    let mut funded_uuids: Vec<String> = vec![];
+    let mut funded_contract_ids: Vec<String> = vec![];
 
     // Setup Blockchain Connection Object
     let active_network = match env::var("BITCOIN_NETWORK").as_deref() {
@@ -93,6 +91,10 @@ fn main() {
             "Unknown Bitcoin Network, make sure to set BITCOIN_NETWORK in your env variables"
         ),
     };
+    let num_confirmations: u32 = env::var("NUM_CONFIRMATIONS")
+        .unwrap_or("1".to_string())
+        .parse()
+        .unwrap_or(1);
 
     // ELECTRUM / ELECTRS
     let electrs_host =
@@ -131,6 +133,10 @@ fn main() {
 
     // Set up time provider
     let time_provider = SystemTimeProvider {};
+    let manager_options = ManagerOptions {
+        nb_confirmations: num_confirmations,
+        ..Default::default()
+    };
 
     // Create the DLC Manager
     let manager = Arc::new(Mutex::new(
@@ -141,6 +147,7 @@ fn main() {
             oracles,
             Arc::new(time_provider),
             Arc::clone(&blockchain),
+            Some(manager_options),
         )
         .unwrap(),
     ));
@@ -152,17 +159,23 @@ fn main() {
         .unwrap_or(10);
 
     let manager2 = manager.clone();
-    let blockchain2 = blockchain.clone();
     info!("periodic_check loop thread starting");
-    debug!("Wallet address: {:?}", wallet.get_new_address());
+
+    let address = wallet
+        .get_new_address()
+        .expect("Wallet to generate a new address");
+    debug!("Wallet address: {:?}", address);
     thread::spawn(move || loop {
         periodic_check(
             manager2.clone(),
-            blockchain2.clone(),
             funded_url.clone(),
-            &mut funded_uuids,
+            &mut funded_contract_ids,
         );
-        debug!("Wallet balance: {}", wallet.get_balance());
+        debug!(
+            "Wallet address: {} - balance: {}",
+            address,
+            wallet.get_balance()
+        );
         wallet
             .refresh()
             .unwrap_or_else(|e| warn!("Error refreshing wallet {e}"));
@@ -230,46 +243,57 @@ fn main() {
     });
 }
 
+fn hex_str(value: &[u8]) -> String {
+    let mut res = String::with_capacity(64);
+    for v in value {
+        write!(res, "{:02x}", v).unwrap();
+    }
+    res
+}
+
 fn periodic_check(
     manager: Arc<Mutex<DlcManager>>,
-    blockchain: Arc<dyn Blockchain>,
     funded_url: String,
-    funded_uuids: &mut Vec<String>,
+    funded_contract_ids: &mut Vec<String>,
 ) -> Response {
     let mut collected_response = json!({});
     let mut man = manager.lock().unwrap();
-
-    match man.periodic_check() {
-        Ok(_) => (),
-        Err(e) => {
-            info!("Error in periodic_check, will retry: {}", e.to_string());
-            return Response::empty_400();
-        }
-    };
-
     let store = man.get_store();
 
-    collected_response["signed_contracts"] = store
-        .get_signed_contracts()
-        .unwrap_or(vec![])
-        .iter()
-        .map(|c| {
-            let confirmations = match blockchain
-                .get_transaction_confirmations(&c.accepted_contract.dlc_transactions.fund.txid())
-            {
-                Ok(confirms) => confirms,
-                Err(e) => {
-                    info!("Error checking confirmations: {}", e.to_string());
-                    0
-                }
-            };
-            if confirmations >= NUM_CONFIRMATIONS {
-                let uuid = c.accepted_contract.offered_contract.contract_info[0]
-                    .oracle_announcements[0]
-                    .oracle_event
-                    .event_id
-                    .clone();
-                if !funded_uuids.contains(&uuid) {
+    let mut collected_contracts: Vec<Vec<String>> = vec![
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+    ];
+
+    let contracts = store
+        .get_contracts()
+        .expect("Error retrieving contract list.");
+
+    for contract in contracts {
+        let id = hex_str(&contract.get_id());
+        match contract {
+            Contract::Offered(_) => {
+                collected_contracts[0].push(id);
+            }
+            Contract::Accepted(_) => {
+                collected_contracts[1].push(id);
+            }
+            Contract::Confirmed(c) => {
+                collected_contracts[2].push(id.clone());
+                if !funded_contract_ids.contains(&id) {
+                    let uuid = c.accepted_contract.offered_contract.contract_info[0]
+                        .oracle_announcements[0]
+                        .oracle_event
+                        .event_id
+                        .clone();
+
                     let mut post_body = HashMap::new();
                     post_body.insert("uuid", &uuid);
 
@@ -282,60 +306,70 @@ fn periodic_check(
                         match res {
                             Ok(res) => match res.error_for_status() {
                                 Ok(_res) => {
-                                    funded_uuids.push(uuid.clone());
+                                    funded_contract_ids.push(id.clone());
                                     info!(
-                                        "Success setting funded to true: {}, {}",
+                                        "Success setting funded to true on uuid: {}, {}",
                                         uuid,
                                         _res.status()
                                     );
                                 }
                                 Err(e) => {
                                     info!(
-                                        "Error setting funded to true: {}: {}",
+                                        "Error setting funded to true on uuid: {}: {}",
                                         uuid,
                                         e.to_string()
                                     );
                                 }
                             },
                             Err(e) => {
-                                info!("Error setting funded to true: {}: {}", uuid, e.to_string());
+                                info!(
+                                    "Error setting funded to true on uuid: {}: {}",
+                                    uuid,
+                                    e.to_string()
+                                );
                             }
                         }
                     }
                 }
             }
-            c.accepted_contract.get_contract_id_string()
-        })
-        .collect();
-
-    collected_response["confirmed_contracts"] = store
-        .get_confirmed_contracts()
-        .unwrap_or(vec![])
-        .iter()
-        .map(|c| c.accepted_contract.get_contract_id_string())
-        .collect();
-
-    collected_response["preclosed_contracts"] = store
-        .get_preclosed_contracts()
-        .unwrap_or(vec![])
-        .iter()
-        .map(|c| c.signed_contract.accepted_contract.get_contract_id_string())
-        .collect();
-
-    let mut closed_contracts: Vec<String> = Vec::new();
-    for val in store.get_contracts().unwrap_or(vec![]).iter() {
-        if let Contract::Closed(c) = val {
-            let mut string_id = String::with_capacity(32 * 2 + 2);
-            string_id.push_str("0x");
-            for i in &c.contract_id {
-                write!(string_id, "{:02x}", i).unwrap();
+            Contract::Signed(_) => {
+                collected_contracts[3].push(id);
             }
-            closed_contracts.push(string_id);
+            Contract::Closed(_) => {
+                collected_contracts[4].push(id);
+            }
+            Contract::Refunded(_) => {
+                collected_contracts[5].push(id);
+            }
+            Contract::FailedAccept(_) | Contract::FailedSign(_) => {
+                collected_contracts[6].push(id);
+            }
+            Contract::Rejected(_) => collected_contracts[7].push(id),
+            Contract::PreClosed(_) => collected_contracts[8].push(id),
         }
     }
-    collected_response["closed_contracts"] = closed_contracts.into();
+
+    collected_response["Offered"] = collected_contracts[0].clone().into();
+    collected_response["Accepted"] = collected_contracts[1].clone().into();
+    collected_response["Confirmed"] = collected_contracts[2].clone().into();
+    collected_response["Signed"] = collected_contracts[3].clone().into();
+    collected_response["Closed"] = collected_contracts[4].clone().into();
+    collected_response["Refunded"] = collected_contracts[5].clone().into();
+    collected_response["Failed"] = collected_contracts[6].clone().into();
+    collected_response["Rejected"] = collected_contracts[7].clone().into();
+    collected_response["PreClosed"] = collected_contracts[8].clone().into();
 
     debug!("check_close collected_response: {}", collected_response);
+
+    // Any error within this function raises immediately, so the following logic won't run.
+    match man.periodic_check() {
+        Ok(_) => (),
+        Err(e) => {
+            info!("Error in periodic_check, will retry: {}", e.to_string());
+            return Response::empty_400();
+        }
+    };
+
     Response::json(&collected_response)
 }
 

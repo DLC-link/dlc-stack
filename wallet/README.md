@@ -37,6 +37,8 @@ ORACLE_URL: "https://dev-oracle.dlc.link/oracle",
 RUST_LOG: "warn,dlc_protocol_wallet=debug",
 RUST_BACKTRACE: "full",
 STORAGE_API_ENABLED: "true",
+NUM_CONFIRMATIONS: 6,
+REFUND_DELAY_DAYS: 14,
 STORAGE_API_ENDPOINT: "https://dev-oracle.dlc.link/storage-api",
 ```
 

@@ -372,7 +372,7 @@ dependencies = [
 [[package]]
 name = "bitcoin-test-utils"
 version = "0.1.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?tag=v0.4.0#51517f3f6ad764953983b001efc2eac197ddb080"
+source = "git+https://github.com/dlc-link/rust-dlc?branch=feat/add-options-to-dlc-manager#6d7fc602a911eadd4a3eb638b983ac7d7bd0e0a2"
 dependencies = [
  "bitcoin 0.29.2",
  "bitcoincore-rpc",
@@ -1076,7 +1076,7 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?tag=v0.4.0#51517f3f6ad764953983b001efc2eac197ddb080"
+source = "git+https://github.com/dlc-link/rust-dlc?branch=feat/add-options-to-dlc-manager#6d7fc602a911eadd4a3eb638b983ac7d7bd0e0a2"
 dependencies = [
  "bitcoin 0.29.2",
  "miniscript",
@@ -1108,7 +1108,7 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?tag=v0.4.0#51517f3f6ad764953983b001efc2eac197ddb080"
+source = "git+https://github.com/dlc-link/rust-dlc?branch=feat/add-options-to-dlc-manager#6d7fc602a911eadd4a3eb638b983ac7d7bd0e0a2"
 dependencies = [
  "async-trait",
  "bitcoin 0.29.2",
@@ -1136,7 +1136,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?tag=v0.4.0#51517f3f6ad764953983b001efc2eac197ddb080"
+source = "git+https://github.com/dlc-link/rust-dlc?branch=feat/add-options-to-dlc-manager#6d7fc602a911eadd4a3eb638b983ac7d7bd0e0a2"
 dependencies = [
  "bitcoin 0.29.2",
  "dlc 0.4.0",
@@ -1178,7 +1178,7 @@ dependencies = [
 [[package]]
 name = "dlc-sled-storage-provider"
 version = "0.1.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?tag=v0.4.0#51517f3f6ad764953983b001efc2eac197ddb080"
+source = "git+https://github.com/dlc-link/rust-dlc?branch=feat/add-options-to-dlc-manager#6d7fc602a911eadd4a3eb638b983ac7d7bd0e0a2"
 dependencies = [
  "bitcoin 0.29.2",
  "dlc-manager",
@@ -1235,7 +1235,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?tag=v0.4.0#51517f3f6ad764953983b001efc2eac197ddb080"
+source = "git+https://github.com/dlc-link/rust-dlc?branch=feat/add-options-to-dlc-manager#6d7fc602a911eadd4a3eb638b983ac7d7bd0e0a2"
 dependencies = [
  "bitcoin 0.29.2",
  "dlc 0.4.0",
@@ -1276,7 +1276,7 @@ checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 [[package]]
 name = "electrs-blockchain-provider"
 version = "0.1.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?tag=v0.4.0#51517f3f6ad764953983b001efc2eac197ddb080"
+source = "git+https://github.com/dlc-link/rust-dlc?branch=feat/add-options-to-dlc-manager#6d7fc602a911eadd4a3eb638b983ac7d7bd0e0a2"
 dependencies = [
  "bitcoin 0.29.2",
  "bitcoin-test-utils",
@@ -3384,7 +3384,7 @@ checksum = "420acb44afdae038210c99e69aae24109f32f15500aa708e81d46c9f29d55fcf"
 [[package]]
 name = "simple-wallet"
 version = "0.1.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?tag=v0.4.0#51517f3f6ad764953983b001efc2eac197ddb080"
+source = "git+https://github.com/dlc-link/rust-dlc?branch=feat/add-options-to-dlc-manager#6d7fc602a911eadd4a3eb638b983ac7d7bd0e0a2"
 dependencies = [
  "bitcoin 0.29.2",
  "dlc 0.4.0",

@@ -257,7 +257,7 @@ impl Storage for StorageApiProvider {
     }
 
     fn get_contract_offers(&self) -> Result<Vec<OfferedContract>, Error> {
-        let contracts_per_state = self.get_contracts_by_state("offered".to_string())?;
+        let contracts_per_state = self.get_contracts_by_state("offered".to_string())?; // TODO: If we're already getting by state, why do we need to also match on type later?
         let mut res: Vec<OfferedContract> = Vec::new();
         for val in contracts_per_state {
             if let Contract::Offered(c) = val {
