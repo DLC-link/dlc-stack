@@ -1,12 +1,11 @@
 use displaydoc::Display;
-use sibyls::oracle::OracleError;
 use thiserror::Error;
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug, Display, Error)]
 pub enum SibylsError {
     /// asset pair {0} not recorded
-    UnrecordedAssetPairError(sibyls::AssetPair),
+    UnrecordedAssetPairError(String),
 
     /// datetime RFC3339 parsing error: {0}
     DatetimeParseError(#[from] time::error::Parse),
@@ -18,7 +17,7 @@ pub enum SibylsError {
     DatabaseError(#[from] sled::Error),
 
     /// oracle specific database error: {0}
-    OracleDatabaseError(#[from] OracleError),
+    OracleDatabaseError(String),
 
     /// storage api error: {0}
     StorageApiError(#[from] dlc_clients::ApiError),

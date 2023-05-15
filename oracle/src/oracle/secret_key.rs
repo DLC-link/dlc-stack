@@ -43,7 +43,7 @@ pub async fn get_or_generate_keypair(
     } else {
         secret_key = get_or_generate_secret_from_config(&secp, secret_key_file).unwrap();
     }
-    return KeyPair::from_secret_key(&secp, secret_key);
+    return KeyPair::from_secret_key(&secp, &secret_key);
 }
 
 async fn get_or_generate_secret_from_vault(secp: &Secp256k1<All>) -> anyhow::Result<SecretKey> {
