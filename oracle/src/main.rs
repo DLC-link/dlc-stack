@@ -68,10 +68,8 @@ impl Default for Filters {
 struct ApiOracleEvent {
     event_id: String,
     uuid: String,
-    suredbits_announcement: String,
     rust_announcement_json: String,
     rust_announcement: String,
-    suredbits_attestation: Option<String>,
     rust_attestation_json: Option<String>,
     rust_attestation: Option<String>,
     maturation: String,
@@ -81,10 +79,10 @@ struct ApiOracleEvent {
 fn parse_database_entry(event: IVec) -> ApiOracleEvent {
     let event: DbValue = serde_json::from_str(&String::from_utf8_lossy(&event)).unwrap();
 
-    let announcement_vec = event.3.clone();
+    let announcement_vec = event.1.clone();
     let announcement = OracleAnnouncement::read(&mut Cursor::new(&announcement_vec)).unwrap();
 
-    let db_att = event.4.clone();
+    let db_att = event.2.clone();
     let decoded_att_json = match db_att {
         None => None,
         Some(att_vec) => {
@@ -99,15 +97,13 @@ fn parse_database_entry(event: IVec) -> ApiOracleEvent {
 
     ApiOracleEvent {
         event_id: announcement.oracle_event.event_id.clone(),
-        uuid: event.6,
-        suredbits_announcement: event.1.encode_hex::<String>(),
+        uuid: event.4,
         rust_announcement_json: serde_json::to_string(&announcement).unwrap(),
-        rust_announcement: event.3.encode_hex::<String>(),
-        suredbits_attestation: event.2.map(|att| att.encode_hex::<String>()),
+        rust_announcement: event.1.encode_hex::<String>(),
         rust_attestation_json: decoded_att_json,
-        rust_attestation: event.4.map(|att| att.encode_hex::<String>()),
+        rust_attestation: event.2.map(|att| att.encode_hex::<String>()),
         maturation: announcement.oracle_event.event_maturity_epoch.to_string(),
-        outcome: event.5,
+        outcome: event.3,
     }
 }
 
@@ -210,18 +206,11 @@ async fn create_event(
         uuid, maturation
     );
 
-    // let oracle = match oracles.get(&filters.asset_pair) {
-    //     None => return Err(SibylsError::UnrecordedAssetPairError(filters.asset_pair).into()),
-    //     Some(val) => val,
-    // };
-
     let (announcement_obj, outstanding_sk_nonces) =
         build_announcement(&oracle.key_pair, &oracle.secp, maturation, uuid.clone()).unwrap();
 
     let db_value = DbValue(
         Some(outstanding_sk_nonces),
-        vec![], // SuredBits outcomes no longer supported
-        None,   //Suredbits outcomes no longer supported
         announcement_obj.encode(),
         None,
         None,
@@ -267,7 +256,7 @@ async fn attest(
         return Err(SibylsError::OracleEventNotFoundError(uuid).into());
     }
 
-    info!("retrieving oracle event with maturation {}", path);
+    info!("retrieving oracle event with uuid {}", uuid);
     let mut event: DbValue;
     if oracle.event_handler.storage_api.is_some() {
         let event_vec = match oracle
@@ -289,7 +278,7 @@ async fn attest(
             .sled_db
             .as_ref()
             .unwrap()
-            .get(path.as_bytes())
+            .get(uuid.as_bytes())
             .map_err(SibylsError::DatabaseError)?
         {
             Some(val) => val,
@@ -300,7 +289,7 @@ async fn attest(
 
     let outstanding_sk_nonces = event.clone().0.unwrap();
 
-    let announcement: OracleAnnouncement = serde_json::from_slice(&event.3).unwrap();
+    let announcement = OracleAnnouncement::read(&mut Cursor::new(&event.1)).unwrap();
 
     let num_digits_to_sign = match announcement.oracle_event.event_descriptor {
         dlc_messages::oracle_msgs::EventDescriptor::DigitDecompositionEvent(e) => e.nb_digits,
@@ -325,9 +314,8 @@ async fn attest(
         outcomes,
     );
 
-    event.2 = Some(vec![]); //Some(attestation.suredbits_encode()); no more suredbits, delete this
-    event.5 = Some(*outcome);
-    event.4 = Some(attestation.encode());
+    event.3 = Some(*outcome);
+    event.2 = Some(attestation.encode());
 
     info!(
         "attesting with maturation {} and attestation {:#?}",

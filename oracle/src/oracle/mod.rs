@@ -8,15 +8,12 @@ pub use error::OracleError;
 pub use error::Result;
 
 #[derive(Clone, Deserialize, Serialize)]
-// outstanding_sk_nonces?, suredbits_announcement, suredbits_attestation?, announcement, attestation?, outcome?, uuid
 pub struct DbValue(
-    pub Option<Vec<SecretKey>>,
-    pub Vec<u8>,
-    pub Option<Vec<u8>>,
-    pub Vec<u8>,
-    pub Option<Vec<u8>>,
-    pub Option<u64>,
-    pub String,
+    pub Option<Vec<SecretKey>>, // outstanding_sk_nonces?
+    pub Vec<u8>,                // announcement
+    pub Option<Vec<u8>>,        // attestation?
+    pub Option<u64>,            // outcome?
+    pub String,                 // uuid
 );
 
 #[derive(Clone)]
