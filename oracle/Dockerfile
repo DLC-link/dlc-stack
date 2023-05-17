@@ -1,4 +1,4 @@
-FROM rust:1.62 AS build
+FROM rust:1.65 AS build
 
 COPY Cargo.toml Cargo.lock /app/dlc-oracle/
 WORKDIR /app/dlc-oracle/
