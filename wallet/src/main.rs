@@ -28,7 +28,7 @@ use dlc_messages::{AcceptDlc, Message};
 use dlc_sled_storage_provider::SledStorageProvider;
 use electrs_blockchain_provider::ElectrsBlockchainProvider;
 use lightning::chain::chaininterface::{ConfirmationTarget, FeeEstimator};
-use log::{debug, info, warn};
+use log::{info, warn};
 use simple_wallet::SimpleWallet;
 
 use crate::storage::storage_provider::StorageProvider;
@@ -117,8 +117,6 @@ fn main() {
         active_network,
     ));
 
-    let wallet2 = wallet.clone();
-
     // Set up Oracle Client
     let p2p_client: P2PDOracleClient = retry!(
         P2PDOracleClient::new(&oracle_url),
@@ -153,8 +151,9 @@ fn main() {
 
     let manager2 = manager.clone();
     let blockchain2 = blockchain.clone();
+    let wallet2 = wallet.clone();
+    info!("Please query '/info' endpoint to get wallet info");
     info!("periodic_check loop thread starting");
-    debug!("Wallet address: {:?}", wallet.get_new_address());
     thread::spawn(move || loop {
         periodic_check(
             manager2.clone(),
@@ -162,7 +161,6 @@ fn main() {
             funded_url.clone(),
             &mut funded_uuids,
         );
-        debug!("Wallet balance: {}", wallet.get_balance());
         wallet
             .refresh()
             .unwrap_or_else(|e| warn!("Error refreshing wallet {e}"));
@@ -190,6 +188,10 @@ fn main() {
                 },
                 (GET) (/empty_to_address/{address: String}) => {
                     empty_to_address(address, wallet2.clone(), Response::json(&("OK".to_string())).with_status_code(200))
+                },
+                (GET) (/info) => {
+                    info!("Call info.");
+                    add_access_control_headers(get_wallet_info(manager.clone(), wallet2.clone()))
                 },
                 (POST) (/offer) => {
                     info!("Call POST (create) offer {:?}", request);
@@ -230,26 +232,107 @@ fn main() {
     });
 }
 
+fn get_wallet_info(
+    manager: Arc<Mutex<DlcManager>>,
+    wallet: Arc<SimpleWallet<Arc<ElectrsBlockchainProvider>, Arc<SledStorageProvider>>>,
+) -> Response {
+    let mut info_response = json!({});
+    let mut contracts_json = json!({});
+
+    fn hex_str(value: &[u8]) -> String {
+        let mut res = String::with_capacity(64);
+        for v in value {
+            write!(res, "{:02x}", v).unwrap();
+        }
+        res
+    }
+
+    let man = manager.lock().unwrap();
+    let store = man.get_store();
+
+    let mut collected_contracts: Vec<Vec<String>> = vec![
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+    ];
+
+    let contracts = store
+        .get_contracts()
+        .expect("Error retrieving contract list.");
+
+    for contract in contracts {
+        let id = hex_str(&contract.get_id());
+        match contract {
+            Contract::Offered(_) => {
+                collected_contracts[0].push(id);
+            }
+            Contract::Accepted(_) => {
+                collected_contracts[1].push(id);
+            }
+            Contract::Confirmed(_) => {
+                collected_contracts[2].push(id);
+            }
+            Contract::Signed(_) => {
+                collected_contracts[3].push(id);
+            }
+            Contract::Closed(_) => {
+                collected_contracts[4].push(id);
+            }
+            Contract::Refunded(_) => {
+                collected_contracts[5].push(id);
+            }
+            Contract::FailedAccept(_) | Contract::FailedSign(_) => {
+                collected_contracts[6].push(id);
+            }
+            Contract::Rejected(_) => collected_contracts[7].push(id),
+            Contract::PreClosed(_) => collected_contracts[8].push(id),
+        }
+    }
+
+    contracts_json["Offered"] = collected_contracts[0].clone().into();
+    contracts_json["Accepted"] = collected_contracts[1].clone().into();
+    contracts_json["Confirmed"] = collected_contracts[2].clone().into();
+    contracts_json["Signed"] = collected_contracts[3].clone().into();
+    contracts_json["Closed"] = collected_contracts[4].clone().into();
+    contracts_json["Refunded"] = collected_contracts[5].clone().into();
+    contracts_json["Failed"] = collected_contracts[6].clone().into();
+    contracts_json["Rejected"] = collected_contracts[7].clone().into();
+    contracts_json["PreClosed"] = collected_contracts[8].clone().into();
+
+    info_response["wallet"] = json!({
+        "balance": wallet.get_balance(),
+        "address": wallet.get_new_address().unwrap()
+    });
+    info_response["contracts"] = contracts_json;
+
+    Response::json(&info_response)
+}
+
 fn periodic_check(
     manager: Arc<Mutex<DlcManager>>,
     blockchain: Arc<dyn Blockchain>,
     funded_url: String,
     funded_uuids: &mut Vec<String>,
-) -> Response {
-    let mut collected_response = json!({});
+) -> () {
     let mut man = manager.lock().unwrap();
 
     match man.periodic_check() {
         Ok(_) => (),
         Err(e) => {
             info!("Error in periodic_check, will retry: {}", e.to_string());
-            return Response::empty_400();
+            ()
         }
     };
 
     let store = man.get_store();
 
-    collected_response["signed_contracts"] = store
+    let _ = store
         .get_signed_contracts()
         .unwrap_or(vec![])
         .iter()
@@ -305,38 +388,7 @@ fn periodic_check(
                 }
             }
             c.accepted_contract.get_contract_id_string()
-        })
-        .collect();
-
-    collected_response["confirmed_contracts"] = store
-        .get_confirmed_contracts()
-        .unwrap_or(vec![])
-        .iter()
-        .map(|c| c.accepted_contract.get_contract_id_string())
-        .collect();
-
-    collected_response["preclosed_contracts"] = store
-        .get_preclosed_contracts()
-        .unwrap_or(vec![])
-        .iter()
-        .map(|c| c.signed_contract.accepted_contract.get_contract_id_string())
-        .collect();
-
-    let mut closed_contracts: Vec<String> = Vec::new();
-    for val in store.get_contracts().unwrap_or(vec![]).iter() {
-        if let Contract::Closed(c) = val {
-            let mut string_id = String::with_capacity(32 * 2 + 2);
-            string_id.push_str("0x");
-            for i in &c.contract_id {
-                write!(string_id, "{:02x}", i).unwrap();
-            }
-            closed_contracts.push(string_id);
-        }
-    }
-    collected_response["closed_contracts"] = closed_contracts.into();
-
-    debug!("check_close collected_response: {}", collected_response);
-    Response::json(&collected_response)
+        });
 }
 
 fn create_new_offer(
