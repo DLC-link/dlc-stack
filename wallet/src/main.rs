@@ -453,8 +453,10 @@ fn create_new_offer(
     // Some regtest networks have an unreliable fee estimation service
     let fee_rate = match active_network {
         bitcoin::Network::Regtest => 1,
-        _ => 21242,
+        _ => 2000,
     };
+
+    info!("Using fee rate: {}", fee_rate);
 
     let contract_input = ContractInput {
         offer_collateral: offer_collateral,
