@@ -1,6 +1,6 @@
 extern crate serde;
 
-use log::debug;
+use log::{debug, info};
 use reqwest::{Client, Error, Response, Url};
 use std::fmt::{Debug, Formatter};
 use std::{error, fmt};
@@ -397,15 +397,9 @@ impl StorageApiClient {
         }
     }
 
-    pub async fn get_contract(
-        &self,
-        uuid: String,
-        key: String,
-    ) -> Result<Option<Contract>, ApiError> {
-        let uri = format!(
-            "{}/contracts?key={key}&uuid={uuid}",
-            String::as_str(&self.host.clone())
-        );
+    pub async fn get_contract(&self, uuid: String) -> Result<Option<Contract>, ApiError> {
+        info!("getting contract with uuid: {}", uuid.as_str());
+        let uri = format!("{}/contract/{uuid}", String::as_str(&self.host.clone()));
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.get(url).send().await {
             Ok(result) => result,

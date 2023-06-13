@@ -60,9 +60,8 @@ impl Storage for StorageApiProvider {
     fn get_contract(&self, id: &ContractId) -> Result<Option<Contract>, Error> {
         let cid = get_contract_id_string(*id);
         info!("Get contract by id - {}", cid.clone());
-        let contract_res: Result<Option<dlc_clients::Contract>, ApiError> = self
-            .runtime
-            .block_on(self.client.get_contract(cid.clone(), self.key.clone()));
+        let contract_res: Result<Option<dlc_clients::Contract>, ApiError> =
+            self.runtime.block_on(self.client.get_contract(cid.clone()));
         if let Some(res) = contract_res.map_err(to_storage_error)? {
             let bytes = base64::decode(res.content).unwrap();
             let contract = deserialize_contract(&bytes)?;
@@ -171,14 +170,13 @@ impl Storage for StorageApiProvider {
             contract_id.clone(),
             curr_state.clone()
         );
-        let contract_res: Result<Option<dlc_clients::Contract>, ApiError> = self.runtime.block_on(
-            self.client
-                .get_contract(contract_id.clone(), self.key.clone()),
-        );
+        let contract_res: Result<Option<dlc_clients::Contract>, ApiError> = self
+            .runtime
+            .block_on(self.client.get_contract(contract_id.clone()));
         let unw_contract = match contract_res {
             Ok(res) => {
                 info!(
-                    "Contract has been gathered sucessfully with id {}.",
+                    "Response from storage receieved sucessfully for contract with id {}.",
                     contract_id.clone()
                 );
                 res

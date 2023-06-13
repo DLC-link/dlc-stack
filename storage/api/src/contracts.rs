@@ -5,6 +5,7 @@ use actix_web::{delete, get, post, put, HttpResponse, Responder};
 use dlc_storage_common::models::{ContractRequestParams, NewContract, UpdateContract};
 use dlc_storage_reader;
 use dlc_storage_writer;
+use log::info;
 
 #[get("/contracts")]
 pub async fn get_contracts(
@@ -21,10 +22,11 @@ pub async fn get_contracts(
     HttpResponse::Ok().json(contracts)
 }
 
-#[get("/contracts/{uuid}")]
+#[get("/contract/{uuid}")]
 pub async fn get_contract(pool: Data<DbPool>, uuid: Path<String>) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
-    let result = dlc_storage_reader::get_contract(&mut conn, &uuid.into_inner());
+    let result = dlc_storage_reader::get_contract(&mut conn, &uuid.clone());
+    info!("get_contract called for uuid: {}", &uuid.into_inner());
     match result {
         Ok(contract) => HttpResponse::Ok().json(contract),
         Err(diesel::result::Error::NotFound) => HttpResponse::NotFound().body("Contract not found"),
