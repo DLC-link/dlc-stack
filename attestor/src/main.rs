@@ -21,7 +21,7 @@ use sled::IVec;
 use std::path::PathBuf;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
-use sibyls::oracle::DbValue;
+use attestor::oracle::DbValue;
 
 use dlc_messages::oracle_msgs::{
     DigitDecompositionEventDescriptor, EventDescriptor, OracleAnnouncement, OracleAttestation,
@@ -29,8 +29,8 @@ use dlc_messages::oracle_msgs::{
 };
 
 mod error;
-use error::SibylsError;
-use sibyls::oracle::secret_key::get_or_generate_keypair;
+use attestor::oracle::secret_key::get_or_generate_keypair;
+use error::AttestorError;
 
 mod oracle;
 use oracle::Oracle;
@@ -199,7 +199,7 @@ async fn create_event(
     info!("GET /create_event/{}: {:#?}", path, filters);
     let uuid = path.to_string();
     let maturation = OffsetDateTime::parse(&filters.maturation, &Rfc3339)
-        .map_err(SibylsError::DatetimeParseError)?;
+        .map_err(AttestorError::DatetimeParseError)?;
 
     info!(
         "Creating event for uuid:{} and maturation_time :{}",
@@ -253,7 +253,7 @@ async fn attest(
 
     if oracle.event_handler.is_empty() {
         info!("no oracle events found");
-        return Err(SibylsError::OracleEventNotFoundError(uuid).into());
+        return Err(AttestorError::OracleEventNotFoundError(uuid).into());
     }
 
     info!("retrieving oracle event with uuid {}", uuid);
@@ -269,7 +269,7 @@ async fn attest(
             .unwrap()
         {
             Some(val) => val,
-            None => return Err(SibylsError::OracleEventNotFoundError(uuid).into()),
+            None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
         };
         event = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).unwrap();
     } else {
@@ -279,10 +279,10 @@ async fn attest(
             .as_ref()
             .unwrap()
             .get(uuid.as_bytes())
-            .map_err(SibylsError::DatabaseError)?
+            .map_err(AttestorError::DatabaseError)?
         {
             Some(val) => val,
-            None => return Err(SibylsError::OracleEventNotFoundError(uuid).into()),
+            None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
         };
         event = serde_json::from_str(&String::from_utf8_lossy(&event_ivec)).unwrap();
     }
@@ -294,7 +294,7 @@ async fn attest(
     let num_digits_to_sign = match announcement.oracle_event.event_descriptor {
         dlc_messages::oracle_msgs::EventDescriptor::DigitDecompositionEvent(e) => e.nb_digits,
         _ => {
-            return Err(SibylsError::OracleEventNotFoundError(
+            return Err(AttestorError::OracleEventNotFoundError(
                 "Got an unexpected EventDescriptor type!".to_string(),
             )
             .into())
@@ -335,7 +335,7 @@ async fn attest(
             .unwrap()
         {
             Some(val) => val,
-            None => return Err(SibylsError::OracleEventNotFoundError(uuid).into()),
+            None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
         };
     } else {
         let _insert_event = match oracle
@@ -344,10 +344,10 @@ async fn attest(
             .as_ref()
             .unwrap()
             .insert(path.clone().as_bytes(), new_event.clone())
-            .map_err(SibylsError::DatabaseError)?
+            .map_err(AttestorError::DatabaseError)?
         {
             Some(val) => val,
-            None => return Err(SibylsError::OracleEventNotFoundError(uuid).into()),
+            None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
         };
     }
     Ok(HttpResponse::Ok().json(parse_database_entry(new_event.into())))
@@ -403,7 +403,7 @@ async fn get_announcement(
 
     if oracle.event_handler.is_empty() {
         info!("no oracle events found");
-        return Err(SibylsError::OracleEventNotFoundError(path.to_string()).into());
+        return Err(AttestorError::OracleEventNotFoundError(path.to_string()).into());
     }
 
     info!("retrieving oracle event with uuid {}", uuid);
@@ -418,7 +418,7 @@ async fn get_announcement(
             .unwrap()
         {
             Some(val) => val,
-            None => return Err(SibylsError::OracleEventNotFoundError(path.to_string()).into()),
+            None => return Err(AttestorError::OracleEventNotFoundError(path.to_string()).into()),
         };
         Ok(HttpResponse::Ok().json(parse_database_entry(event.into())))
     } else {
@@ -428,10 +428,10 @@ async fn get_announcement(
             .as_ref()
             .unwrap()
             .get(uuid.as_bytes())
-            .map_err(SibylsError::DatabaseError)?
+            .map_err(AttestorError::DatabaseError)?
         {
             Some(val) => val,
-            None => return Err(SibylsError::OracleEventNotFoundError(path.to_string()).into()),
+            None => return Err(AttestorError::OracleEventNotFoundError(path.to_string()).into()),
         };
         Ok(HttpResponse::Ok().json(parse_database_entry(event)))
     }
