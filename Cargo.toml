@@ -2,6 +2,7 @@
 members = [
     "esplora-async-blockchain-provider",
     "js-interface-wallet",
+    "attestor",
     "oracle",
     "oracle-discovery",
     "wallet",

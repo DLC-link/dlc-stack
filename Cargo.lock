@@ -358,6 +358,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "attestor"
+version = "0.1.0"
+dependencies = [
+ "actix-cors",
+ "actix-web",
+ "anyhow",
+ "async-trait",
+ "base64 0.13.1",
+ "bitcoin",
+ "chrono",
+ "clap 3.2.25",
+ "clokwerk",
+ "config",
+ "displaydoc",
+ "dlc 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dlc-clients",
+ "dlc-messages 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger",
+ "futures",
+ "gethostname",
+ "hex",
+ "humantime",
+ "lightning",
+ "log",
+ "parking_lot 0.12.1",
+ "queues",
+ "reqwest",
+ "secp256k1-zkp",
+ "serde",
+ "serde_json",
+ "sled",
+ "thiserror",
+ "time 0.3.21",
+ "tokio",
+ "vaultrs",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
