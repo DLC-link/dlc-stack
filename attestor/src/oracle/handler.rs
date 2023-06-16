@@ -6,7 +6,7 @@ use sled::{Config, Db};
 use std::env;
 
 extern crate futures;
-extern crate tokio;
+// extern crate tokio;
 
 #[derive(Clone)]
 pub struct EventHandler {

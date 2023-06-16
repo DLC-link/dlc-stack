@@ -23,11 +23,11 @@ pub enum AttestorError {
     StorageApiError(#[from] dlc_clients::ApiError),
 }
 
-impl actix_web::error::ResponseError for AttestorError {
-    fn status_code(&self) -> actix_web::http::StatusCode {
-        if let AttestorError::DatetimeParseError(_) = self {
-            return actix_web::http::StatusCode::BAD_REQUEST;
-        }
-        actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
-    }
-}
+// impl actix_web::error::ResponseError for AttestorError {
+//     fn status_code(&self) -> actix_web::http::StatusCode {
+//         if let AttestorError::DatetimeParseError(_) = self {
+//             return actix_web::http::StatusCode::BAD_REQUEST;
+//         }
+//         actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
+//     }
+// }

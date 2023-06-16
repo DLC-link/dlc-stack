@@ -3,15 +3,17 @@ name = "attestor"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "attestor"
-path = "src/main.rs"
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = "4.0.1"
-actix-cors = "0.6.4"
+# actix-web = "4.0.1"
+# actix-cors = "0.6.4"
 #actix-rt = "2.7.0"
 anyhow = "1.0.57"
 async-trait = "0.1.53"
@@ -26,20 +28,32 @@ dlc = {version = "0.4.0", features = ["use-serde"]}
 dlc-messages = {version = "0.4.0", features = ["use-serde"]}
 env_logger = "0.9.0"
 futures = "0.3.21"
-gethostname = "0.3.0"
+# gethostname = "0.3.0"
 hex = "0.4"
 humantime = "2.1.0"
 lightning = "0.0.113"
 log = "0.4.17"
 parking_lot = "0.12.0"
 queues = "1.1.0"
-reqwest = { version = "0.11.10", features = ["json"] }
+# reqwest = { version = "0.11.10", features = ["json"] }
 secp256k1-zkp = {version = "0.7.0", features = ["bitcoin_hashes", "global-context", "rand", "rand-std", "serde"]}
 serde = { version = "1.0.137", features = ["derive"] }
 serde_json = "1.0.81"
 sled = "0.34"
 thiserror = "1.0.31"
 time = { version = "0.3.9", features = ["formatting", "serde-human-readable"] }
-tokio = { version = "1.18.2", features = ["full"] }
-vaultrs = { version = "0.6.2", default-features = true }
+# tokio = { version = "1.18.2", features = ["full"] }
+# vaultrs = { version = "0.6.2", default-features = true }
 dlc-clients = { path = "../clients" }
+serde-wasm-bindgen = "0.4"
+wasm-bindgen-futures = {version="0.4.34"}
+wasm-bindgen = { version = "0.2.84", features = ["serde-serialize"] }
+console_error_panic_hook = { version = "0.1.6", optional = true }
+getrandom = { version = "0.2", features = ["js"] }
+js-sys = "0.3.61"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "console",
+]
