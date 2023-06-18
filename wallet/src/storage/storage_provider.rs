@@ -20,7 +20,7 @@ pub struct StorageProvider {
 }
 
 impl StorageProvider {
-    pub fn new() -> Self {
+    pub fn new(key: String) -> Result<Self, Error> {
         let memory_storage = MemoryStorage::new();
         let use_storage_api: bool = env::var("STORAGE_API_ENABLED")
             .unwrap_or("false".to_string())
@@ -32,25 +32,33 @@ impl StorageProvider {
             .unwrap();
         let sled_path: String = env::var("SLED_PATH").unwrap_or("contracts_db".to_string());
         if use_storage_api {
-            info!("Storage API enabled: {}", use_storage_api);
-            Self {
+            info!(
+                "Storage API enabled: {}, using key: {}",
+                use_storage_api, key
+            );
+
+            if key.is_empty() {
+                return Err(Error::StorageError("Key is required".to_string()));
+            }
+
+            Ok(Self {
                 memory_storage: memory_storage,
                 sled_storage: None,
-                storage_api: Some(StorageApiProvider::new()),
-            }
+                storage_api: Some(StorageApiProvider::new(key)),
+            })
         } else if use_sled {
             info!("Sled enabled: {}", use_sled);
-            Self {
+            Ok(Self {
                 memory_storage: memory_storage,
                 sled_storage: Some(SledStorageProvider::new(sled_path.as_str()).unwrap()),
                 storage_api: None,
-            }
+            })
         } else {
-            Self {
+            Ok(Self {
                 memory_storage: memory_storage,
                 sled_storage: None,
                 storage_api: None,
-            }
+            })
         }
     }
 
@@ -67,7 +75,7 @@ impl StorageProvider {
 
 impl Default for StorageProvider {
     fn default() -> Self {
-        Self::new()
+        Self::new("".to_string()).unwrap()
     }
 }
 

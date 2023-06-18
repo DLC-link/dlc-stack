@@ -47,7 +47,6 @@ async fn main() -> std::io::Result<()> {
             }))
             .service(get_contracts)
             .service(get_contract)
-            .service(get_contracts_by_state)
             .service(create_contract)
             .service(update_contract)
             .service(delete_contract)

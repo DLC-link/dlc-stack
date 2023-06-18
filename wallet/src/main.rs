@@ -7,7 +7,11 @@ extern crate rouille;
 use std::{
     cmp,
     collections::HashMap,
-    env, panic,
+    env,
+    fs::File,
+    io::{Read, Write},
+    panic,
+    path::PathBuf,
     str::FromStr,
     sync::{Arc, Mutex},
     thread,
@@ -27,8 +31,8 @@ use dlc_manager::{
 use dlc_messages::{AcceptDlc, Message};
 use dlc_sled_storage_provider::SledStorageProvider;
 use electrs_blockchain_provider::ElectrsBlockchainProvider;
-use lightning::chain::chaininterface::{ConfirmationTarget, FeeEstimator};
-use log::{info, warn};
+use log::{debug, info, warn};
+use secp256k1_zkp::{rand, All, PublicKey, Secp256k1, SecretKey};
 use simple_wallet::SimpleWallet;
 
 use crate::storage::storage_provider::StorageProvider;
@@ -74,6 +78,32 @@ struct ErrorsResponse {
     status: u64,
 }
 
+fn get_or_generate_secret_from_config(
+    secp: &Secp256k1<All>,
+    secret_key_file_path: std::path::PathBuf,
+) -> SecretKey {
+    let mut secret_key = String::new();
+    if secret_key_file_path.exists() {
+        info!(
+            "reading secret key from {} (default)",
+            secret_key_file_path.file_name().unwrap().to_string_lossy()
+        );
+        File::open(secret_key_file_path)
+            .unwrap()
+            .read_to_string(&mut secret_key)
+            .unwrap();
+        secret_key.retain(|c| !c.is_whitespace());
+        SecretKey::from_str(&secret_key).unwrap()
+    } else {
+        info!("no secret key file was found, generating secret key");
+        let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
+        let mut file = File::create(secret_key_file_path).unwrap();
+        file.write_all(new_key.display_secret().to_string().as_bytes())
+            .unwrap();
+        new_key
+    }
+}
+
 fn main() {
     env_logger::init();
     let oracle_url: String = env::var("ORACLE_URL").unwrap_or("http://localhost:8080".to_string());
@@ -101,9 +131,6 @@ fn main() {
         electrs_host.to_string(),
         active_network,
     ));
-
-    // Set up DLC store
-    let store = StorageProvider::new();
 
     // Set up wallet store
     let root_sled_path: String = env::var("SLED_WALLET_PATH").unwrap_or("wallet_db".to_string());
@@ -138,12 +165,21 @@ fn main() {
         "get blockchain height"
     );
 
+    let secp: Secp256k1<All> = Secp256k1::new();
+    let secret_key = get_or_generate_secret_from_config(&secp, PathBuf::from("secret.key"));
+    let pubkey = PublicKey::from_secret_key(&secp, &secret_key);
+
+    info!("Starting DLC Manager with pubkey: {}", pubkey.to_string());
+
+    // Set up DLC store
+    let dlc_store = StorageProvider::new(pubkey.to_string()).unwrap();
+
     // Create the DLC Manager
     let manager = Arc::new(Mutex::new(
         Manager::new(
             Arc::clone(&wallet),
             Arc::clone(&blockchain),
-            Box::new(store),
+            Box::new(dlc_store),
             oracles,
             Arc::new(time_provider),
             Arc::clone(&blockchain),
@@ -215,7 +251,7 @@ fn main() {
                         total_outcomes: u64
                     }
                     let req: OfferRequest = try_or_400!(rouille::input::json_input(request));
-                    add_access_control_headers(create_new_offer(manager.clone(), oracle.clone(), blockchain.clone(), active_network, req.uuid, req.accept_collateral, req.offer_collateral, req.total_outcomes))
+                    add_access_control_headers(create_new_offer(manager.clone(), oracle.clone(), active_network, req.uuid, req.accept_collateral, req.offer_collateral, req.total_outcomes))
                 },
                 (OPTIONS) (/offer) => {
                     add_access_control_headers(Response::empty_204())
@@ -344,69 +380,68 @@ fn periodic_check(
 
     let store = man.get_store();
 
-    let _ = store
-        .get_signed_contracts()
-        .unwrap_or(vec![])
-        .iter()
-        .map(|c| {
-            let confirmations = match blockchain
-                .get_transaction_confirmations(&c.accepted_contract.dlc_transactions.fund.txid())
-            {
-                Ok(confirms) => confirms,
-                Err(e) => {
-                    info!("Error checking confirmations: {}", e.to_string());
-                    0
-                }
-            };
-            if confirmations >= NUM_CONFIRMATIONS {
-                let uuid = c.accepted_contract.offered_contract.contract_info[0]
-                    .oracle_announcements[0]
-                    .oracle_event
-                    .event_id
-                    .clone();
-                if !funded_uuids.contains(&uuid) {
-                    let mut post_body = HashMap::new();
-                    post_body.insert("uuid", &uuid);
+    let mut contracts = store.get_signed_contracts().unwrap_or(vec![]);
+    contracts.append(&mut store.get_confirmed_contracts().unwrap_or(vec![]));
 
-                    let client = reqwest::blocking::Client::builder()
-                        .use_rustls_tls()
-                        .build();
-                    if client.is_ok() {
-                        let res = client.unwrap().post(&funded_url).json(&post_body).send();
+    let checked_contracts_must_use = contracts.iter().map(|c| {
+        let confirmations = match blockchain
+            .get_transaction_confirmations(&c.accepted_contract.dlc_transactions.fund.txid())
+        {
+            Ok(confirms) => confirms,
+            Err(e) => {
+                info!("Error checking confirmations: {}", e.to_string());
+                0
+            }
+        };
+        if confirmations >= NUM_CONFIRMATIONS {
+            let uuid = c.accepted_contract.offered_contract.contract_info[0].oracle_announcements
+                [0]
+            .oracle_event
+            .event_id
+            .clone();
+            if !funded_uuids.contains(&uuid) {
+                debug!("Contract is funded, setting funded to true: {}", uuid);
+                let mut post_body = HashMap::new();
+                post_body.insert("uuid", &uuid);
 
-                        match res {
-                            Ok(res) => match res.error_for_status() {
-                                Ok(_res) => {
-                                    funded_uuids.push(uuid.clone());
-                                    info!(
-                                        "Success setting funded to true: {}, {}",
-                                        uuid,
-                                        _res.status()
-                                    );
-                                }
-                                Err(e) => {
-                                    info!(
-                                        "Error setting funded to true: {}: {}",
-                                        uuid,
-                                        e.to_string()
-                                    );
-                                }
-                            },
+                let client = reqwest::blocking::Client::builder()
+                    .use_rustls_tls()
+                    .build();
+                if client.is_ok() {
+                    let res = client.unwrap().post(&funded_url).json(&post_body).send();
+
+                    match res {
+                        Ok(res) => match res.error_for_status() {
+                            Ok(_res) => {
+                                funded_uuids.push(uuid.clone());
+                                info!(
+                                    "Success setting funded to true: {}, {}",
+                                    uuid,
+                                    _res.status()
+                                );
+                            }
                             Err(e) => {
                                 info!("Error setting funded to true: {}: {}", uuid, e.to_string());
                             }
+                        },
+                        Err(e) => {
+                            info!("Error setting funded to true: {}: {}", uuid, e.to_string());
                         }
                     }
                 }
             }
-            c.accepted_contract.get_contract_id_string()
-        });
+        }
+        c.accepted_contract.get_contract_id_string()
+    });
+
+    // Oddly, this line of code is required otherwise the above code doesn't run, likely due to lazy evaluation
+    // This is even true when assigning with a let statement and _ variable
+    let _ = checked_contracts_must_use.collect::<Vec<String>>();
 }
 
 fn create_new_offer(
     manager: Arc<Mutex<DlcManager>>,
     oracle: Arc<P2PDOracleClient>,
-    blockchain: Arc<ElectrsBlockchainProvider>,
     active_network: bitcoin::Network,
     event_id: String,
     accept_collateral: u64,
@@ -504,7 +539,14 @@ fn accept_offer(accept_dlc: AcceptDlc, manager: Arc<Mutex<DlcManager>>) -> Respo
     } {
         add_access_control_headers(Response::json(&sign))
     } else {
-        panic!();
+        return Response::json(&ErrorsResponse {
+            status: 400,
+            errors: vec![ErrorResponse {
+                message: format!("Error: invalid Sign message for accept_offer function"),
+                code: None,
+            }],
+        })
+        .with_status_code(400);
     }
 }
 

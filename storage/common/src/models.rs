@@ -8,6 +8,7 @@ pub struct NewContract {
     pub uuid: String,
     pub state: String,
     pub content: String,
+    pub key: String,
 }
 
 #[derive(Serialize, Deserialize, Queryable, Debug)]
@@ -16,6 +17,7 @@ pub struct Contract {
     pub uuid: String,
     pub state: String,
     pub content: String,
+    pub key: String,
 }
 
 #[derive(Serialize, Deserialize, AsChangeset, Debug)]
@@ -43,4 +45,11 @@ pub struct Event {
 #[diesel(table_name = events)]
 pub struct UpdateEvent {
     content: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ContractRequestParams {
+    pub key: String,
+    pub uuid: Option<String>,
+    pub state: Option<String>,
 }

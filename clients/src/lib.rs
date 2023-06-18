@@ -1,5 +1,6 @@
 extern crate serde;
 
+use log::{debug, info};
 use reqwest::{Client, Error, Response, Url};
 use std::fmt::{Debug, Formatter};
 use std::{error, fmt};
@@ -56,6 +57,7 @@ pub struct NewContract {
     pub uuid: String,
     pub state: String,
     pub content: String,
+    pub key: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -249,8 +251,9 @@ impl StorageApiClient {
         }
     }
 
-    pub async fn get_contracts(&self) -> Result<Vec<Contract>, ApiError> {
-        let uri = format!("{}/contracts", String::as_str(&self.host.clone()));
+    pub async fn get_contracts(&self, key: String) -> Result<Vec<Contract>, ApiError> {
+        let uri = format!("{}/contracts?key={key}", String::as_str(&self.host.clone()),);
+        debug!("get_contracts calling for URI: {}", uri);
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.get(url).send().await {
             Ok(result) => result,
@@ -354,11 +357,14 @@ impl StorageApiClient {
         }
     }
 
-    pub async fn get_contracts_by_state(&self, state: String) -> Result<Vec<Contract>, ApiError> {
+    pub async fn get_contracts_by_state(
+        &self,
+        state: String,
+        key: String,
+    ) -> Result<Vec<Contract>, ApiError> {
         let uri = format!(
-            "{}/contracts/state/{}",
-            String::as_str(&self.host.clone()),
-            state
+            "{}/contracts?key={key}&state={state}",
+            String::as_str(&self.host.clone())
         );
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.get(url).send().await {
@@ -392,11 +398,8 @@ impl StorageApiClient {
     }
 
     pub async fn get_contract(&self, uuid: String) -> Result<Option<Contract>, ApiError> {
-        let uri = format!(
-            "{}/contracts/{}",
-            String::as_str(&self.host.clone()),
-            uuid.as_str()
-        );
+        info!("getting contract with uuid: {}", uuid.as_str());
+        let uri = format!("{}/contract/{uuid}", String::as_str(&self.host.clone()));
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.get(url).send().await {
             Ok(result) => result,

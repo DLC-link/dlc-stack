@@ -6,6 +6,7 @@ table! {
         uuid -> Varchar,
         state -> Varchar,
         content -> Text,
+        key -> Varchar,
     }
 }
 

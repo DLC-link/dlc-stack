@@ -15,9 +15,25 @@ pub fn run_migrations(conn: &mut PgConnection) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn get_contracts(conn: &mut PgConnection) -> Result<Vec<Contract>, diesel::result::Error> {
+pub fn get_contracts(
+    conn: &mut PgConnection,
+    request_params: ContractRequestParams,
+) -> Result<Vec<Contract>, diesel::result::Error> {
     use crate::schema::contracts::dsl::*;
-    let results = contracts.load::<Contract>(conn)?;
+    let mut query = contracts.into_boxed();
+    query = query.filter(key.eq(request_params.key));
+
+    let cstate = request_params.state.clone();
+    if let Some(cstate) = request_params.state {
+        query = query.filter(state.eq(cstate));
+    }
+
+    let cuuid = request_params.uuid.clone();
+    if let Some(cuuid) = request_params.uuid {
+        query = query.filter(uuid.eq(cuuid));
+    }
+
+    let results = query.load::<Contract>(conn)?;
     Ok(results)
 }
 
@@ -28,17 +44,6 @@ pub fn get_contract(
     use crate::schema::contracts::dsl::*;
     let result = contracts.filter(uuid.eq(cuuid)).first(conn)?;
     Ok(result)
-}
-
-pub fn get_contracts_by_state(
-    conn: &mut PgConnection,
-    state_input: &str,
-) -> Result<Vec<Contract>, diesel::result::Error> {
-    use crate::schema::contracts::dsl::*;
-    let results = contracts
-        .filter(state.eq(state_input))
-        .load::<Contract>(conn)?;
-    Ok(results)
 }
 
 pub fn create_contract(
