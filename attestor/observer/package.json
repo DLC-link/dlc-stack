@@ -1,0 +1,45 @@
+{
+  "name": "observer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bootstrap.js",
+  "scripts": {
+    "develop": "webpack-dev-server --mode development",
+    "build": "webpack --mode production",
+    "lint": "npx prettier . --write",
+    "test": "jest"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/mime-types": "^2.1.1",
+    "@types/node": "^18.14.1",
+    "@types/node-fetch": "^2.6.2",
+    "@types/strftime": "^0.9.4",
+    "ts-loader": "^9.4.3",
+    "ts-node": "^10.9.1",
+    "tsc-watch": "^6.0.0",
+    "typescript": "^4.9.5",
+    "webpack": "^5.87.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "copy-webpack-plugin": "^11.0.0"
+  },
+  "dependencies": {
+    "@stacks/blockchain-api-client": "^7.0.1",
+    "@stacks/common": "^6.0.0",
+    "@stacks/network": "^6.1.1",
+    "@stacks/transactions": "^6.2.0",
+    "attestor": "file:../pkg",
+    "dotenv": "^16.0.3",
+    "ethers": "^5.7.2",
+    "express": "^4.18.2",
+    "jimp": "^0.22.7",
+    "micro-stacks": "^1.1.4",
+    "mime-types": "^2.1.35",
+    "nft.storage": "^7.0.0",
+    "node-fetch": "^3.3.0",
+    "redstone-api-extended": "^1.0.12",
+    "strftime": "^0.10.1"
+  }
+}

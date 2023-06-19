@@ -8,3 +8,4 @@ nohup.out
 *.iml
 
 node_modules
+dist

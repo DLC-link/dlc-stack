@@ -52,23 +52,24 @@ extern "C" {
 
 #[wasm_bindgen]
 pub struct Attestor {
-    oracle: Oracle,
+    // oracle: Oracle,
 }
 
 #[wasm_bindgen]
 impl Attestor {
     pub async fn new() -> Attestor {
-        let secp = Secp256k1::new();
-        let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
-        let key_pair = KeyPair::from_secret_key(&secp, &new_key);
+        // let secp = Secp256k1::new();
+        // let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
+        // let key_pair = KeyPair::from_secret_key(&secp, &new_key);
         //     info!(
         //         "oracle keypair successfully generated, pubkey is {}",
         //         key_pair.public_key().serialize().encode_hex::<String>()
         //     );
 
         //     // setup event databases
-        let oracle = Oracle::new(key_pair, secp).unwrap();
-        Attestor { oracle }
+        // let oracle = Oracle::new(key_pair, secp).unwrap();
+        // Attestor { oracle }
+        Attestor {}
     }
 
     pub async fn create_event(&self, uuid: &str, maturation: &str) -> Result<(), JsValue> {
