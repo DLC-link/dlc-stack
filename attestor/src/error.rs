@@ -13,9 +13,6 @@ pub enum AttestorError {
     /// oracle event with uuid {0} not found
     OracleEventNotFoundError(String),
 
-    /// database error: {0}
-    DatabaseError(#[from] sled::Error),
-
     /// oracle specific database error: {0}
     OracleDatabaseError(String),
 

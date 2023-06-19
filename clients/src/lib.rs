@@ -2,6 +2,7 @@ extern crate serde;
 
 use log::{debug, info};
 use reqwest::{Client, Error, Response, Url};
+use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::{error, fmt};
 
@@ -222,6 +223,82 @@ impl OracleBackendClient {
                 status: status_clone.as_u16(),
             })
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct MemoryApiClient {
+    events: HashMap<String, String>,
+}
+
+impl MemoryApiClient {
+    pub fn new() -> Self {
+        Self {
+            events: HashMap::new(),
+        }
+    }
+
+    pub async fn get_events(&self) -> Result<Vec<Event>, ApiError> {
+        let mut events: Vec<Event> = Vec::new();
+        for (uuid, content) in self.events.iter() {
+            events.push(Event {
+                id: 1,
+                event_id: uuid.to_string(),
+                content: content.to_string(),
+            });
+        }
+        Ok(events)
+    }
+
+    pub async fn get_event(&self, uuid: String) -> Result<Option<Event>, ApiError> {
+        let res = self.events.get(&uuid);
+        if res.is_none() {
+            return Ok(None);
+        }
+        Ok(Some(Event {
+            id: 1,
+            event_id: uuid,
+            content: res.unwrap().to_string(),
+        }))
+    }
+
+    pub async fn create_event(&mut self, event: NewEvent) -> Result<Event, ApiError> {
+        self.events
+            .insert(event.event_id.clone(), event.content.clone());
+        Ok(Event {
+            id: 1,
+            event_id: event.event_id,
+            content: event.content,
+        })
+    }
+
+    pub async fn update_event(&mut self, uuid: String, event: UpdateEvent) -> Result<(), ApiError> {
+        if event.content.is_none() {
+            return Err(ApiError {
+                message: "Event data empty".to_string(),
+                status: 404,
+            });
+        }
+        let content = event.content.unwrap();
+
+        let res = self.events.get(&uuid);
+        if res.is_none() {
+            return Err(ApiError {
+                message: "Event not found".to_string(),
+                status: 404,
+            });
+        }
+        self.events.remove(&uuid);
+        self.events.insert(uuid, content);
+        return Ok(());
+    }
+
+    pub async fn delete_event(&self, uuid: String) -> Result<(), ApiError> {
+        unimplemented!()
+    }
+
+    pub async fn delete_events(&self) -> Result<(), ApiError> {
+        unimplemented!()
     }
 }
 
