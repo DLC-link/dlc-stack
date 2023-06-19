@@ -2,11 +2,7 @@
 extern crate log;
 extern crate core;
 use ::hex::ToHex;
-// use actix_cors::Cors;
-// use actix_web::{get, web, App, HttpResponse, HttpServer};
 use wasm_bindgen::prelude::*;
-
-use clap::Parser;
 
 use lightning::util::ser::{Readable, Writeable};
 
@@ -18,8 +14,6 @@ use std::io::Cursor;
 
 use serde::{Deserialize, Serialize};
 
-use sled::IVec;
-use std::path::PathBuf;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 mod oracle;
@@ -34,7 +28,6 @@ use dlc_messages::oracle_msgs::{
 
 mod error;
 use error::AttestorError;
-// use oracle::secret_key::get_or_generate_keypair;
 
 extern crate web_sys;
 
@@ -46,38 +39,21 @@ macro_rules! clog {
 }
 
 #[wasm_bindgen]
-extern "C" {
-    fn alert(s: &str);
-}
-
-#[wasm_bindgen]
 pub struct Attestor {
-    // oracle: Oracle,
+    oracle: Oracle,
 }
 
 #[wasm_bindgen]
 impl Attestor {
     pub async fn new() -> Attestor {
-        // let secp = Secp256k1::new();
-        // let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
-        // let key_pair = KeyPair::from_secret_key(&secp, &new_key);
-        //     info!(
-        //         "oracle keypair successfully generated, pubkey is {}",
-        //         key_pair.public_key().serialize().encode_hex::<String>()
-        //     );
-
-        //     // setup event databases
-        // let oracle = Oracle::new(key_pair, secp).unwrap();
-        // Attestor { oracle }
-        Attestor {}
+        let secp = Secp256k1::new();
+        let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
+        let key_pair = KeyPair::from_secret_key(&secp, &new_key);
+        let oracle = Oracle::new(key_pair, secp).unwrap();
+        Attestor { oracle }
     }
 
-    pub async fn create_event(&self, uuid: &str, maturation: &str) -> Result<(), JsValue> {
-        // let oracle = Oracle::new();
-        // let event: OracleEvent = serde_json::from_str(event).unwrap();
-        // oracle.create_event(event).unwrap();
-        // info!("GET /create_event/{}: {:#?}", path, filters);
-        //     let uuid = path.to_string();
+    pub async fn create_event(&mut self, uuid: &str, maturation: &str) -> Result<(), JsValue> {
         let maturation = OffsetDateTime::parse(maturation, &Rfc3339)
             .map_err(AttestorError::DatetimeParseError)
             .unwrap();
@@ -88,47 +64,194 @@ impl Attestor {
             maturation
         );
 
-        // let (announcement_obj, outstanding_sk_nonces) = build_announcement(
-        //     &self.oracle.key_pair,
-        //     &self.oracle.secp,
-        //     maturation,
-        //     uuid.to_string(),
-        // )
-        // .unwrap();
+        let (announcement_obj, outstanding_sk_nonces) = build_announcement(
+            &self.oracle.key_pair,
+            &self.oracle.secp,
+            maturation,
+            uuid.to_string(),
+        )
+        .unwrap();
 
-        // clog!("Announcement object: {:?}", announcement_obj);
+        let db_value = DbValue(
+            Some(outstanding_sk_nonces),
+            announcement_obj.encode(),
+            None,
+            None,
+            uuid.to_string(),
+        );
 
-        //     let db_value = DbValue(
-        //         Some(outstanding_sk_nonces),
-        //         announcement_obj.encode(),
-        //         None,
-        //         None,
-        //         uuid.clone(),
-        //     );
+        let new_event = serde_json::to_string(&db_value).unwrap().into_bytes();
+        if self.oracle.event_handler.storage_api.is_some() {
+            self.oracle
+                .event_handler
+                .storage_api
+                .as_ref()
+                .unwrap()
+                .insert(uuid.to_string(), new_event.clone())
+                .await
+                .unwrap();
+        } else {
+            self.oracle
+                .event_handler
+                .memory_api
+                .as_mut()
+                .unwrap()
+                .insert(uuid.to_string(), new_event.clone())
+                .await
+                .unwrap();
+        }
 
-        //     let new_event = serde_json::to_string(&db_value)?.into_bytes();
-        //     info!("Inserting new event ...[uuid: {}]", uuid.clone());
-        //     if oracle.event_handler.storage_api.is_some() {
-        //         oracle
-        //             .event_handler
-        //             .storage_api
-        //             .as_ref()
-        //             .unwrap()
-        //             .insert(uuid.clone(), new_event.clone())
-        //             .await
-        //             .unwrap();
-        //     } else {
-        //         oracle
-        //             .event_handler
-        //             .sled_db
-        //             .as_ref()
-        //             .unwrap()
-        //             .insert(uuid.clone().into_bytes(), new_event.clone())
-        //             .unwrap();
-        //     }
-
-        //     Ok(HttpResponse::Ok().json(parse_database_entry(new_event.into())))
         Ok(())
+    }
+
+    pub async fn attest(&mut self, uuid: String, outcome: u64) {
+        clog!("retrieving oracle event with uuid {}", uuid);
+        let mut event: DbValue;
+        if self.oracle.event_handler.storage_api.is_some() {
+            let event_vec = match self
+                .oracle
+                .event_handler
+                .storage_api
+                .as_ref()
+                .unwrap()
+                .get(uuid.clone())
+                .await
+                .unwrap()
+            {
+                Some(val) => val,
+                None => panic!(), // None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
+            };
+            event = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).unwrap();
+        } else {
+            let event_ivec = match self
+                .oracle
+                .event_handler
+                .memory_api
+                .as_ref()
+                .unwrap()
+                .get(uuid.clone())
+                .await
+                .unwrap()
+            {
+                Some(val) => val,
+                // None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
+                None => panic!(),
+            };
+            event = serde_json::from_str(&String::from_utf8_lossy(&event_ivec)).unwrap();
+        }
+
+        let outstanding_sk_nonces = event.clone().0.unwrap();
+
+        let announcement = OracleAnnouncement::read(&mut Cursor::new(&event.1)).unwrap();
+
+        let num_digits_to_sign = match announcement.oracle_event.event_descriptor {
+            dlc_messages::oracle_msgs::EventDescriptor::DigitDecompositionEvent(e) => e.nb_digits,
+            _ => {
+                panic!()
+                // return Err(AttestorError::OracleEventNotFoundError(
+                //     "Got an unexpected EventDescriptor type!".to_string(),
+                // )
+                // .into())
+            }
+        };
+
+        // Here, we take the outcome of the DLC (0-10000), break it down into binary, break it into a vec of characters
+        let outcomes = format!("{:0width$b}", outcome, width = num_digits_to_sign as usize)
+            .chars()
+            .map(|char| char.to_string())
+            .collect::<Vec<_>>();
+
+        let attestation = build_attestation(
+            outstanding_sk_nonces,
+            self.oracle.get_keypair(),
+            &self.oracle.get_secp(),
+            outcomes,
+        );
+
+        event.3 = Some(outcome);
+        event.2 = Some(attestation.encode());
+
+        let new_event = serde_json::to_string(&event).unwrap().into_bytes();
+
+        if self.oracle.event_handler.storage_api.is_some() {
+            let _insert_event = match self
+                .oracle
+                .event_handler
+                .storage_api
+                .as_ref()
+                .unwrap()
+                .insert(uuid, new_event.clone())
+                .await
+                .unwrap()
+            {
+                Some(val) => val,
+                // None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
+                None => panic!(),
+            };
+        } else {
+            let _insert_event = match self
+                .oracle
+                .event_handler
+                .memory_api
+                .as_mut()
+                .unwrap()
+                .insert(uuid, new_event.clone())
+                .await
+                .unwrap()
+            {
+                Some(val) => val,
+                // None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
+                None => panic!(),
+            };
+        }
+    }
+
+    pub async fn get_events(&self) -> JsValue {
+        let events = match self.oracle.event_handler.storage_api {
+            Some(ref storage_api) => storage_api.get_all().await.unwrap().unwrap(),
+            None => self
+                .oracle
+                .event_handler
+                .memory_api
+                .as_ref()
+                .unwrap()
+                .get_all()
+                .await
+                .unwrap()
+                .unwrap(),
+        };
+
+        let events: Vec<ApiOracleEvent> = events
+            .iter()
+            .map(|event| parse_database_entry(event.clone().1.into()))
+            .collect();
+
+        serde_wasm_bindgen::to_value(&events).unwrap()
+    }
+
+    pub async fn get_event(&self, uuid: String) -> JsValue {
+        let event = match self.oracle.event_handler.storage_api {
+            Some(ref storage_api) => storage_api.get(uuid).await.unwrap().unwrap(),
+            None => self
+                .oracle
+                .event_handler
+                .memory_api
+                .as_ref()
+                .unwrap()
+                .get(uuid)
+                .await
+                .unwrap()
+                .unwrap(),
+        };
+
+        let event: ApiOracleEvent = parse_database_entry(event.into());
+
+        serde_wasm_bindgen::to_value(&event).unwrap()
+    }
+
+    pub async fn get_pubkey(&self) -> String {
+        let pubkey = SchnorrPublicKey::from_keypair(&self.oracle.key_pair).0;
+        pubkey.to_string()
     }
 }
 
@@ -173,7 +296,7 @@ struct ApiOracleEvent {
     outcome: Option<u64>,
 }
 
-fn parse_database_entry(event: IVec) -> ApiOracleEvent {
+fn parse_database_entry(event: Vec<u8>) -> ApiOracleEvent {
     let event: DbValue = serde_json::from_str(&String::from_utf8_lossy(&event)).unwrap();
 
     let announcement_vec = event.1.clone();
@@ -286,321 +409,3 @@ pub fn build_attestation(
         outcomes,
     }
 }
-
-// #[get("/create_event/{uuid}")]
-// async fn create_event(
-//     oracle: web::Data<Oracle>,
-//     filters: web::Query<Filters>,
-//     path: web::Path<String>,
-// ) -> actix_web::Result<HttpResponse, actix_web::Error> {
-//     info!("GET /create_event/{}: {:#?}", path, filters);
-//     let uuid = path.to_string();
-//     let maturation = OffsetDateTime::parse(&filters.maturation, &Rfc3339)
-//         .map_err(AttestorError::DatetimeParseError)?;
-
-//     info!(
-//         "Creating event for uuid:{} and maturation_time :{}",
-//         uuid, maturation
-//     );
-
-//     let (announcement_obj, outstanding_sk_nonces) =
-//         build_announcement(&oracle.key_pair, &oracle.secp, maturation, uuid.clone()).unwrap();
-
-//     let db_value = DbValue(
-//         Some(outstanding_sk_nonces),
-//         announcement_obj.encode(),
-//         None,
-//         None,
-//         uuid.clone(),
-//     );
-
-//     let new_event = serde_json::to_string(&db_value)?.into_bytes();
-//     info!("Inserting new event ...[uuid: {}]", uuid.clone());
-//     if oracle.event_handler.storage_api.is_some() {
-//         oracle
-//             .event_handler
-//             .storage_api
-//             .as_ref()
-//             .unwrap()
-//             .insert(uuid.clone(), new_event.clone())
-//             .await
-//             .unwrap();
-//     } else {
-//         oracle
-//             .event_handler
-//             .sled_db
-//             .as_ref()
-//             .unwrap()
-//             .insert(uuid.clone().into_bytes(), new_event.clone())
-//             .unwrap();
-//     }
-
-//     Ok(HttpResponse::Ok().json(parse_database_entry(new_event.into())))
-// }
-
-// #[get("/attest/{uuid}")]
-// async fn attest(
-//     oracle: web::Data<Oracle>,
-//     filters: web::Query<Filters>,
-//     path: web::Path<String>,
-// ) -> actix_web::Result<HttpResponse, actix_web::Error> {
-//     info!("GET /attest/{}: {:#?}", path, filters);
-//     let uuid = path.to_string();
-//     let outcome = &filters.outcome.unwrap();
-
-//     if oracle.event_handler.is_empty() {
-//         info!("no oracle events found");
-//         return Err(AttestorError::OracleEventNotFoundError(uuid).into());
-//     }
-
-//     info!("retrieving oracle event with uuid {}", uuid);
-//     let mut event: DbValue;
-//     if oracle.event_handler.storage_api.is_some() {
-//         let event_vec = match oracle
-//             .event_handler
-//             .storage_api
-//             .as_ref()
-//             .unwrap()
-//             .get(uuid.clone())
-//             .await
-//             .unwrap()
-//         {
-//             Some(val) => val,
-//             None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
-//         };
-//         event = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).unwrap();
-//     } else {
-//         let event_ivec = match oracle
-//             .event_handler
-//             .sled_db
-//             .as_ref()
-//             .unwrap()
-//             .get(uuid.as_bytes())
-//             .map_err(AttestorError::DatabaseError)?
-//         {
-//             Some(val) => val,
-//             None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
-//         };
-//         event = serde_json::from_str(&String::from_utf8_lossy(&event_ivec)).unwrap();
-//     }
-
-//     let outstanding_sk_nonces = event.clone().0.unwrap();
-
-//     let announcement = OracleAnnouncement::read(&mut Cursor::new(&event.1)).unwrap();
-
-//     let num_digits_to_sign = match announcement.oracle_event.event_descriptor {
-//         dlc_messages::oracle_msgs::EventDescriptor::DigitDecompositionEvent(e) => e.nb_digits,
-//         _ => {
-//             return Err(AttestorError::OracleEventNotFoundError(
-//                 "Got an unexpected EventDescriptor type!".to_string(),
-//             )
-//             .into())
-//         }
-//     };
-
-//     // Here, we take the outcome of the DLC (0-10000), break it down into binary, break it into a vec of characters
-//     let outcomes = format!("{:0width$b}", outcome, width = num_digits_to_sign as usize)
-//         .chars()
-//         .map(|char| char.to_string())
-//         .collect::<Vec<_>>();
-
-//     let attestation = build_attestation(
-//         outstanding_sk_nonces,
-//         oracle.get_keypair(),
-//         &oracle.get_secp(),
-//         outcomes,
-//     );
-
-//     event.3 = Some(*outcome);
-//     event.2 = Some(attestation.encode());
-
-//     info!(
-//         "attesting with maturation {} and attestation {:#?}",
-//         path, attestation
-//     );
-
-//     let new_event = serde_json::to_string(&event)?.into_bytes();
-
-//     if oracle.event_handler.storage_api.is_some() {
-//         let _insert_event = match oracle
-//             .event_handler
-//             .storage_api
-//             .as_ref()
-//             .unwrap()
-//             .insert(path.clone(), new_event.clone())
-//             .await
-//             .unwrap()
-//         {
-//             Some(val) => val,
-//             None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
-//         };
-//     } else {
-//         let _insert_event = match oracle
-//             .event_handler
-//             .sled_db
-//             .as_ref()
-//             .unwrap()
-//             .insert(path.clone().as_bytes(), new_event.clone())
-//             .map_err(AttestorError::DatabaseError)?
-//         {
-//             Some(val) => val,
-//             None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
-//         };
-//     }
-//     Ok(HttpResponse::Ok().json(parse_database_entry(new_event.into())))
-// }
-
-// #[get("/announcements")]
-// async fn announcements(
-//     oracle: web::Data<Oracle>,
-//     filters: web::Query<Filters>,
-// ) -> actix_web::Result<HttpResponse, actix_web::Error> {
-//     info!("GET /announcements: {:#?}", filters);
-//     if oracle.event_handler.is_empty() {
-//         info!("no oracle events found");
-//         return Ok(HttpResponse::Ok().json(Vec::<ApiOracleEvent>::new()));
-//     }
-//     if oracle.event_handler.storage_api.is_some() {
-//         return Ok(HttpResponse::Ok().json(
-//             oracle
-//                 .event_handler
-//                 .storage_api
-//                 .as_ref()
-//                 .unwrap()
-//                 .get_all()
-//                 .await
-//                 .unwrap()
-//                 .unwrap()
-//                 .iter()
-//                 .map(|result| parse_database_entry(result.clone().1.into()))
-//                 .collect::<Vec<_>>(),
-//         ));
-//     } else {
-//         return Ok(HttpResponse::Ok().json(
-//             oracle
-//                 .event_handler
-//                 .sled_db
-//                 .as_ref()
-//                 .unwrap()
-//                 .iter()
-//                 .map(|result| parse_database_entry(result.unwrap().1))
-//                 .collect::<Vec<_>>(),
-//         ));
-//     }
-// }
-
-// #[get("/announcement/{uuid}")]
-// async fn get_announcement(
-//     oracle: web::Data<Oracle>,
-//     filters: web::Query<Filters>,
-//     path: web::Path<String>,
-// ) -> actix_web::Result<HttpResponse, actix_web::Error> {
-//     info!("GET /announcement/{}: {:#?}", path, filters);
-//     let uuid = path.to_string();
-
-//     if oracle.event_handler.is_empty() {
-//         info!("no oracle events found");
-//         return Err(AttestorError::OracleEventNotFoundError(path.to_string()).into());
-//     }
-
-//     info!("retrieving oracle event with uuid {}", uuid);
-//     if oracle.event_handler.storage_api.is_some() {
-//         let event = match oracle
-//             .event_handler
-//             .storage_api
-//             .as_ref()
-//             .unwrap()
-//             .get(uuid.clone())
-//             .await
-//             .unwrap()
-//         {
-//             Some(val) => val,
-//             None => return Err(AttestorError::OracleEventNotFoundError(path.to_string()).into()),
-//         };
-//         Ok(HttpResponse::Ok().json(parse_database_entry(event.into())))
-//     } else {
-//         let event = match oracle
-//             .event_handler
-//             .sled_db
-//             .as_ref()
-//             .unwrap()
-//             .get(uuid.as_bytes())
-//             .map_err(AttestorError::DatabaseError)?
-//         {
-//             Some(val) => val,
-//             None => return Err(AttestorError::OracleEventNotFoundError(path.to_string()).into()),
-//         };
-//         Ok(HttpResponse::Ok().json(parse_database_entry(event)))
-//     }
-// }
-
-// #[get("/publickey")]
-// async fn publickey() -> actix_web::Result<HttpResponse, actix_web::Error> {
-//     info!("GET /publickey");
-//     let secp: Secp256k1<All> = Secp256k1::new();
-//     let key_pair = get_or_generate_keypair(&secp, Some(PathBuf::from("config/secret.key"))).await;
-//     let pubkey = SchnorrPublicKey::from_keypair(&key_pair).0;
-//     Ok(HttpResponse::Ok().json(pubkey))
-// }
-
-// #[derive(Parser)]
-// /// Simple DLC oracle implementation
-// struct Args {
-//     /// Optional private key file; if not provided, one is generated
-//     #[clap(short, long, parse(from_os_str), value_name = "FILE", value_hint = clap::ValueHint::FilePath)]
-//     secret_key_file: Option<std::path::PathBuf>,
-
-//     /// Optional asset pair config file; if not provided, it is assumed to exist at "config/asset_pair.json"
-//     #[clap(short, long, parse(from_os_str), value_name = "FILE", value_hint = clap::ValueHint::FilePath)]
-//     asset_pair_config_file: Option<std::path::PathBuf>,
-
-//     /// Optional oracle config file; if not provided, it is assumed to exist at "config/oracle.json"
-//     #[clap(short, long, parse(from_os_str), value_name = "FILE", value_hint = clap::ValueHint::FilePath)]
-//     oracle_config_file: Option<std::path::PathBuf>,
-// }
-
-// #[actix_web::main]
-// async fn main() -> anyhow::Result<()> {
-//     env_logger::init();
-//     let args = Args::parse();
-//     let secp = Secp256k1::new();
-//     let key_pair = get_or_generate_keypair(&secp, args.secret_key_file).await;
-//     info!(
-//         "oracle keypair successfully generated, pubkey is {}",
-//         key_pair.public_key().serialize().encode_hex::<String>()
-//     );
-
-//     // setup event databases
-//     let oracle = Oracle::new(key_pair, secp).unwrap();
-
-//     // setup and run server
-//     let port: u16 = env::var("ORACLE_PORT")
-//         .unwrap_or("8080".to_string())
-//         .parse()
-//         .unwrap_or(8080);
-//     info!("starting server on port {port}");
-//     HttpServer::new(move || {
-//         let cors = Cors::default();
-//         let cors = cors
-//             .allow_any_origin()
-//             .allowed_methods(vec!["GET", "POST"])
-//             .max_age(3600);
-//         App::new()
-//             .wrap(cors)
-//             .app_data(web::Data::new(oracle.clone()))
-//             .service(
-//                 web::scope("/v1")
-//                     .service(announcements)
-//                     .service(get_announcement)
-//                     .service(publickey)
-//                     .service(attest)
-//                     .service(create_event),
-//             )
-//     })
-//     .bind(("0.0.0.0", port))?
-//     // .bind(("54.198.187.245", 8080))? //TODO: Should we bind to only certain IPs for security?
-//     .run()
-//     .await?;
-
-//     Ok(())
-// }
