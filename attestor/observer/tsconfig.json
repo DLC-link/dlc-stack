@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "lib": ["es2021"],
+    "lib": ["es2022"],
     "target": "ES2022",
     "module": "ES2022",
     "noImplicitAny": true,
@@ -21,7 +21,7 @@
   "ts-node": {
     "esm": true,
     "compilerOptions": {
-      "module": "nodenext",
+      "module": "nodenext"
     }
   },
   "include": ["src"],
