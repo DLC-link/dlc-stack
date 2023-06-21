@@ -1,6 +1,7 @@
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const path = require("path");
 const { ProvidePlugin } = require("webpack");
+const Dotenv = require("dotenv-webpack");
 
 module.exports = {
   entry: "./src/bootstrap.ts",
@@ -24,6 +25,7 @@ module.exports = {
     ],
   },
   plugins: [
+    new Dotenv(),
     new CopyWebpackPlugin({ patterns: ["src/index.html"] }),
     new ProvidePlugin({
       Buffer: ["buffer", "Buffer"],

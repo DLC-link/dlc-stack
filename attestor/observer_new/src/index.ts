@@ -1,4 +1,5 @@
 import { Attestor } from "attestor";
+import { config } from "./utilities/config";
 
 async function main() {
   const attestor = await Attestor.new();
@@ -8,6 +9,7 @@ async function main() {
   const attestation = await attestor.get_event("event1");
   console.log("attested event1: ", attestation);
 
+  console.log(config);
   // console.table({
   //   'ETH Enabled': config.ethEnabled,
   //   'Stacks Enabled': config.stacksEnabled,
