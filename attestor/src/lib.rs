@@ -51,6 +51,7 @@ impl Attestor {
         let key_pair = KeyPair::from_secret_key(&secp, &new_key);
         let oracle = Oracle::new(key_pair, secp).unwrap();
         Attestor { oracle }
+        // Attestor {}
     }
 
     pub async fn create_event(&mut self, uuid: &str, maturation: &str) -> Result<(), JsValue> {

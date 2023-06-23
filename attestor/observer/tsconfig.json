@@ -1,29 +1,13 @@
 {
   "compilerOptions": {
-    "lib": ["es2022"],
-    "target": "ES2022",
-    "module": "ES2022",
-    "noImplicitAny": true,
-    "removeComments": true,
-    "preserveConstEnums": true,
-    "sourceMap": true,
-    "declaration": true,
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
+    "target": "es2022",
+    "module": "es2022",
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "NodeNext",
     "outDir": "./dist",
-    "rootDir": "."
-  },
-  "ts-node": {
-    "esm": true,
-    "compilerOptions": {
-      "module": "nodenext"
-    }
-  },
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts"]
+    "rootDir": ".",
+    "skipLibCheck": true                                 /* Skip type checking all .d.ts files. */
+  }
 }
