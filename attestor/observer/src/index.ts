@@ -9,7 +9,7 @@ function startObservers(observers: Observer[]) {
 
 async function testAttestorService() {
   await AttestorService.createAnnouncement('event1', '2023-10-08T13:48:00Z');
-  // await AttestorService.createAttestation('event1', 10n);
+  await AttestorService.createAttestation('event1', 10n);
   const attestation = await AttestorService.getEvent('event1');
   console.log('attested event1:', attestation);
 }
@@ -25,7 +25,7 @@ async function main() {
   startObservers(observers);
 
   // Test attestor service
-  await testAttestorService();
+  // await testAttestorService();
 }
 
 main();
