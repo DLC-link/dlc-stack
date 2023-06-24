@@ -35,4 +35,15 @@ export default class AttestorService {
       return null;
     }
   }
+
+  public static async getAllEvents() {
+    const attestor = await this.getAttestor();
+    try {
+      const events = await attestor.get_events();
+      return events;
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  }
 }
