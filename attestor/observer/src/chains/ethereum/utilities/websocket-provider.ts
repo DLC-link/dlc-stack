@@ -67,6 +67,7 @@ export class WebSocketProvider extends WebSocketProviderClass() {
     });
 
     provider._websocket.on('close', (code: number) => {
+      console.log('Websocket connection closed', provider.connection.url, code);
       provider._wsReady = false;
 
       if (pingInterval) clearInterval(pingInterval);
