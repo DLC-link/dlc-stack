@@ -11,7 +11,7 @@ jq '. + {type: "module", main: "attestor.js"} | del(.module)' ../pkg/package.jso
 mv temp.json ../pkg/package.json
 
 # Adding the crypto shim
-echo 'import { webcrypto } from "node:crypto" \nglobalThis.crypto = webcrypto;' >> ../pkg/attestor_bg.js
+echo 'import { webcrypto } from "node:crypto"; globalThis.crypto = webcrypto;' >> ../pkg/attestor_bg.js
 
 #  Compiling typescript
 npx tsc -p .
