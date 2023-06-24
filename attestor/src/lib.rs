@@ -231,8 +231,8 @@ impl Attestor {
     }
 
     pub async fn get_event(&self, uuid: String) -> JsValue {
-        let event = match self.oracle.event_handler.storage_api {
-            Some(ref storage_api) => storage_api.get(uuid).await.unwrap().unwrap(),
+        let result = match self.oracle.event_handler.storage_api {
+            Some(ref storage_api) => storage_api.get(uuid).await.unwrap(),
             None => self
                 .oracle
                 .event_handler
@@ -241,13 +241,15 @@ impl Attestor {
                 .unwrap()
                 .get(uuid)
                 .await
-                .unwrap()
                 .unwrap(),
         };
 
-        let event: ApiOracleEvent = parse_database_entry(event.into());
-
-        serde_wasm_bindgen::to_value(&event).unwrap()
+        match result {
+            Some(event) => {
+                serde_wasm_bindgen::to_value(&parse_database_entry(event.into())).unwrap()
+            }
+            None => JsValue::NULL,
+        }
     }
 
     pub async fn get_pubkey(&self) -> String {
