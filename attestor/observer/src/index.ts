@@ -1,31 +1,31 @@
-import { Attestor } from 'attestor';
+import AttestorService from './services/attestor.service.js';
 import getObservers from './config/get-observers.js';
 import { Observer } from './chains/shared/models/observer.interface.js';
-
-function startServer() {}
+import startServer from './http/server.js';
 
 function startObservers(observers: Observer[]) {
   observers.forEach((observer) => observer.start());
+}
+
+async function testAttestorService() {
+  await AttestorService.createAnnouncement('event1', '2023-10-08T13:48:00Z');
+  // await AttestorService.createAttestation('event1', 10n);
+  const attestation = await AttestorService.getEvent('event1');
+  console.log('attested event1:', attestation);
 }
 
 async function main() {
   // Set up server with routes
   startServer();
 
-  // load observers
+  // Load observers
   const observers = await getObservers();
-  console.log('observers: ', observers);
 
   // Start observers
   startObservers(observers);
 
-  // TODO: attestor will move into its own service
-  // const attestor = await Attestor.new();
-  // await attestor.create_event('event1', '2023-10-08T13:48:00Z');
-  // await attestor.attest('event1', 10n);
-
-  // const attestation = await attestor.get_event('event1');
-  // console.log('attested event1: aslkdjalksdjalskjd ', attestation);
+  // Test attestor service
+  await testAttestorService();
 }
 
 main();

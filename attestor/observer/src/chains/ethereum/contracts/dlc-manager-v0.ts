@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
-import { createAnnouncement } from '../../shared/functions/create-announcement.js';
 import { DeploymentInfo } from '../../shared/models/deployment-info.interface.js';
 import { Observer } from '../../shared/models/observer.interface.js';
+import AttestorService from '../../../services/attestor.service.js';
 
 export const DlcManagerV0 = (contract: ethers.Contract, deploymentInfo: DeploymentInfo): Observer => {
   return {
@@ -23,7 +23,7 @@ export const DlcManagerV0 = (contract: ethers.Contract, deploymentInfo: Deployme
           console.log(_logMessage);
           // loggerSvc.log(_logMessage);
           try {
-            await createAnnouncement(_uuid);
+            await AttestorService.createAnnouncement(_uuid);
           } catch (error) {
             console.error(error);
           }

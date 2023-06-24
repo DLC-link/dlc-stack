@@ -7,7 +7,6 @@ export default async (): Promise<Observer[]> => {
   const config = readConfig();
 
   const observerPromises = config.map((configSet, index) => {
-    console.log(configSet);
     switch (configSet.chain) {
       case 'ETH_MAINNET':
       case 'ETH_SEPOLIA':
@@ -20,7 +19,6 @@ export default async (): Promise<Observer[]> => {
       case 'STACKS_LOCAL':
         return getStacksObserver(configSet);
       default:
-        // This should never happen
         throw new Error(`CHAIN_${index}: ${configSet.chain} is not a valid chain.`);
     }
   });
