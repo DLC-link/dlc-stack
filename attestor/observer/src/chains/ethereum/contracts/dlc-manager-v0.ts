@@ -23,6 +23,7 @@ export const DlcManagerV0 = (contract: ethers.Contract, deploymentInfo: Deployme
           console.log(_logMessage);
           try {
             await AttestorService.createAnnouncement(_uuid);
+            console.log(await AttestorService.getEvent(_uuid));
           } catch (error) {
             console.error(error);
           }
@@ -37,8 +38,10 @@ export const DlcManagerV0 = (contract: ethers.Contract, deploymentInfo: Deployme
           const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] Closing DLC... @ ${currentTime} \n\t uuid: ${_uuid} | outcome: ${outcome} \n`;
           console.log(_logMessage);
 
+          // TODO: precision_shift?
           try {
             await AttestorService.createAttestation(_uuid, outcome);
+            console.log(await AttestorService.getEvent(_uuid));
           } catch (error) {
             console.error(error);
           }

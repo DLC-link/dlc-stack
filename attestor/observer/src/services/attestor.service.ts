@@ -20,9 +20,14 @@ export default class AttestorService {
     await attestor.create_event(uuid, _formattedMaturation);
   }
 
-  public static async createAttestation(uuid: string, value: bigint) {
+  public static async createAttestation(uuid: string, value: bigint, precisionShift = 0) {
     const attestor = await this.getAttestor();
-    await attestor.attest(uuid, value);
+
+    const formatOutcome = (value: number): bigint => BigInt(Math.round(value / 10 ** precisionShift));
+    // We can safely assume that the value is not bigger than 2^53 - 1
+    const formattedOutcome = formatOutcome(Number(value));
+
+    await attestor.attest(uuid, formattedOutcome);
   }
 
   public static async getEvent(uuid: string) {
