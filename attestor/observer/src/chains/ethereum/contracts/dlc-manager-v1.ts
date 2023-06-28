@@ -30,15 +30,6 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
       );
 
       contract.on(
-        'PostCreateDLC',
-        async (_uuid: string, _creator: string, _protocolWallet: string, _sender: string, _eventSource: string) => {
-          const currentTime = new Date();
-          const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC created @ ${currentTime} \n\t uuid: ${_uuid} | creator: ${_creator} | protocolWallet: ${_protocolWallet} | sender: ${_sender} \n`;
-          console.log(_logMessage);
-        }
-      );
-
-      contract.on(
         'SetStatusFunded',
         async (_uuid: string, _creator: string, _protocolWallet: string, _sender: string, _eventSource: string) => {
           const currentTime = new Date();
@@ -51,14 +42,14 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
         'CloseDLC',
         async (
           _uuid: string,
-          _outcome: ethers.BigNumber,
+          _outcome: number,
           _creator: string,
           _protocolWallet: string,
           _sender: string,
           _eventSource: string
         ) => {
           const currentTime = new Date();
-          const outcome = _outcome.toBigInt();
+          const outcome = BigInt(_outcome);
           const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] Closing DLC... @ ${currentTime} \n\t uuid: ${_uuid} | outcome: ${outcome} \n`;
           console.log(_logMessage);
 
@@ -76,15 +67,15 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
         'PostCloseDLC',
         async (
           _uuid: string,
-          _outcome: ethers.BigNumber,
+          _outcome: number,
           _creator: string,
           _protocolWallet: string,
           _sender: string,
+          _btcTxId: string,
           _eventSource: string
         ) => {
           const currentTime = new Date();
-          const outcome = _outcome.toBigInt();
-          const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC closed @ ${currentTime} \n\t uuid: ${_uuid} | outcome: ${outcome} \n`;
+          const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC closed @ ${currentTime} \n\t uuid: ${_uuid} | outcome: ${_outcome} | btcTxId: ${_btcTxId} \n`;
           console.log(_logMessage);
         }
       );
