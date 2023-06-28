@@ -9,6 +9,7 @@
     "build:ts": "tsc -p .",
     "run": "NODE_OPTIONS=--experimental-wasm-modules node dist/src/index.js",
     "dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"npm run run\"",
+    "dev2": "PORT=3001 npm run dev",
     "lint": "npx prettier . --write",
     "test": "jest"
   },
