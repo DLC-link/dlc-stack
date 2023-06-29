@@ -1,7 +1,9 @@
 # DLC.Link Attestor
 A numeric oracle implementation for Bitcoin, with a built in blockchain-observer.
 
-The Observer is configured to listen to specific events on the specified versions of the [DLCManager Contract](https://github.com/DLC-link/dlc-solidity/contracts)
+The Observer is configured to listen to specific events on the specified versions of the [DLCManager Contract (e.g. on ETH)](https://github.com/DLC-link/dlc-solidity/blob/master/contracts/DLCManager.sol).
+
+When it hears a `Create`- or `CloseDLC` event, it will create an `Announcement` or `Attestation` through the imported wasm Attestor, respectively.
 
 ## Structure
 
