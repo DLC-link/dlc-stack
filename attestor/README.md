@@ -29,6 +29,20 @@ cd ./observer
 npm run dev
 ```
 
+## Key management (WIP)
+
+### Attestor
+
+Attestors need to have careful private key management. It is critical that the key is not lost or shared, as this jeopardizes this node of the layer.
+
+Key rotation is also considered as a best practice, and is detailed in the setup process for an Attestor node. Although cycling keys can limit the potential damage of leaking a key, it is important that an Attestor node keep access to older keys until all Attestations for events built with a specific key are issued. This is because an Attestation must be signed with the same key used to create the Announcement.
+
+DLC.Link recommends and pre-configures its nodes to use HashiCorp Key Vault software for key management and rotation.
+
+
+### Observer
+
+The Blockchain Observer needs _read_ access to the configured chains. Ethereum needs an API_KEY for Infura. Stacks is configured so it does not need a special key at the moment. See the .env.template file for a potential setup of multi-chain listening.
 
 ## API Description
 
