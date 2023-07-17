@@ -29,7 +29,7 @@ async function main() {
   startObservers(observers);
 
   // Test attestor service
-  await testAttestorService();
+  // await testAttestorService();
 }
 
 main();

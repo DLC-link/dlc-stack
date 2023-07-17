@@ -65,7 +65,7 @@ impl Attestor {
             .unwrap();
 
         clog!(
-            "Creating event for uuid: {} and maturation_time : {}",
+            "[WASM-ATTESTOR] Creating event for uuid: {} and maturation_time : {}",
             uuid,
             maturation
         );
@@ -92,19 +92,19 @@ impl Attestor {
             storage_api
                 .insert(uuid.to_string(), new_event.clone())
                 .await
-                .expect("Failed to insert to storage api");
+                .expect("[WASM-ATTESTOR] Failed to insert to storage api");
         } else if let Some(memory_api) = &mut self.oracle.event_handler.memory_api {
             memory_api
                 .insert(uuid.to_string(), new_event.clone())
                 .await
-                .expect("Failed to insert to memory api");
+                .expect("[WASM-ATTESTOR] Failed to insert to memory api");
         }
 
         Ok(())
     }
 
     pub async fn attest(&mut self, uuid: String, outcome: u64) {
-        clog!("retrieving oracle event with uuid {}", uuid);
+        clog!("[WASM-ATTESTOR] retrieving oracle event with uuid {}", uuid);
         let mut event: DbValue;
         if self.oracle.event_handler.storage_api.is_some() {
             let event_vec = match self
@@ -311,7 +311,7 @@ fn parse_database_entry(event: Vec<u8>) -> ApiOracleEvent {
 
             match OracleAttestation::read(&mut attestation_cursor) {
                 Ok(att) => Some(format!("{:?}", att)),
-                Err(_) => Some("Error decoding attestatoin".to_string()),
+                Err(_) => Some("[WASM-ATTESTOR] Error decoding attestatoin".to_string()),
             }
         }
     };
@@ -377,7 +377,7 @@ pub fn build_announcement(
     let mut event_hex = Vec::new();
     oracle_event
         .write(&mut event_hex)
-        .expect("Error writing oracle event");
+        .expect("[WASM-ATTESTOR] Error writing oracle event");
     let msg = Message::from_hashed_data::<secp256k1_zkp::hashes::sha256::Hash>(&event_hex);
     let sig = secp.sign_schnorr(&msg, keypair);
     let announcement = OracleAnnouncement {

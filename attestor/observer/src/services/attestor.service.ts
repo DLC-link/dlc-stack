@@ -1,5 +1,4 @@
 import { Attestor } from 'attestor';
-import strftime from 'strftime';
 import { getEnv } from '../config/read-env-configs.js';
 
 export default class AttestorService {
@@ -16,10 +15,9 @@ export default class AttestorService {
   public static async createAnnouncement(uuid: string, maturation?: string) {
     const attestor = await this.getAttestor();
 
-    let _maturation = maturation ? new Date(maturation) : new Date(new Date().getTime());
-    const _formattedMaturation = strftime('%Y-%m-%dT%H:%M:%SZ', _maturation);
+    let _maturation = maturation ? new Date(maturation).toISOString() : new Date().toISOString();
 
-    await attestor.create_event(uuid, _formattedMaturation);
+    await attestor.create_event(uuid, _maturation);
   }
 
   public static async createAttestation(uuid: string, value: bigint, precisionShift = 0) {
@@ -48,6 +46,17 @@ export default class AttestorService {
     try {
       const events = await attestor.get_events();
       return events;
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  }
+
+  public static async getPublicKey() {
+    const attestor = await this.getAttestor();
+    try {
+      const publicKey = await attestor.get_pubkey();
+      return publicKey;
     } catch (error) {
       console.error(error);
       return null;

@@ -104,15 +104,15 @@ fn get_json(path: &str) -> Result<Value, DlcManagerError> {
 }
 
 fn pubkey_path(host: &str) -> String {
-    format!("{}{}", host, "v1/publickey")
+    format!("{}{}", host, "public-key")
 }
 
 fn announcement_path(host: &str, event_id: &str) -> String {
-    format!("{}v1/announcement/{}", host, event_id)
+    format!("{}event/{}", host, event_id)
 }
 
 fn attestation_path(host: &str, event_id: &str) -> String {
-    format!("{}v1/announcement/{}", host, event_id)
+    format!("{}event/{}", host, event_id)
 }
 
 impl P2PDOracleClient {
@@ -140,14 +140,7 @@ impl P2PDOracleClient {
         // let public_key = runtime.block_on(get::<String>(&path))?;
         // let public_key = get_object::<String>(&path)?; //.public_key;
 
-        let oracle_key = client
-            .get(path)
-            .send()
-            .await
-            .unwrap()
-            .json::<String>()
-            .await
-            .unwrap();
+        let oracle_key = client.get(path).send().await.unwrap().text().await.unwrap();
 
         info!("Oracle Pub Key: {}", oracle_key.to_string());
 

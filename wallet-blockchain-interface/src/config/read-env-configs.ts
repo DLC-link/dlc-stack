@@ -6,7 +6,7 @@ dotenv.config();
 export default (): ConfigSet => {
     let chain = process.env.CHAIN as Chain;
     let version = process.env.VERSION as string;
-    let privateKey = process.env.PRIVATE_KEY;
+    let privateKey = process.env.PRIVATE_KEY as string;
     let apiKey = process.env.API_KEY as string;
 
     // Throw an error if one of the set is missing

@@ -72,18 +72,6 @@ struct AttestationResponse {
     values: Vec<String>,
 }
 
-fn get_object<T>(path: &str) -> Result<T, DlcManagerError>
-where
-    T: serde::de::DeserializeOwned,
-{
-    reqwest::blocking::get(path)
-        .map_err(|x| {
-            dlc_manager::error::Error::IOError(std::io::Error::new(std::io::ErrorKind::Other, x))
-        })?
-        .json::<T>()
-        .map_err(|e| dlc_manager::error::Error::OracleError(e.to_string()))
-}
-
 fn get_json(path: &str) -> Result<Value, DlcManagerError> {
     reqwest::blocking::get(path)
         .map_err(|x| {
@@ -96,15 +84,15 @@ fn get_json(path: &str) -> Result<Value, DlcManagerError> {
 }
 
 fn pubkey_path(host: &str) -> String {
-    format!("{}{}", host, "v1/publickey")
+    format!("{}{}", host, "public-key")
 }
 
 fn announcement_path(host: &str, event_id: &str) -> String {
-    format!("{}v1/announcement/{}", host, event_id)
+    format!("{}event/{}", host, event_id)
 }
 
 fn attestation_path(host: &str, event_id: &str) -> String {
-    format!("{}v1/announcement/{}", host, event_id)
+    format!("{}event/{}", host, event_id)
 }
 
 impl P2PDOracleClient {
@@ -125,11 +113,9 @@ impl P2PDOracleClient {
         info!("Creating p2pd oracle client (by getting public key first) ...");
         let path = pubkey_path(&host);
         info!("Getting pubkey from {}", path);
-        // let runtime = tokio::runtime::Runtime::new().expect("Unable to create a runtime");
-        // let public_key = runtime.block_on(get::<String>(&path))?;
-        let public_key = get_object::<String>(&path)?; //.public_key;
 
-        info!("Oracle Pub Key: {}", public_key.to_string());
+        let public_key = reqwest::blocking::get(path).unwrap().text().unwrap();
+        info!("Oracle Pub Key: {:?}", public_key);
 
         let public_key = XOnlyPublicKey::from_str(&public_key)
             .map_err(|_| DlcManagerError::OracleError("Oracle PubKey Error".to_string()))?;
