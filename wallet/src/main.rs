@@ -78,6 +78,36 @@ struct ErrorsResponse {
     status: u64,
 }
 
+fn get_oracles() -> Vec<String> {
+    let get_all_attestors_url = format!(
+        "{}/get-all-attestors",
+        env::var("BLOCKCHAIN_INTERFACE_URL")
+            .unwrap_or("https://stacks-observer-mocknet.herokuapp.com".to_string())
+    );
+    let client = reqwest::blocking::Client::builder()
+        .use_rustls_tls()
+        .build();
+    if client.is_ok() {
+        let res = client.unwrap().get(get_all_attestors_url.as_str()).send();
+
+        match res {
+            Ok(res) => match res.error_for_status() {
+                Ok(_res) => {
+                    let oracles: Vec<String> = _res.json().unwrap();
+                    return oracles;
+                }
+                Err(e) => {
+                    info!("Error getting oracle urls: {}", e.to_string());
+                }
+            },
+            Err(e) => {
+                info!("Error getting oracle urls: {}", e.to_string());
+            }
+        }
+    }
+    vec![]
+}
+
 fn get_or_generate_secret_from_config(
     secp: &Secp256k1<All>,
     secret_key_file_path: std::path::PathBuf,
@@ -106,16 +136,20 @@ fn get_or_generate_secret_from_config(
 
 fn main() {
     env_logger::init();
-    let oracle_url_1: String =
-        env::var("ORACLE_URL").unwrap_or("http://localhost:8080".to_string());
-    let oracle_url_2: String =
-        env::var("ORACLE_URL_2").unwrap_or("http://localhost:8080".to_string());
 
-    // let oracle_urls: Vec<String> = vec![oracle_url_1.clone(), oracle_url_2.clone()];
-    let oracle_urls: Vec<String> = vec![oracle_url_1.clone()];
+    let oracle_urls: Vec<String> = get_oracles();
 
-    let funded_url: String = env::var("FUNDED_URL")
-        .unwrap_or("https://stacks-observer-mocknet.herokuapp.com/funded".to_string());
+    info!("Oracle URLs: {:?}", oracle_urls);
+
+    if oracle_urls.len() == 0 {
+        panic!("No oracles found, couldn't setup DLC Manager");
+    }
+
+    let funded_url: String = format!(
+        "{}/funded",
+        env::var("BLOCKCHAIN_INTERFACE_URL")
+            .unwrap_or("https://stacks-observer-mocknet.herokuapp.com/funded".to_string())
+    );
     let wallet_backend_port: String = env::var("WALLET_BACKEND_PORT").unwrap_or("8085".to_string());
     let mut funded_uuids: Vec<String> = vec![];
 
@@ -252,7 +286,7 @@ fn main() {
                     }
                     let req: OfferRequest = try_or_400!(rouille::input::json_input(request));
 
-                    add_access_control_headers(create_new_offer(manager.clone(), protocol_wallet_oracles.values().cloned().collect(), active_network, req.uuid, req.accept_collateral, req.offer_collateral, req.total_outcomes))
+                    add_access_control_headers(create_new_offer(manager.clone(), oracle_urls.clone(), protocol_wallet_oracles.values().cloned().collect(), active_network, req.uuid, req.accept_collateral, req.offer_collateral, req.total_outcomes))
                 },
                 (OPTIONS) (/offer) => {
                     add_access_control_headers(Response::empty_204())
@@ -448,6 +482,7 @@ fn periodic_check(
 
 fn create_new_offer(
     manager: Arc<Mutex<DlcManager>>,
+    oracle_urls: Vec<String>,
     oracles: Vec<Arc<P2PDOracleClient>>,
     active_network: bitcoin::Network,
     event_id: String,
@@ -519,7 +554,7 @@ fn create_new_offer(
         &contract_input,
         STATIC_COUNTERPARTY_NODE_ID.parse().unwrap(),
     ) {
-        Ok(dlc) => Response::json(dlc),
+        Ok(dlc) => Response::json(&(dlc, oracle_urls)),
         Err(e) => {
             info!("DLC manager - send offer error: {}", e.to_string());
             Response::json(
