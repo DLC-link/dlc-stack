@@ -1358,6 +1358,7 @@ dependencies = [
  "diesel",
  "diesel_migrations",
  "dotenvy",
+ "log",
  "serde",
  "serde_json",
 ]

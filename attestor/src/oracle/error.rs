@@ -12,6 +12,9 @@ pub enum OracleError {
     /// storage api error: {0}
     StorageApiError(#[from] ApiError),
 
-    /// event not found in redis
+    /// event not found in datasource
     EventNotFoundError,
+
+    /// duplicate event found in datasource
+    DuplicateEventFoundError,
 }

@@ -1,12 +1,15 @@
 extern crate base64;
 extern crate tokio;
-use dlc_clients::{ApiError, NewContract, StorageApiClient, UpdateContract};
+use dlc_clients::{
+    ApiError, ContractRequestParams, ContractsRequestParams, NewContract, StorageApiClient,
+    UpdateContract,
+};
 use dlc_manager::contract::offered_contract::OfferedContract;
 use dlc_manager::contract::signed_contract::SignedContract;
 use dlc_manager::contract::{Contract, PreClosedContract};
 use dlc_manager::error::Error;
 use dlc_manager::{ContractId, Storage};
-use log::{info, warn};
+use log::{debug, info, warn};
 use std::env;
 use tokio::runtime::Runtime;
 
@@ -38,21 +41,31 @@ impl StorageApiProvider {
     }
 
     pub fn get_contracts_by_state(&self, state: String) -> Result<Vec<Contract>, Error> {
-        let contracts_res: Result<Vec<dlc_clients::Contract>, ApiError> = self.runtime.block_on(
-            self.client
-                .get_contracts_by_state(state.clone(), self.key.clone()),
-        );
-        let mut contents: Vec<String> = vec![];
-        let mut contracts: Vec<Contract> = vec![];
-        for c in contracts_res.unwrap() {
-            contents.push(c.content);
+        let contracts: Result<Vec<dlc_clients::Contract>, ApiError> =
+            self.runtime
+                .block_on(self.client.get_contracts(ContractsRequestParams {
+                    state: Some(state.clone()),
+                    key: self.key.clone(),
+                    uuid: None,
+                }));
+
+        match contracts {
+            Ok(contracts) => {
+                Ok(contracts
+                    .into_iter()
+                    .map(|c| {
+                        // Use Serde to automagically build this object?
+                        let bytes = base64::decode(c.content).unwrap();
+                        let contract = deserialize_contract(&bytes).unwrap();
+                        contract
+                    })
+                    .collect())
+            }
+            Err(e) => {
+                warn!("Got an error getting contracts: {:?}", e);
+                Err(to_storage_error(e))
+            }
         }
-        for c in contents {
-            let bytes = base64::decode(c.clone()).map_err(to_storage_error)?;
-            let contract = deserialize_contract(&bytes)?;
-            contracts.push(contract);
-        }
-        Ok(contracts)
     }
 }
 
@@ -60,34 +73,43 @@ impl Storage for StorageApiProvider {
     fn get_contract(&self, id: &ContractId) -> Result<Option<Contract>, Error> {
         let cid = get_contract_id_string(*id);
         info!("Get contract by id - {}", cid.clone());
-        let contract_res: Result<Option<dlc_clients::Contract>, ApiError> =
-            self.runtime.block_on(self.client.get_contract(cid.clone()));
-        if let Some(res) = contract_res.map_err(to_storage_error)? {
-            let bytes = base64::decode(res.content).unwrap();
-            let contract = deserialize_contract(&bytes)?;
-            Ok(Some(contract))
-        } else {
-            info!("Contract not found with id: {}", cid.clone());
-            Ok(None)
+        let contract = self
+            .runtime
+            .block_on(self.client.get_contract(ContractRequestParams {
+                key: self.key.clone(),
+                uuid: cid.clone(),
+            }))
+            .map_err(to_storage_error)?;
+
+        match contract {
+            Some(c) => {
+                // Use Serde to automagically build this object?
+                let bytes = base64::decode(c.content).unwrap();
+                let contract = deserialize_contract(&bytes).unwrap();
+                Ok(Some(contract))
+            }
+            None => Ok(None),
         }
     }
 
     fn get_contracts(&self) -> Result<Vec<Contract>, Error> {
-        let contracts_res: Result<Vec<dlc_clients::Contract>, ApiError> = self
+        let contracts = self
             .runtime
-            .block_on(self.client.get_contracts(self.key.clone()));
-        let mut contents: Vec<String> = vec![];
-        let mut contracts: Vec<Contract> = vec![];
-        let unpacked_contracts = contracts_res.map_err(to_storage_error)?;
-        for c in unpacked_contracts {
-            contents.push(c.content);
-        }
-        for c in contents {
-            let bytes = base64::decode(c.clone()).unwrap();
-            let contract = deserialize_contract(&bytes).unwrap();
-            contracts.push(contract);
-        }
-        Ok(contracts)
+            .block_on(self.client.get_contracts(ContractsRequestParams {
+                state: None,
+                key: self.key.clone(),
+                uuid: None,
+            }))
+            .map_err(to_storage_error)?;
+
+        Ok(contracts
+            .into_iter()
+            .map(|c| {
+                let bytes = base64::decode(c.content.clone()).unwrap();
+                let contract: Contract = deserialize_contract(&bytes).unwrap();
+                contract
+            })
+            .collect())
     }
 
     fn create_contract(self: &StorageApiProvider, contract: &OfferedContract) -> Result<(), Error> {
@@ -142,128 +164,48 @@ impl Storage for StorageApiProvider {
     }
 
     fn update_contract(self: &StorageApiProvider, contract: &Contract) -> Result<(), Error> {
-        let contract_id: String = get_contract_id_string(contract.get_id());
-        let curr_state = get_contract_state_str(contract);
+        let state = get_contract_state_str(contract);
+        let uuid = get_contract_id_string(contract.get_id());
         info!(
             "Update contract with contract id {} - state: {}",
-            contract_id.clone(),
-            curr_state.clone()
+            uuid, state
         );
         match contract {
             a @ Contract::Accepted(_) | a @ Contract::Signed(_) => {
                 let res = self.delete_contract(&a.get_temporary_id());
-                let del_con_id = get_contract_id_string(a.get_temporary_id());
                 match res {
                     Ok(_) => {
-                        info!("Contract has been successfully deleted (during update) with id {} and state '{}'", del_con_id, curr_state.clone());
+                        debug!("Contract has been successfully deleted (during update) with id {} and state '{}'", get_contract_id_string(a.get_temporary_id()), state);
                     }
                     Err(err) => {
-                        warn!("Deleting contract has been failed (during update) with id {} and state '{}'", del_con_id, curr_state.clone());
+                        warn!("Deleting contract has failed (during update) with id {} and state '{}'", get_contract_id_string(a.get_temporary_id()), state);
                         return Err(to_storage_error(err));
                     }
                 }
+                let created_contract: dlc_clients::Contract = self
+                    .runtime
+                    .block_on(self.client.create_contract(NewContract {
+                        uuid: get_contract_id_string(contract.get_id()),
+                        state: get_contract_state_str(contract),
+                        content: base64::encode(serialize_contract(contract).unwrap()),
+                        key: self.key.clone(),
+                    }))
+                    .map_err(to_storage_error)?;
+                debug!("Created new contract to replace temporary one during update with id {} and state '{}'", get_contract_id_string(contract.get_id()), state);
+                return Ok(());
             }
             _ => {}
         };
-        info!(
-            "Get contract with contract id {} before updating (state: {}) ...",
-            contract_id.clone(),
-            curr_state.clone()
-        );
-        let contract_res: Result<Option<dlc_clients::Contract>, ApiError> = self
+        let conctract_to_update = self
             .runtime
-            .block_on(self.client.get_contract(contract_id.clone()));
-        let unw_contract = match contract_res {
-            Ok(res) => {
-                info!(
-                    "Response from storage receieved sucessfully for contract with id {}.",
-                    contract_id.clone()
-                );
-                res
-            }
-            Err(api_err) => {
-                if api_err.status == 404 {
-                    info!(
-                        "Not found API error has been thrown by storage API with contract id {}",
-                        contract_id.clone()
-                    );
-                    None
-                } else {
-                    info!(
-                        "Cannot get contract with id {} by storage API",
-                        contract_id.clone()
-                    );
-                    return Err(to_storage_error(api_err));
-                }
-            }
-        };
-        let data = serialize_contract(contract).unwrap();
-        let encoded_content = base64::encode(&data);
-        if unw_contract.is_some() {
-            info!(
-                "As contract exists with contract id {}, update contract (to state '{}')",
-                contract_id.clone(),
-                curr_state.clone()
-            );
-            let update_res = self.runtime.block_on(self.client.update_contract(
-                contract_id.clone(),
-                UpdateContract {
-                    state: Some(curr_state.clone()),
-                    content: Some(encoded_content),
-                },
-            ));
-            match update_res {
-                Ok(_) => {
-                    info!(
-                        "Contract has been successfully updated with id {} and state '{}'",
-                        contract_id.clone(),
-                        curr_state.clone()
-                    );
-                    return Ok(());
-                }
-                Err(err) => {
-                    info!(
-                        "Contract update has been failed with id {}, state: {}",
-                        contract_id.clone(),
-                        curr_state.clone()
-                    );
-                    return Err(to_storage_error(err));
-                }
-            }
-        } else {
-            info!(
-                "As contract does not exist with contract id {}, create contract (with state '{}' and key {})",
-                contract_id.clone(),
-                curr_state.clone(),
-                self.key.clone()
-            );
-            let create_res = self
-                .runtime
-                .block_on(self.client.create_contract(NewContract {
-                    uuid: contract_id.clone(),
-                    state: curr_state.clone(),
-                    content: encoded_content,
-                    key: self.key.clone(),
-                }));
-            match create_res {
-                Ok(_) => {
-                    info!(
-                        "Contract has been successfully created with id {} and state '{}'",
-                        contract_id.clone(),
-                        curr_state.clone()
-                    );
-                    return Ok(());
-                }
-                Err(err) => {
-                    info!(
-                        "Contract creation has been failed (during update) with id {}, state: {}",
-                        contract_id.clone(),
-                        curr_state.clone()
-                    );
-                    return Err(to_storage_error(err));
-                }
-            }
-        }
+            .block_on(self.client.update_contract(UpdateContract {
+                uuid: get_contract_id_string(contract.get_id()),
+                state: Some(get_contract_state_str(contract)),
+                content: Some(base64::encode(serialize_contract(contract).unwrap())),
+                key: self.key.clone(),
+            }))
+            .map_err(to_storage_error)?;
+        Ok(())
     }
 
     fn get_contract_offers(&self) -> Result<Vec<OfferedContract>, Error> {

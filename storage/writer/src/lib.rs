@@ -1,7 +1,8 @@
 use diesel::PgConnection;
 use dlc_storage_common;
 use dlc_storage_common::models::{
-    Contract, Event, NewContract, NewEvent, UpdateContract, UpdateEvent,
+    Contract, DeleteContract, DeleteEvent, Event, NewContract, NewEvent, UpdateContract,
+    UpdateEvent,
 };
 
 pub fn apply_migrations(conn: &mut PgConnection) {
@@ -17,21 +18,23 @@ pub fn create_contract(
 
 pub fn update_contract(
     conn: &mut PgConnection,
-    cuuid: &str,
     contract: UpdateContract,
 ) -> Result<usize, diesel::result::Error> {
-    return dlc_storage_common::update_contract(conn, cuuid, contract);
+    return dlc_storage_common::update_contract(conn, contract);
 }
 
 pub fn delete_contract(
     conn: &mut PgConnection,
-    cuuid: &str,
+    contract: DeleteContract,
 ) -> Result<usize, diesel::result::Error> {
-    return dlc_storage_common::delete_contract(conn, cuuid);
+    return dlc_storage_common::delete_contract(conn, contract);
 }
 
-pub fn delete_contracts(conn: &mut PgConnection) -> Result<usize, diesel::result::Error> {
-    return dlc_storage_common::delete_all_contracts(conn);
+pub fn delete_all_contracts(
+    conn: &mut PgConnection,
+    ckey: &str,
+) -> Result<usize, diesel::result::Error> {
+    return dlc_storage_common::delete_all_contracts(conn, ckey);
 }
 
 pub fn create_event(
@@ -43,16 +46,18 @@ pub fn create_event(
 
 pub fn update_event(
     conn: &mut PgConnection,
-    eid: &str,
     event: UpdateEvent,
 ) -> Result<usize, diesel::result::Error> {
-    return dlc_storage_common::update_event(conn, eid, event);
+    return dlc_storage_common::update_event(conn, event);
 }
 
-pub fn delete_event(conn: &mut PgConnection, eid: &str) -> Result<usize, diesel::result::Error> {
-    return dlc_storage_common::delete_contract(conn, eid);
+pub fn delete_event(
+    conn: &mut PgConnection,
+    event: DeleteEvent,
+) -> Result<usize, diesel::result::Error> {
+    return dlc_storage_common::delete_event(conn, event);
 }
 
-pub fn delete_events(conn: &mut PgConnection) -> Result<usize, diesel::result::Error> {
-    return dlc_storage_common::delete_all_events(conn);
+pub fn delete_events(conn: &mut PgConnection, ckey: &str) -> Result<usize, diesel::result::Error> {
+    return dlc_storage_common::delete_all_events(conn, ckey);
 }

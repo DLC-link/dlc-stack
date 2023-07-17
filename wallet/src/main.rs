@@ -537,7 +537,7 @@ fn create_new_offer(
 
 fn accept_offer(accept_dlc: AcceptDlc, manager: Arc<Mutex<DlcManager>>) -> Response {
     println!("accept_dlc: {:?}", accept_dlc);
-    if let Some(Message::Sign(sign)) = (match manager.lock().unwrap().on_dlc_message(
+    if let Some(Message::Sign(sign)) = match manager.lock().unwrap().on_dlc_message(
         &Message::Accept(accept_dlc),
         STATIC_COUNTERPARTY_NODE_ID.parse().unwrap(),
     ) {
@@ -557,7 +557,7 @@ fn accept_offer(accept_dlc: AcceptDlc, manager: Arc<Mutex<DlcManager>>) -> Respo
                 .with_status_code(400),
             );
         }
-    }) {
+    } {
         add_access_control_headers(Response::json(&sign))
     } else {
         return Response::json(

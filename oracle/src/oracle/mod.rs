@@ -25,7 +25,8 @@ pub struct Oracle {
 
 impl Oracle {
     pub fn new(key_pair: KeyPair, secp: Secp256k1<All>) -> Result<Oracle> {
-        let event_handler = EventHandler::new();
+        let key = key_pair.public_key().to_string();
+        let event_handler = EventHandler::new(key);
 
         Ok(Oracle {
             event_handler,

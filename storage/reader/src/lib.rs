@@ -3,25 +3,18 @@ use dlc_storage_common;
 use dlc_storage_common::models::Contract;
 use dlc_storage_common::models::ContractRequestParams;
 use dlc_storage_common::models::Event;
+use dlc_storage_common::models::EventRequestParams;
 
 pub fn get_contracts(
     conn: &mut PgConnection,
-    request_params: ContractRequestParams,
+    contract_params: ContractRequestParams,
 ) -> Result<Vec<Contract>, diesel::result::Error> {
-    return dlc_storage_common::get_contracts(conn, request_params);
+    return dlc_storage_common::get_contracts(conn, contract_params);
 }
 
-pub fn get_contract(
+pub fn get_events(
     conn: &mut PgConnection,
-    cuuid: &str,
-) -> Result<Contract, diesel::result::Error> {
-    return dlc_storage_common::get_contract(conn, cuuid);
-}
-
-pub fn get_events(conn: &mut PgConnection) -> Result<Vec<Event>, diesel::result::Error> {
-    return dlc_storage_common::get_all_events(conn);
-}
-
-pub fn get_event(conn: &mut PgConnection, cuuid: &str) -> Result<Event, diesel::result::Error> {
-    return dlc_storage_common::get_event(conn, cuuid);
+    event_params: EventRequestParams,
+) -> Result<Vec<Event>, diesel::result::Error> {
+    return dlc_storage_common::get_events(conn, event_params);
 }

@@ -15,5 +15,6 @@ table! {
         id -> Int4,
         event_id -> Varchar,
         content -> Text,
+        key -> Varchar,
     }
 }

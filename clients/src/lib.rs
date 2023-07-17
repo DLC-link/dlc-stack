@@ -1,6 +1,6 @@
 extern crate serde;
 
-use log::{debug, info};
+use log::{debug, info, warn};
 use reqwest::{Client, Error, Response, Url};
 use std::fmt::{Debug, Formatter};
 use std::{error, fmt};
@@ -64,14 +64,30 @@ pub struct NewContract {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct UpdateContract {
+    pub uuid: String,
     pub state: Option<String>,
     pub content: Option<String>,
+    pub key: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct ContractRequestParams {
+    pub key: String,
+    pub uuid: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct ContractsRequestParams {
+    pub key: String,
+    pub uuid: Option<String>,
+    pub state: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct NewEvent {
     pub event_id: String,
     pub content: String,
+    pub key: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -79,11 +95,26 @@ pub struct Event {
     pub id: i32,
     pub event_id: String,
     pub content: String,
+    pub key: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct UpdateEvent {
-    pub content: Option<String>,
+    pub event_id: String,
+    pub content: String,
+    pub key: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct EventRequestParams {
+    pub key: String,
+    pub event_id: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct EventsRequestParams {
+    pub key: String,
+    pub event_id: Option<String>,
 }
 
 pub struct WalletBackendClient {
@@ -246,6 +277,7 @@ impl MemoryApiClient {
                 id: 1,
                 event_id: uuid.to_string(),
                 content: content.to_string(),
+                key: "mykey".to_string(),
             });
         }
         Ok(events)
@@ -260,6 +292,7 @@ impl MemoryApiClient {
             id: 1,
             event_id: uuid,
             content: res.unwrap().to_string(),
+            key: "mykey".to_string(),
         }))
     }
 
@@ -270,18 +303,11 @@ impl MemoryApiClient {
             id: 1,
             event_id: event.event_id,
             content: event.content,
+            key: "mykey".to_string(),
         })
     }
 
     pub async fn update_event(&mut self, uuid: String, event: UpdateEvent) -> Result<(), ApiError> {
-        if event.content.is_none() {
-            return Err(ApiError {
-                message: "Event data empty".to_string(),
-                status: 404,
-            });
-        }
-        let content = event.content.unwrap();
-
         let res = self.events.get(&uuid);
         if res.is_none() {
             return Err(ApiError {
@@ -290,7 +316,7 @@ impl MemoryApiClient {
             });
         }
         self.events.remove(&uuid);
-        self.events.insert(uuid, content);
+        self.events.insert(uuid, event.content);
         return Ok(());
     }
 
@@ -329,11 +355,14 @@ impl StorageApiClient {
         }
     }
 
-    pub async fn get_contracts(&self, key: String) -> Result<Vec<Contract>, ApiError> {
-        let uri = format!("{}/contracts?key={key}", String::as_str(&self.host.clone()),);
+    pub async fn get_contracts(
+        &self,
+        contract: ContractsRequestParams,
+    ) -> Result<Vec<Contract>, ApiError> {
+        let uri = format!("{}/contracts", String::as_str(&self.host.clone()),);
         debug!("get_contracts calling for URI: {}", uri);
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.get(url).send().await {
+        let res = match self.client.get(url).json(&contract).send().await {
             Ok(result) => result,
             Err(e) => {
                 return Err(ApiError {
@@ -363,10 +392,44 @@ impl StorageApiClient {
         }
     }
 
-    pub async fn get_events(&self) -> Result<Vec<Event>, ApiError> {
+    pub async fn get_contract(
+        &self,
+        contract: ContractRequestParams,
+    ) -> Result<Option<Contract>, ApiError> {
+        info!("getting contract with uuid: {}", contract.uuid);
+
+        let contracts = self
+            .get_contracts(ContractsRequestParams {
+                uuid: Some(contract.uuid.clone()),
+                key: contract.key,
+                state: None,
+            })
+            .await;
+
+        if contracts.is_err() {
+            return Err(contracts.err().unwrap());
+        }
+
+        let contracts = contracts.unwrap();
+        if contracts.len() > 1 {
+            warn!("More than one contract found with id: {}", contract.uuid);
+            Err(ApiError {
+                message: "Duplicate contracts found".to_string(),
+                status: 400,
+            })
+        } else if contracts.len() == 1 {
+            info!("Contract found with id: {}", contract.uuid);
+            Ok(Some(contracts.first().unwrap().clone()))
+        } else {
+            info!("Contract not found with id: {}", contract.uuid);
+            Ok(None)
+        }
+    }
+
+    pub async fn get_events(&self, event: EventsRequestParams) -> Result<Vec<Event>, ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()));
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.get(url).send().await {
+        let res = match self.client.get(url).json(&event).send().await {
             Ok(result) => result,
             Err(e) => {
                 return Err(ApiError {
@@ -396,118 +459,30 @@ impl StorageApiClient {
         }
     }
 
-    pub async fn get_event(&self, uuid: String) -> Result<Option<Event>, ApiError> {
-        let uri = format!(
-            "{}/events/{}",
-            String::as_str(&self.host.clone()),
-            uuid.as_str()
-        );
-        let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.get(url).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
-        let status = res.status();
-        if status.is_success() {
-            let status_clone = status.clone();
-            let event: Event = res.json().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Ok(Some(event))
-        } else if status.clone().as_u16() == 404 {
-            Ok(None)
-        } else {
-            let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Err(ApiError {
-                message: msg,
-                status: status_clone.as_u16(),
-            })
-        }
-    }
+    pub async fn get_event(&self, event: EventRequestParams) -> Result<Option<Event>, ApiError> {
+        info!("getting contract with uuid: {}", event.event_id);
 
-    pub async fn get_contracts_by_state(
-        &self,
-        state: String,
-        key: String,
-    ) -> Result<Vec<Contract>, ApiError> {
-        let uri = format!(
-            "{}/contracts?key={key}&state={state}",
-            String::as_str(&self.host.clone())
-        );
-        let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.get(url).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
-        let status = res.status();
-        if status.is_success() {
-            let status_clone = status.clone();
-            let contracts: Vec<Contract> = res.json().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Ok(contracts)
-        } else {
-            let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Err(ApiError {
-                message: msg,
-                status: status_clone.as_u16(),
+        let events = self
+            .get_events(EventsRequestParams {
+                key: event.key.clone(),
+                event_id: Some(event.event_id.clone()),
             })
-        }
-    }
+            .await;
 
-    pub async fn get_contract(&self, uuid: String) -> Result<Option<Contract>, ApiError> {
-        info!("getting contract with uuid: {}", uuid.as_str());
-        let uri = format!("{}/contract/{uuid}", String::as_str(&self.host.clone()));
-        let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.get(url).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
-        let status = res.status();
-        if status.is_success() {
-            let status_clone = status.clone();
-            let contract: Contract = res.json().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Ok(Some(contract))
-        } else if status.clone().as_u16() == 404 {
+        if events.is_err() {
+            return Err(events.err().unwrap());
+        }
+
+        let events = events.unwrap();
+        if events.len() > 1 {
+            warn!("More than one contract found with id: {}", event.event_id);
             Ok(None)
+        } else if events.len() == 1 {
+            info!("Contract found with id: {}", event.event_id);
+            Ok(Some(events.first().unwrap().clone()))
         } else {
-            let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Err(ApiError {
-                message: msg,
-                status: status_clone.as_u16(),
-            })
+            info!("Contract not found with id: {}", event.event_id);
+            Ok(None)
         }
     }
 
@@ -630,15 +605,11 @@ impl StorageApiClient {
         }
     }
 
-    pub async fn update_contract(
-        &self,
-        uuid: String,
-        contract: UpdateContract,
-    ) -> Result<(), ApiError> {
+    pub async fn update_contract(&self, contract: UpdateContract) -> Result<(), ApiError> {
         let uri = format!(
             "{}/contracts/{}",
             String::as_str(&self.host.clone()),
-            uuid.as_str()
+            contract.uuid
         );
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self
@@ -673,6 +644,7 @@ impl StorageApiClient {
         }
     }
 
+    // key for all these too
     pub async fn delete_event(&self, uuid: String) -> Result<(), ApiError> {
         self.delete_resource(uuid.clone(), "events".to_string())
             .await

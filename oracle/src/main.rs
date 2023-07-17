@@ -470,7 +470,7 @@ async fn main() -> anyhow::Result<()> {
     let key_pair = get_or_generate_keypair(&secp, args.secret_key_file).await;
     info!(
         "oracle keypair successfully generated, pubkey is {}",
-        key_pair.public_key().serialize().encode_hex::<String>()
+        key_pair.public_key().to_string()
     );
 
     // setup event databases
