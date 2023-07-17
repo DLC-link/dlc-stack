@@ -95,5 +95,14 @@ export default async (config: ConfigSet): Promise<WrappedContract> => {
                 return error;
             }
         },
+        getAllAttestors: async () => {
+            try {
+                const attestors = await contract.getAllAttestors();
+                return attestors;
+            } catch (error) {
+                console.log(error);
+                return error;
+            }
+        },
     };
 };

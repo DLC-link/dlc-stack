@@ -42,4 +42,9 @@ export default class BlockchainWriterService {
         const contractConfig = await this.getConfig();
         return await contractConfig.postCloseDLC(uuid, btcTxId);
     }
+
+    public async getAllAttestors(): Promise<string[]> {
+        const contractConfig = await this.getConfig();
+        return await contractConfig.getAllAttestors();
+    }
 }

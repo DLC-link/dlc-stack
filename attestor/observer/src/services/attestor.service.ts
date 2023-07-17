@@ -1,6 +1,12 @@
 import { Attestor } from 'attestor';
 import { getEnv } from '../config/read-env-configs.js';
 
+function createMaturationDate() {
+  const maturationDate = new Date();
+  maturationDate.setMinutes(maturationDate.getMinutes() + 1);
+  return maturationDate.toISOString();
+}
+
 export default class AttestorService {
   private static attestor: Attestor;
 
@@ -15,7 +21,7 @@ export default class AttestorService {
   public static async createAnnouncement(uuid: string, maturation?: string) {
     const attestor = await this.getAttestor();
 
-    let _maturation = maturation ? new Date(maturation).toISOString() : new Date().toISOString();
+    let _maturation = maturation ? new Date(maturation).toISOString() : createMaturationDate();
 
     await attestor.create_event(uuid, _maturation);
   }
