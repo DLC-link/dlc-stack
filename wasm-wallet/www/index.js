@@ -9,15 +9,44 @@ const bitcoinNetworkURL = "https://dev-oracle.dlc.link/electrs";
 
 const protocolWalletURL = "http://localhost:8085";
 
-// const oracleURLs = ["http://localhost:8801", "http://localhost:8802"];
-const oracleURLs = ["http://localhost:8801"];
-const joinedOracleURLs = ["http://localhost:8801"];
+const oracleURLs = [
+  "https://dev-oracle.dlc.link/oracle",
+  "https://testnet.dlc.link/oracle",
+];
 
-// const joinedOracleURLs = oracleURLs.join(",");
+const handleAttestors = true;
+const successful = false;
+
+const joinedOracleURLs = oracleURLs.join(",");
+
+const testUUID = `test${Math.floor(Math.random() * 1000)}`;
+
+function createMaturationDate() {
+  const maturationDate = new Date();
+  maturationDate.setMinutes(maturationDate.getMinutes() + 1);
+  return maturationDate.toISOString();
+}
+
+async function createEvent(oracleURL, uuid) {
+  const maturationDate = createMaturationDate();
+  const response = await fetch(
+    `${oracleURL}/v1/create_event/${uuid}?maturation=${maturationDate}`
+  );
+  const event = await response.json();
+  return event;
+}
+
+async function attest(oracleURL, uuid, outcome) {
+  const response = await fetch(
+    `${oracleURL}/v1/attest/${uuid}?outcome=${outcome}`
+  );
+  const event = await response.json();
+  return event;
+}
 
 async function fetchOfferFromProtocolWallet(oracleUrls) {
   let body = {
-    uuid: "0xa2876fa089db7c4102157b909e31013f00b9558944bac010ecf49ef87155d0ce",
+    uuid: testUUID,
     acceptCollateral: 10000,
     offerCollateral: 0,
     totalOutcomes: 100,
@@ -62,39 +91,56 @@ async function go() {
       console.log("DLC Wasm Wallet Balance: " + balance);
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
-    return balance;
+
+    waitForBalance(dlcManager).then(() => {
+      runDLCFlow(dlcManager);
+    });
   }
 
-  waitForBalance(dlcManager).then((balance) => {
-    runDLCFlow(dlcManager);
-  });
-}
+  async function runDLCFlow(dlcManager) {
+    console.log("Starting DLC flow");
 
-async function runDLCFlow(dlcManager) {
-  console.log("Starting DLC flow");
+    if (handleAttestors) {
+      console.log("Creating Events");
+      const events = await Promise.all(
+        oracleURLs.map((oracleURL) => createEvent(oracleURL, testUUID))
+      );
+      console.log("Created Events: ", events);
+    }
 
-  const offer_json = await fetchOfferFromProtocolWallet(
-    dlcManager.get_options().oracle_urls
-  );
-  console.log("Offer (JSON): ", offer_json);
+    const offer_json = await fetchOfferFromProtocolWallet(
+      dlcManager.get_options().oracle_urls
+    );
+    console.log("Offer (JSON): ", offer_json);
 
-  const accepted_contract = await dlcManager.accept_offer(
-    JSON.stringify(offer_json)
-  );
-  console.log("Accepted Contract:", accepted_contract);
+    const accepted_contract = await dlcManager.accept_offer(
+      JSON.stringify(offer_json)
+    );
+    console.log("Accepted Contract:", accepted_contract);
 
-  const signed_contract = await sendAcceptedOfferToProtocolWallet(
-    accepted_contract
-  );
-  console.log("Signed Contract: ", signed_contract);
+    const signed_contract = await sendAcceptedOfferToProtocolWallet(
+      accepted_contract
+    );
+    console.log("Signed Contract: ", signed_contract);
 
-  const tx_id = await dlcManager.countersign_and_broadcast(
-    JSON.stringify(signed_contract)
-  );
-  console.log(`Broadcast funding transaction with TX ID: ${tx_id}`);
+    const tx_id = await dlcManager.countersign_and_broadcast(
+      JSON.stringify(signed_contract)
+    );
+    console.log(`Broadcast funding transaction with TX ID: ${tx_id}`);
 
-  const contracts = await dlcManager.get_contracts();
-  console.log("Contracts: ", contracts);
+    if (handleAttestors) {
+      console.log("Attesting to Events");
+      const attestations = await Promise.all(
+        oracleURLs.map((oracleURL, index) =>
+          attest(oracleURL, testUUID, successful ? 100 : index === 0 ? 0 : 100)
+        )
+      );
+      console.log("Attestation received: ", attestations);
+    }
+
+    const contracts = await dlcManager.get_contracts();
+    console.log("Contracts: ", contracts);
+  }
 }
 
 go();

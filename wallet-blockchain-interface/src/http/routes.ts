@@ -21,6 +21,12 @@ router.post('/set-status-funded', express.json(), async (req, res) => {
     res.status(200).send(data);
 });
 
+router.get('/get-all-attestors', express.json(), async (req, res) => {
+    console.log('GET /get-all-attestors');
+    const data = await blockchainWriter.getAllAttestors();
+    res.status(200).send(data);
+});
+
 router.post('/post-close-dlc', express.json(), async (req, res) => {
     if (!req.query.uuid) {
         res.status(400).send('Missing UUID');
