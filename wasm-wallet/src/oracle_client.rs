@@ -91,7 +91,7 @@ struct AttestationResponse {
 //         .map_err(|e| dlc_manager::error::Error::OracleError(e.to_string()))
 // }
 
-fn get_json(path: &str) -> Result<Value, DlcManagerError> {
+fn get_json(_path: &str) -> Result<Value, DlcManagerError> {
     // reqwest::blocking::get(path)
     //     .map_err(|x| {
     //         dlc_manager::error::Error::IOError(std::io::Error::new(std::io::ErrorKind::Other, x))

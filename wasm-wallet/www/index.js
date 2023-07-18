@@ -9,17 +9,12 @@ const bitcoinNetworkURL = "https://dev-oracle.dlc.link/electrs";
 
 const protocolWalletURL = "http://localhost:8085";
 
-const oracleURLs = [
-  "https://dev-oracle.dlc.link/oracle",
-  "https://testnet.dlc.link/oracle",
-];
+const handleAttestors = false;
+const successfulAttesting = false;
 
-const handleAttestors = true;
-const successful = false;
-
-const joinedOracleURLs = oracleURLs.join(",");
-
-const testUUID = `test${Math.floor(Math.random() * 1000)}`;
+// const testUUID = `test${Math.floor(Math.random() * 1000)}`;
+const testUUID =
+  "0xdc4bf70065c03f7d725c35678ad28ff353e5feb1456a3124c776e81d650a24ab";
 
 function createMaturationDate() {
   const maturationDate = new Date();
@@ -27,30 +22,29 @@ function createMaturationDate() {
   return maturationDate.toISOString();
 }
 
-async function createEvent(oracleURL, uuid) {
+async function createEvent(attestorURL, uuid) {
   const maturationDate = createMaturationDate();
   const response = await fetch(
-    `${oracleURL}/v1/create_event/${uuid}?maturation=${maturationDate}`
+    `${attestorURL}/v1/create_event/${uuid}?maturation=${maturationDate}`
   );
   const event = await response.json();
   return event;
 }
 
-async function attest(oracleURL, uuid, outcome) {
+async function attest(attestorURL, uuid, outcome) {
   const response = await fetch(
-    `${oracleURL}/v1/attest/${uuid}?outcome=${outcome}`
+    `${attestorURL}/v1/attest/${uuid}?outcome=${outcome}`
   );
   const event = await response.json();
   return event;
 }
 
-async function fetchOfferFromProtocolWallet(oracleUrls) {
+async function fetchOfferFromProtocolWallet() {
   let body = {
     uuid: testUUID,
     acceptCollateral: 10000,
     offerCollateral: 0,
     totalOutcomes: 100,
-    // "oraclesUrls": oracleUrls,
   };
 
   return fetch(`${protocolWalletURL}/offer`, {
@@ -70,8 +64,66 @@ async function sendAcceptedOfferToProtocolWallet(accepted_offer) {
   }).then((res) => res.json());
 }
 
-async function go() {
+async function waitForBalance(dlcManager) {
+  let balance = 0;
+  while (balance <= 0) {
+    balance = await dlcManager.get_wallet_balance();
+    console.log("DLC Wasm Wallet Balance: " + balance);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+}
+
+async function runDLCFlow(dlcManager, dlcOffer) {
+  console.log("Starting DLC flow");
+
+  const acceptedContract = await dlcManager.accept_offer(
+    JSON.stringify(dlcOffer)
+  );
+  console.log("Accepted Contract:", acceptedContract);
+
+  const signedContract = await sendAcceptedOfferToProtocolWallet(
+    acceptedContract
+  );
+  console.log("Signed Contract: ", signedContract);
+
+  const txID = await dlcManager.countersign_and_broadcast(
+    JSON.stringify(signedContract)
+  );
+  console.log(`Broadcast funding transaction with TX ID: ${txID}`);
+
+  if (handleAttestors) {
+    console.log("Attesting to Events");
+    const attestations = await Promise.all(
+      exampleAttestorURLs.map((attestorURL, index) =>
+        attest(attestorURL, testUUID, successful ? 100 : index === 0 ? 0 : 100)
+      )
+    );
+    console.log("Attestation received: ", attestations);
+  }
+
+  const contracts = await dlcManager.get_contracts();
+  console.log("Contracts: ", contracts);
+}
+
+async function main() {
   console.log("DLC WASM Wallet Test");
+
+  if (handleAttestors) {
+    console.log("Creating Events");
+    const events = await Promise.all(
+      exampleAttestorURLs.map((attestorURL) =>
+        createEvent(attestorURL, testUUID)
+      )
+    );
+    console.log("Created Events: ", events);
+  }
+
+  console.log("Fetching Offer from Protocol Wallet");
+  const offerResponse = await fetchOfferFromProtocolWallet();
+  console.log("Received Offer (JSON): ", offerResponse[0]);
+  console.log("Received Attestor URLs: ", offerResponse[1]);
+
+  const joinedAttestorURLs = offerResponse[1]?.join(",");
 
   // creates a new instance of the JsDLCInterface
   const dlcManager = await JsDLCInterface.new(
@@ -79,68 +131,14 @@ async function go() {
     testWalletAddress,
     bitcoinNetwork,
     bitcoinNetworkURL,
-    joinedOracleURLs
+    joinedAttestorURLs
   );
 
   console.log("DLC Manager Interface Options: ", dlcManager.get_options());
 
-  async function waitForBalance(dlcManager) {
-    let balance = 0;
-    while (balance <= 0) {
-      balance = await dlcManager.get_wallet_balance();
-      console.log("DLC Wasm Wallet Balance: " + balance);
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-    }
-
-    waitForBalance(dlcManager).then(() => {
-      runDLCFlow(dlcManager);
-    });
-  }
-
-  async function runDLCFlow(dlcManager) {
-    console.log("Starting DLC flow");
-
-    if (handleAttestors) {
-      console.log("Creating Events");
-      const events = await Promise.all(
-        oracleURLs.map((oracleURL) => createEvent(oracleURL, testUUID))
-      );
-      console.log("Created Events: ", events);
-    }
-
-    const offer_json = await fetchOfferFromProtocolWallet(
-      dlcManager.get_options().oracle_urls
-    );
-    console.log("Offer (JSON): ", offer_json);
-
-    const accepted_contract = await dlcManager.accept_offer(
-      JSON.stringify(offer_json)
-    );
-    console.log("Accepted Contract:", accepted_contract);
-
-    const signed_contract = await sendAcceptedOfferToProtocolWallet(
-      accepted_contract
-    );
-    console.log("Signed Contract: ", signed_contract);
-
-    const tx_id = await dlcManager.countersign_and_broadcast(
-      JSON.stringify(signed_contract)
-    );
-    console.log(`Broadcast funding transaction with TX ID: ${tx_id}`);
-
-    if (handleAttestors) {
-      console.log("Attesting to Events");
-      const attestations = await Promise.all(
-        oracleURLs.map((oracleURL, index) =>
-          attest(oracleURL, testUUID, successful ? 100 : index === 0 ? 0 : 100)
-        )
-      );
-      console.log("Attestation received: ", attestations);
-    }
-
-    const contracts = await dlcManager.get_contracts();
-    console.log("Contracts: ", contracts);
-  }
+  waitForBalance(dlcManager).then(() => {
+    runDLCFlow(dlcManager, offerResponse[0]);
+  });
 }
 
-go();
+main();
