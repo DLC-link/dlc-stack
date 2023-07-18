@@ -404,14 +404,7 @@ impl StorageApiClient {
     pub async fn create_contract(&self, contract: NewContract) -> Result<Contract, ApiError> {
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()));
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self
-            .client
-            .post(url)
-            .json(&contract)
-            .header("Content-type", "application/json")
-            .send()
-            .await
-        {
+        let res = match self.client.post(url).json(&contract).send().await {
             Ok(result) => result,
             Err(e) => {
                 return Err(ApiError {
@@ -444,14 +437,7 @@ impl StorageApiClient {
     pub async fn create_event(&self, event: NewEvent) -> Result<Event, ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()));
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self
-            .client
-            .post(url)
-            .header("Content-Type", "application/json")
-            .json(&event)
-            .send()
-            .await
-        {
+        let res = match self.client.post(url).json(&event).send().await {
             Ok(result) => result,
             Err(e) => {
                 return Err(ApiError {
@@ -484,14 +470,7 @@ impl StorageApiClient {
     pub async fn update_event(&self, event: UpdateEvent) -> Result<(), ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()),);
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self
-            .client
-            .put(url)
-            .json(&event)
-            .header("Content-type", "application/json")
-            .send()
-            .await
-        {
+        let res = match self.client.put(url).json(&event).send().await {
             Ok(result) => result,
             Err(e) => {
                 return Err(ApiError {
@@ -522,14 +501,7 @@ impl StorageApiClient {
 
         info!("calling url: {:?}", url);
 
-        let res = match self
-            .client
-            .put(url)
-            .header("Content-type", "application/json")
-            .json(&contract)
-            .send()
-            .await
-        {
+        let res = match self.client.put(url).json(&contract).send().await {
             Ok(result) => result,
             Err(e) => {
                 return Err(ApiError {

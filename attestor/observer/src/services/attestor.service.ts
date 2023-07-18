@@ -1,11 +1,10 @@
 import { Attestor } from 'attestor';
 import { getEnv } from '../config/read-env-configs.js';
-import { randomBytes, createECDH } from 'crypto';
+import { createECDH } from 'crypto';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
 
-async function getOrGenerateSecretFromConfig(secretKeyFile?: string): Promise<string> {
-  let secretKeyPath = secretKeyFile || join('config', 'secret.key');
+async function getOrGenerateSecretFromConfig(secretKeyFile: string): Promise<string> {
+  let secretKeyPath = secretKeyFile;
   let secretKey: string;
 
   if (existsSync(secretKeyPath)) {
@@ -38,7 +37,7 @@ export default class AttestorService {
       this.attestor = await Attestor.new(
         getEnv('STORAGE_API_ENABLED') === 'true',
         getEnv('STORAGE_API_ENDPOINT'),
-        await getOrGenerateSecretFromConfig('../config/secret.key')
+        await getOrGenerateSecretFromConfig(`../config/${getEnv('SECRET_KEY_FILE') as string}`)
       );
     return this.attestor;
   }

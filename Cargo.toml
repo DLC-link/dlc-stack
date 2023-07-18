@@ -6,7 +6,7 @@ members = [
     "dlc-memory-storage-provider",
     "dlc-link-manager",
     "oracle",
-    "oracle-discovery",
+    # "oracle-discovery",
     "wallet",
     "wasm-wallet",
     "clients",

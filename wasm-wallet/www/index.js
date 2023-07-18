@@ -14,7 +14,7 @@ const successfulAttesting = false;
 
 // const testUUID = `test${Math.floor(Math.random() * 1000)}`;
 const testUUID =
-  "0x0a4cf114cccd42c17fe8db2abbf893917e9ffc9f3041f2b6b13a6293383dbba5";
+  "0xeb4b0614f75c89b8802866d1bf8e0d316100da9b95a0ac867eba2830d19afe8a";
 
 function createMaturationDate() {
   const maturationDate = new Date();
