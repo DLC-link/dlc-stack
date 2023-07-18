@@ -60,25 +60,6 @@ impl Attestor {
         );
 
         let secp = Secp256k1::new();
-        // let key: SecretKey = match secret_key {
-        //     Some(mut key) => {
-        //         key.retain(|c| !c.is_whitespace());
-        //         match SecretKey::from_str(&key) {
-        //             Ok(key) => key,
-        //             Err(_) => {
-        //                 clog!(
-        //                     "[WASM-ATTESTOR] Invalid secret key provided, generating new keypair"
-        //                 );
-        //                 let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
-        //                 new_key
-        //             }
-        //         }
-        //     }
-        //     None => {
-        //         let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
-        //         new_key
-        //     }
-        // };
         let key = match SecretKey::from_str(&secret_key) {
             Ok(key) => key,
             Err(_) => {
