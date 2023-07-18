@@ -1217,6 +1217,7 @@ dependencies = [
  "derive_more",
  "dlc-clients",
  "futures",
+ "reqwest",
  "tokio",
 ]
 

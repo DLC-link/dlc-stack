@@ -157,10 +157,7 @@ impl StorageApiConn {
                 event_id: event_id.clone(),
                 key: self.key.clone(),
             };
-            let res = self
-                .client
-                .update_event(event_id.clone(), update_event)
-                .await;
+            let res = self.client.update_event(update_event).await;
             match res {
                 Ok(_) => Ok(Some(new_event.clone())),
                 Err(err) => {

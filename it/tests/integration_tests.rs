@@ -1,11 +1,101 @@
 use cucumber::{given, then, when, Parameter, World};
 use derive_more::{Deref, FromStr};
-use dlc_clients::{
-    AcceptMessage, ApiResult, OfferRequest, OracleBackendClient, WalletBackendClient,
-};
+use dlc_clients::{AcceptMessage, ApiError, ApiResult, OfferRequest, WalletBackendClient};
 use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
+use reqwest::{Client, Error, Response, StatusCode, Url};
+use std::fmt::{Debug, Formatter};
+
+pub struct OracleBackendClient {
+    client: Client,
+    host: String,
+}
+
+impl Default for OracleBackendClient {
+    fn default() -> Self {
+        Self::new("http://localhost:8080".to_string())
+    }
+}
+
+impl Debug for OracleBackendClient {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({})", self.host)
+    }
+}
+
+impl OracleBackendClient {
+    pub fn new(host: String) -> Self {
+        Self {
+            client: Client::new(),
+            host: host,
+        }
+    }
+
+    pub async fn create_event(&self, uuid: String) -> Result<ApiResult, Error> {
+        let uri = format!(
+            "{}/v1/create_event/{}?maturation=2022-10-08T13:48:00Z",
+            String::as_str(&self.host.clone()),
+            uuid.as_str()
+        );
+        let url = Url::parse(uri.as_str()).unwrap();
+        let res = self.client.get(url).send().await?;
+        let result = ApiResult {
+            status: res.status().as_u16(),
+            response: res,
+        };
+        Ok(result)
+    }
+
+    pub async fn get_attestation(&self, uuid: String, outcome: String) -> Result<ApiResult, Error> {
+        let uri = format!(
+            "{}/v1/attest/{}?outcome={}",
+            String::as_str(&self.host.clone()),
+            uuid.as_str(),
+            outcome.as_str()
+        );
+        let url = Url::parse(uri.as_str()).unwrap();
+        let res = self.client.get(url).send().await?;
+        let result = ApiResult {
+            status: res.status().as_u16(),
+            response: res,
+        };
+        Ok(result)
+    }
+
+    pub async fn get_public_key(&self) -> Result<String, ApiError> {
+        let uri = format!("{}/v1/publickey", String::as_str(&self.host.clone()));
+        let url = Url::parse(uri.as_str()).unwrap();
+        let res = match self.client.get(url).send().await {
+            Ok(result) => result,
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
+        };
+        let status = res.status();
+        if status.is_success() {
+            let status_clone = status.clone();
+            let key_resp: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Ok(key_resp)
+        } else {
+            let status_clone = status.clone();
+            let msg: String = res.text().await.map_err(|e| ApiError {
+                message: e.to_string(),
+                status: status_clone.as_u16(),
+            })?;
+            Err(ApiError {
+                message: msg,
+                status: status_clone.as_u16(),
+            })
+        }
+    }
+}
 #[derive(Deref, FromStr, Parameter)]
 #[param(regex = r"\d+", name = "u64")]
 struct CustomU64(u64);
