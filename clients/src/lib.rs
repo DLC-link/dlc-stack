@@ -1,7 +1,7 @@
 extern crate serde;
 
 use log::{debug, info, warn};
-use reqwest::{Client, Error, Response, Url};
+use reqwest::{Client, Error, Response, StatusCode, Url};
 use std::fmt::{Debug, Formatter};
 use std::{error, fmt};
 
@@ -362,7 +362,8 @@ impl StorageApiClient {
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()),);
         debug!("get_contracts calling for URI: {}", uri);
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.get(url).json(&contract).send().await {
+
+        let res = match self.client.get(url).query(&contract).send().await {
             Ok(result) => result,
             Err(e) => {
                 return Err(ApiError {
@@ -371,24 +372,26 @@ impl StorageApiClient {
                 })
             }
         };
+
         let status = res.status();
-        if status.is_success() {
-            let status_clone = status.clone();
-            let contracts: Vec<Contract> = res.json().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Ok(contracts)
-        } else {
-            let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Err(ApiError {
-                message: msg,
-                status: status_clone.as_u16(),
-            })
+        match status.clone() {
+            StatusCode::OK => {
+                let contracts: Vec<Contract> = res.json().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Ok(contracts)
+            }
+            _ => {
+                let msg: String = res.text().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Err(ApiError {
+                    message: msg,
+                    status: status.clone().as_u16(),
+                })
+            }
         }
     }
 
@@ -429,7 +432,7 @@ impl StorageApiClient {
     pub async fn get_events(&self, event: EventsRequestParams) -> Result<Vec<Event>, ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()));
         let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.get(url).json(&event).send().await {
+        let res = match self.client.get(url).query(&event).send().await {
             Ok(result) => result,
             Err(e) => {
                 return Err(ApiError {
@@ -438,24 +441,26 @@ impl StorageApiClient {
                 })
             }
         };
+
         let status = res.status();
-        if status.is_success() {
-            let status_clone = status.clone();
-            let events: Vec<Event> = res.json().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Ok(events)
-        } else {
-            let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Err(ApiError {
-                message: msg,
-                status: status_clone.as_u16(),
-            })
+        match status.clone() {
+            StatusCode::OK => {
+                let events: Vec<Event> = res.json().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Ok(events)
+            }
+            _ => {
+                let msg: String = res.text().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Err(ApiError {
+                    message: msg,
+                    status: status.clone().as_u16(),
+                })
+            }
         }
     }
 

@@ -48,7 +48,6 @@ impl StorageApiProvider {
                     key: self.key.clone(),
                     uuid: None,
                 }));
-
         match contracts {
             Ok(contracts) => {
                 Ok(contracts
