@@ -1,5 +1,5 @@
 // use crate::oracle::vault::{get_secret_key, set_secret_key, OraclePrivateKey};
-// // use gethostname::gethostname;
+// use gethostname::gethostname;
 // use log::info;
 // use log::warn;
 // use secp256k1_zkp::{rand, All, KeyPair, Secp256k1, SecretKey};

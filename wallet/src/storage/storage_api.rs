@@ -195,7 +195,8 @@ impl Storage for StorageApiProvider {
             }
             _ => {}
         };
-        let conctract_to_update = self
+
+        let contract_to_update = self
             .runtime
             .block_on(self.client.update_contract(UpdateContract {
                 uuid: get_contract_id_string(contract.get_id()),

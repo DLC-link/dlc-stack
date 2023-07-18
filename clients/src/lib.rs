@@ -611,12 +611,11 @@ impl StorageApiClient {
     }
 
     pub async fn update_contract(&self, contract: UpdateContract) -> Result<(), ApiError> {
-        let uri = format!(
-            "{}/contracts/{}",
-            String::as_str(&self.host.clone()),
-            contract.uuid
-        );
+        let uri = format!("{}/contracts", String::as_str(&self.host.clone()));
         let url = Url::parse(uri.as_str()).unwrap();
+
+        info!("calling url: {:?}", url);
+
         let res = match self
             .client
             .put(url)

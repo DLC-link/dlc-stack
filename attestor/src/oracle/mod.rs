@@ -7,7 +7,7 @@ use crate::oracle::handler::EventHandler;
 pub use error::OracleError;
 pub use error::Result;
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DbValue(
     pub Option<Vec<SecretKey>>, // outstanding_sk_nonces?
     pub Vec<u8>,                // announcement
@@ -33,7 +33,7 @@ impl Oracle {
         let event_handler = EventHandler::new(
             storage_api_enabled,
             storage_api_endpoint,
-            key_pair.public_key().to_string(),
+            SchnorrPublicKey::from_keypair(&key_pair).0.to_string(),
         );
 
         Ok(Oracle {

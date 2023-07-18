@@ -11,6 +11,7 @@ use secp256k1_zkp::{
     hashes::*, All, KeyPair, Message, Secp256k1, SecretKey, XOnlyPublicKey as SchnorrPublicKey,
 };
 use std::io::Cursor;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
@@ -45,15 +46,46 @@ pub struct Attestor {
 
 #[wasm_bindgen]
 impl Attestor {
-    pub async fn new(storage_api_enabled: bool, storage_api_endpoint: String) -> Attestor {
+    pub async fn new(
+        storage_api_enabled: bool,
+        storage_api_endpoint: String,
+        secret_key: String,
+    ) -> Attestor {
         clog!(
-            "[WASM-ATTESTOR]: Creating new attestor with storage_api_enabled: {}, storage_api_endpoint: {}",
+            "[WASM-ATTESTOR]: Creating new attestor with storage_api_enabled: {}, storage_api_endpoint: {}, secret_key: {:?}",
             storage_api_enabled,
-            storage_api_endpoint
+            storage_api_endpoint,
+            secret_key
         );
+
         let secp = Secp256k1::new();
-        let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
-        let key_pair = KeyPair::from_secret_key(&secp, &new_key);
+        // let key: SecretKey = match secret_key {
+        //     Some(mut key) => {
+        //         key.retain(|c| !c.is_whitespace());
+        //         match SecretKey::from_str(&key) {
+        //             Ok(key) => key,
+        //             Err(_) => {
+        //                 clog!(
+        //                     "[WASM-ATTESTOR] Invalid secret key provided, generating new keypair"
+        //                 );
+        //                 let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
+        //                 new_key
+        //             }
+        //         }
+        //     }
+        //     None => {
+        //         let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
+        //         new_key
+        //     }
+        // };
+        let key = match SecretKey::from_str(&secret_key) {
+            Ok(key) => key,
+            Err(_) => {
+                clog!("[WASM-ATTESTOR] Invalid secret key provided, shutting down");
+                panic!("Invalid secret key provided");
+            }
+        };
+        let key_pair = KeyPair::from_secret_key(&secp, &key);
         let oracle =
             Oracle::new(key_pair, secp, storage_api_enabled, storage_api_endpoint).unwrap();
         Attestor { oracle }
@@ -121,6 +153,7 @@ impl Attestor {
                 None => panic!(), // None => return Err(AttestorError::OracleEventNotFoundError(uuid).into()),
             };
             event = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).unwrap();
+            clog!("[WASM-ATTESTOR] Got event from StorageAPI: {:?}", event);
         } else {
             let event_ivec = match self
                 .oracle
@@ -137,6 +170,7 @@ impl Attestor {
                 None => panic!(),
             };
             event = serde_json::from_str(&String::from_utf8_lossy(&event_ivec)).unwrap();
+            clog!("[WASM-ATTESTOR] Got event from MemoryAPI: {:?}", event);
         }
 
         let outstanding_sk_nonces = event.clone().0.unwrap();

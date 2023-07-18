@@ -148,7 +148,7 @@ fn main() {
     let blockchain_interface_url = env::var("BLOCKCHAIN_INTERFACE_URL")
         .expect("BLOCKCHAIN_INTERFACE_URL environment variable not set, couldn't get attestors");
 
-    let funded_endpoint_url = format!("{}/funded", blockchain_interface_url);
+    let funded_endpoint_url = format!("{}/set-status-funded", blockchain_interface_url);
 
     let wallet_backend_port: String = env::var("WALLET_BACKEND_PORT").unwrap_or("8085".to_string());
     let mut funded_uuids: Vec<String> = vec![];

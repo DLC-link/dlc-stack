@@ -1,5 +1,26 @@
 import { Attestor } from 'attestor';
 import { getEnv } from '../config/read-env-configs.js';
+import { randomBytes, createECDH } from 'crypto';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { join } from 'path';
+
+async function getOrGenerateSecretFromConfig(secretKeyFile?: string): Promise<string> {
+  let secretKeyPath = secretKeyFile || join('config', 'secret.key');
+  let secretKey: string;
+
+  if (existsSync(secretKeyPath)) {
+    console.log(`Reading secret key from ${secretKeyPath}`);
+    secretKey = readFileSync(secretKeyPath, { encoding: 'utf8' }).trim();
+  } else {
+    console.log('No secret key file was found, generating secret key');
+    const ecdh = createECDH('secp256k1');
+    ecdh.generateKeys();
+    secretKey = ecdh.getPrivateKey('hex');
+    writeFileSync(secretKeyPath, secretKey);
+  }
+
+  return secretKey;
+}
 
 function createMaturationDate() {
   const maturationDate = new Date();
@@ -14,7 +35,11 @@ export default class AttestorService {
 
   public static async getAttestor(): Promise<Attestor> {
     if (!this.attestor)
-      this.attestor = await Attestor.new(getEnv('STORAGE_API_ENABLED') === 'true', getEnv('STORAGE_API_ENDPOINT'));
+      this.attestor = await Attestor.new(
+        getEnv('STORAGE_API_ENABLED') === 'true',
+        getEnv('STORAGE_API_ENDPOINT'),
+        await getOrGenerateSecretFromConfig('../config/secret.key')
+      );
     return this.attestor;
   }
 
