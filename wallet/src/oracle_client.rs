@@ -114,13 +114,37 @@ impl P2PDOracleClient {
         let path = pubkey_path(&host);
         info!("Getting pubkey from {}", path);
 
-        let public_key = reqwest::blocking::get(path).unwrap().text().unwrap();
-        info!("Oracle Pub Key: {:?}", public_key);
+        let public_key = reqwest::blocking::get(path);
+        match public_key {
+            Ok(res) => match res.text() {
+                Ok(key) => {
+                    info!("Oracle Pub Key: {:?}", key);
+                    let public_key = XOnlyPublicKey::from_str(&key).map_err(|_| {
+                        DlcManagerError::OracleError("Oracle PubKey Error".to_string())
+                    })?;
+                    info!("The p2pd oracle client has been created successfully");
+                    return Ok(P2PDOracleClient { host, public_key });
+                }
+                Err(e) => {
+                    return Err(DlcManagerError::OracleError(format!(
+                        "Oracle PubKey Error: {}",
+                        e
+                    )))
+                }
+            },
+            Err(e) => {
+                return Err(DlcManagerError::OracleError(format!(
+                    "Oracle PubKey Error: {}",
+                    e
+                )))
+            }
+        };
+        // info!("Oracle Pub Key: {:?}", public_key);
 
-        let public_key = XOnlyPublicKey::from_str(&public_key)
-            .map_err(|_| DlcManagerError::OracleError("Oracle PubKey Error".to_string()))?;
-        info!("The p2pd oracle client has been created successfully");
-        Ok(P2PDOracleClient { host, public_key })
+        // let public_key = XOnlyPublicKey::from_str(&public_key)
+        //     .map_err(|_| DlcManagerError::OracleError("Oracle PubKey Error".to_string()))?;
+        // info!("The p2pd oracle client has been created successfully");
+        // Ok(P2PDOracleClient { host, public_key })
     }
 }
 
