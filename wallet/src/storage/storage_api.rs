@@ -35,9 +35,12 @@ impl StorageApiProvider {
         }
     }
 
+    // Todo: delete later, for testing only
     pub fn delete_contracts(&self) {
         info!("Delete all contracts by storage api ...");
-        let _res = self.runtime.block_on(self.client.delete_contracts());
+        let _res = self
+            .runtime
+            .block_on(self.client.delete_contracts(self.key.clone()));
     }
 
     pub fn get_contracts_by_state(&self, state: String) -> Result<Vec<Contract>, Error> {
@@ -146,7 +149,10 @@ impl Storage for StorageApiProvider {
         info!("Delete contract with contract id {}", cid.clone());
         let res = self
             .runtime
-            .block_on(self.client.delete_contract(cid.clone()));
+            .block_on(self.client.delete_contract(ContractRequestParams {
+                key: self.key.clone(),
+                uuid: cid.clone(),
+            }));
         match res {
             Ok(r) => {
                 info!(
@@ -181,8 +187,7 @@ impl Storage for StorageApiProvider {
                         return Err(to_storage_error(err));
                     }
                 }
-                let created_contract: dlc_clients::Contract = self
-                    .runtime
+                self.runtime
                     .block_on(self.client.create_contract(NewContract {
                         uuid: get_contract_id_string(contract.get_id()),
                         state: get_contract_state_str(contract),
@@ -191,21 +196,20 @@ impl Storage for StorageApiProvider {
                     }))
                     .map_err(to_storage_error)?;
                 debug!("Created new contract to replace temporary one during update with id {} and state '{}'", get_contract_id_string(contract.get_id()), state);
-                return Ok(());
+                Ok(())
             }
-            _ => {}
-        };
-
-        let contract_to_update = self
-            .runtime
-            .block_on(self.client.update_contract(UpdateContract {
-                uuid: get_contract_id_string(contract.get_id()),
-                state: Some(get_contract_state_str(contract)),
-                content: Some(base64::encode(serialize_contract(contract).unwrap())),
-                key: self.key.clone(),
-            }))
-            .map_err(to_storage_error)?;
-        Ok(())
+            _ => {
+                self.runtime
+                    .block_on(self.client.update_contract(UpdateContract {
+                        uuid: get_contract_id_string(contract.get_id()),
+                        state: Some(get_contract_state_str(contract)),
+                        content: Some(base64::encode(serialize_contract(contract).unwrap())),
+                        key: self.key.clone(),
+                    }))
+                    .map_err(to_storage_error)?;
+                Ok(())
+            }
+        }
     }
 
     fn get_contract_offers(&self) -> Result<Vec<OfferedContract>, Error> {

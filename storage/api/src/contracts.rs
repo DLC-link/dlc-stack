@@ -1,4 +1,5 @@
 use crate::DbPool;
+use actix_web::body::BoxBody;
 use actix_web::web;
 use actix_web::web::{Data, Json, Path};
 use actix_web::{delete, get, post, put, HttpResponse, Responder};
@@ -8,6 +9,7 @@ use dlc_storage_common::models::{
 use dlc_storage_reader;
 use dlc_storage_writer;
 use log::{info, warn};
+use serde_json::json;
 
 #[get("/contracts")]
 pub async fn get_contracts(
@@ -15,9 +17,13 @@ pub async fn get_contracts(
     contract_params: web::Query<ContractRequestParams>,
 ) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
-    let contracts =
-        dlc_storage_reader::get_contracts(&mut conn, contract_params.into_inner()).unwrap();
-    HttpResponse::Ok().json(contracts)
+    match dlc_storage_reader::get_contracts(&mut conn, contract_params.into_inner()) {
+        Ok(contracts) => HttpResponse::Ok().json(contracts),
+        Err(e) => {
+            warn!("Error getting contracts: {:?}", e);
+            HttpResponse::BadRequest().body(e.to_string())
+        }
+    }
 }
 
 #[post("/contracts")]
@@ -44,9 +50,18 @@ pub async fn update_contract(
     contract_params: Json<UpdateContract>,
 ) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
-    let contract =
-        dlc_storage_writer::update_contract(&mut conn, contract_params.into_inner()).unwrap();
-    HttpResponse::Ok().json(contract)
+    let num_updated =
+        match dlc_storage_writer::update_contract(&mut conn, contract_params.into_inner()) {
+            Ok(num_updated) => num_updated,
+            Err(e) => {
+                warn!("Error updating contract: {:?}", e);
+                return HttpResponse::BadRequest().body(e.to_string());
+            }
+        };
+    match num_updated {
+        0 => HttpResponse::NotFound().body("No contract found"),
+        _ => HttpResponse::Ok().json(json!({ "num_effected": num_updated })),
+    }
 }
 
 #[delete("/contract")]
@@ -56,15 +71,22 @@ pub async fn delete_contract(
 ) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
     let num_deleted =
-        dlc_storage_writer::delete_contract(&mut conn, contract_params.into_inner()).unwrap();
-
-    HttpResponse::Ok().json(num_deleted)
+        match dlc_storage_writer::delete_contract(&mut conn, contract_params.into_inner()) {
+            Ok(num_deleted) => num_deleted,
+            Err(e) => {
+                warn!("Error deleting contract: {:?}", e);
+                return HttpResponse::BadRequest().body(e.to_string());
+            }
+        };
+    match num_deleted {
+        0 => HttpResponse::NotFound().body("No contract found"),
+        _ => HttpResponse::Ok().json(json!({ "num_effected": num_deleted })),
+    }
 }
 
 #[delete("/contracts/{ckey}")]
 pub async fn delete_contracts(pool: Data<DbPool>, ckey: Path<String>) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
     let num_deleted = dlc_storage_writer::delete_all_contracts(&mut conn, &ckey).unwrap();
-
-    HttpResponse::Ok().json(num_deleted)
+    HttpResponse::Ok().json(json!({ "num_effected": num_deleted }))
 }

@@ -117,6 +117,11 @@ pub struct EventsRequestParams {
     pub event_id: Option<String>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+struct EffectedNumResponse {
+    pub effected_num: u32,
+}
+
 pub struct WalletBackendClient {
     client: Client,
     host: String,
@@ -317,25 +322,24 @@ impl StorageApiClient {
                 key: contract.key,
                 state: None,
             })
-            .await;
+            .await?;
 
-        if contracts.is_err() {
-            return Err(contracts.err().unwrap());
-        }
-
-        let contracts = contracts.unwrap();
-        if contracts.len() > 1 {
-            warn!("More than one contract found with id: {}", contract.uuid);
-            Err(ApiError {
-                message: "Duplicate contracts found".to_string(),
-                status: 400,
-            })
-        } else if contracts.len() == 1 {
-            info!("Contract found with id: {}", contract.uuid);
-            Ok(Some(contracts.first().unwrap().clone()))
-        } else {
-            info!("Contract not found with id: {}", contract.uuid);
-            Ok(None)
+        match contracts.len() {
+            0 => {
+                info!("Contract not found with id: {}", contract.uuid);
+                Ok(None)
+            }
+            1 => {
+                info!("Contract found with id: {}", contract.uuid);
+                Ok(Some(contracts.first().unwrap().clone()))
+            }
+            _ => {
+                warn!("More than one contract found with id: {}", contract.uuid);
+                Err(ApiError {
+                    message: "Duplicate contracts found".to_string(),
+                    status: 400,
+                })
+            }
         }
     }
 
@@ -382,22 +386,24 @@ impl StorageApiClient {
                 key: event.key.clone(),
                 event_id: Some(event.event_id.clone()),
             })
-            .await;
+            .await?;
 
-        if events.is_err() {
-            return Err(events.err().unwrap());
-        }
-
-        let events = events.unwrap();
-        if events.len() > 1 {
-            warn!("More than one contract found with id: {}", event.event_id);
-            Ok(None)
-        } else if events.len() == 1 {
-            info!("Contract found with id: {}", event.event_id);
-            Ok(Some(events.first().unwrap().clone()))
-        } else {
-            info!("Contract not found with id: {}", event.event_id);
-            Ok(None)
+        match events.len() {
+            0 => {
+                info!("Event not found with id: {}", event.event_id);
+                Ok(None)
+            }
+            1 => {
+                info!("Event found with id: {}", event.event_id);
+                Ok(Some(events.first().unwrap().clone()))
+            }
+            _ => {
+                warn!("More than one contract found with id: {}", event.event_id);
+                Err(ApiError {
+                    message: "Duplicate events found".to_string(),
+                    status: 400,
+                })
+            }
         }
     }
 
@@ -414,23 +420,24 @@ impl StorageApiClient {
             }
         };
         let status = res.status();
-        if status.is_success() {
-            let status_clone = status.clone();
-            let contract: Contract = res.json().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Ok(contract)
-        } else {
-            let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Err(ApiError {
-                message: msg,
-                status: status_clone.as_u16(),
-            })
+        match status.clone() {
+            StatusCode::OK => {
+                let contract: Contract = res.json().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Ok(contract)
+            }
+            _ => {
+                let msg: String = res.text().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Err(ApiError {
+                    message: msg,
+                    status: status.clone().as_u16(),
+                })
+            }
         }
     }
 
@@ -447,23 +454,24 @@ impl StorageApiClient {
             }
         };
         let status = res.status();
-        if status.is_success() {
-            let status_clone = status.clone();
-            let event: Event = res.json().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Ok(event)
-        } else {
-            let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Err(ApiError {
-                message: msg,
-                status: status_clone.as_u16(),
-            })
+        match status.clone() {
+            StatusCode::OK => {
+                let event: Event = res.json().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Ok(event)
+            }
+            _ => {
+                let msg: String = res.text().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Err(ApiError {
+                    message: msg,
+                    status: status.clone().as_u16(),
+                })
+            }
         }
     }
 
@@ -480,18 +488,36 @@ impl StorageApiClient {
             }
         };
         let status = res.status();
-        if status.is_success() {
-            Ok(())
-        } else {
-            let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Err(ApiError {
-                message: msg,
-                status: status_clone.as_u16(),
-            })
+        match status.clone() {
+            StatusCode::OK => match res
+                .json::<EffectedNumResponse>()
+                .await
+                .map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?
+                .effected_num
+            {
+                0 => Err(ApiError {
+                    message: "No event updated".to_string(),
+                    status: status.clone().as_u16(),
+                }),
+                1 => Ok(()),
+                _ => {
+                    warn!("More than one event updated");
+                    Ok(())
+                }
+            },
+            _ => {
+                let msg: String = res.text().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Err(ApiError {
+                    message: msg,
+                    status: status.clone().as_u16(),
+                })
+            }
         }
     }
 
@@ -511,38 +537,153 @@ impl StorageApiClient {
             }
         };
         let status = res.status();
-        if status.is_success() {
-            Ok(())
-        } else {
-            let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Err(ApiError {
-                message: msg,
-                status: status_clone.as_u16(),
-            })
+        match status.clone() {
+            StatusCode::OK => match res
+                .json::<EffectedNumResponse>()
+                .await
+                .map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?
+                .effected_num
+            {
+                0 => Err(ApiError {
+                    message: "No contract updated".to_string(),
+                    status: status.clone().as_u16(),
+                }),
+                1 => Ok(()),
+                _ => {
+                    warn!("More than one contract updated");
+                    Ok(())
+                }
+            },
+            _ => {
+                let msg: String = res.text().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Err(ApiError {
+                    message: msg,
+                    status: status.clone().as_u16(),
+                })
+            }
         }
     }
 
     // key for all these too
-    pub async fn delete_event(&self, uuid: String) -> Result<(), ApiError> {
-        self.delete_resource(uuid.clone(), "events".to_string())
-            .await
+    pub async fn delete_event(&self, event: EventRequestParams) -> Result<(), ApiError> {
+        let uri = format!("{}/event", String::as_str(&self.host.clone()));
+        let url = Url::parse(uri.as_str()).unwrap();
+
+        info!("calling delete on url: {:?}", url);
+
+        let res = match self.client.delete(url).json(&event).send().await {
+            Ok(result) => result,
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
+        };
+        let status = res.status();
+        match status.clone() {
+            StatusCode::OK => match res
+                .json::<EffectedNumResponse>()
+                .await
+                .map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?
+                .effected_num
+            {
+                0 => Err(ApiError {
+                    message: "No event deleted".to_string(),
+                    status: status.clone().as_u16(),
+                }),
+                1 => Ok(()),
+                _ => {
+                    warn!("More than one event deleted");
+                    Ok(())
+                }
+            },
+            _ => {
+                let msg: String = res.text().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Err(ApiError {
+                    message: msg,
+                    status: status.clone().as_u16(),
+                })
+            }
+        }
     }
 
-    pub async fn delete_contract(&self, uuid: String) -> Result<(), ApiError> {
-        self.delete_resource(uuid.clone(), "contracts".to_string())
-            .await
+    pub async fn delete_contract(&self, contract: ContractRequestParams) -> Result<(), ApiError> {
+        let uri = format!("{}/contract", String::as_str(&self.host.clone()));
+        let url = Url::parse(uri.as_str()).unwrap();
+
+        info!("calling delete on url: {:?}", url);
+
+        let res = match self.client.delete(url).json(&contract).send().await {
+            Ok(result) => result,
+            Err(e) => {
+                return Err(ApiError {
+                    message: e.to_string(),
+                    status: 0,
+                })
+            }
+        };
+        let status = res.status();
+        match status.clone() {
+            StatusCode::OK => match res
+                .json::<EffectedNumResponse>()
+                .await
+                .map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?
+                .effected_num
+            {
+                0 => Err(ApiError {
+                    message: "No contract deleted".to_string(),
+                    status: status.clone().as_u16(),
+                }),
+                1 => Ok(()),
+                _ => {
+                    warn!("More than one contract deleted");
+                    Ok(())
+                }
+            },
+            _ => {
+                let msg: String = res.text().await.map_err(|e| ApiError {
+                    message: e.to_string(),
+                    status: status.clone().as_u16(),
+                })?;
+                Err(ApiError {
+                    message: msg,
+                    status: status.clone().as_u16(),
+                })
+            }
+        }
     }
 
-    async fn delete_resource(&self, uuid: String, path: String) -> Result<(), ApiError> {
+    pub async fn delete_contracts(&self, key: String) -> Result<(), ApiError> {
+        self.delete_resources("contracts".to_string(), key).await
+    }
+
+    pub async fn delete_events(&self, key: String) -> Result<(), ApiError> {
+        self.delete_resources("events".to_string(), key).await
+    }
+
+    // TODO: for testing only, should be removed
+    async fn delete_resources(&self, path: String, key: String) -> Result<(), ApiError> {
         let uri = format!(
             "{}/{}/{}",
             String::as_str(&self.host.clone()),
             path.as_str(),
-            uuid.as_str()
+            key.clone()
         );
         let url = Url::parse(uri.as_str()).unwrap();
         let res = match self.client.delete(url).send().await {
@@ -555,54 +696,18 @@ impl StorageApiClient {
             }
         };
         let status = res.status();
-        if status.is_success() {
-            Ok(())
-        } else {
-            let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Err(ApiError {
-                message: msg,
-                status: status_clone.as_u16(),
-            })
-        }
-    }
-
-    pub async fn delete_contracts(&self) -> Result<(), ApiError> {
-        self.delete_resources("contracts".to_string()).await
-    }
-
-    pub async fn delete_events(&self) -> Result<(), ApiError> {
-        self.delete_resources("events".to_string()).await
-    }
-
-    async fn delete_resources(&self, path: String) -> Result<(), ApiError> {
-        let uri = format!("{}/{}", String::as_str(&self.host.clone()), path.as_str());
-        let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.delete(url).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
+        match status.clone() {
+            StatusCode::OK => Ok(()),
+            _ => {
+                let msg: String = res.text().await.map_err(|e| ApiError {
                     message: e.to_string(),
-                    status: 0,
+                    status: status.clone().as_u16(),
+                })?;
+                Err(ApiError {
+                    message: msg,
+                    status: status.clone().as_u16(),
                 })
             }
-        };
-        let status = res.status();
-        if status.is_success() {
-            Ok(())
-        } else {
-            let status_clone = status.clone();
-            let msg: String = res.text().await.map_err(|e| ApiError {
-                message: e.to_string(),
-                status: status_clone.as_u16(),
-            })?;
-            Err(ApiError {
-                message: msg,
-                status: status_clone.as_u16(),
-            })
         }
     }
 }
