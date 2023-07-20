@@ -60,7 +60,7 @@ pub async fn update_contract(
         };
     match num_updated {
         0 => HttpResponse::NotFound().body("No contract found"),
-        _ => HttpResponse::Ok().json(json!({ "num_effected": num_updated })),
+        _ => HttpResponse::Ok().json(json!({ "effected_num": num_updated })),
     }
 }
 
@@ -80,7 +80,7 @@ pub async fn delete_contract(
         };
     match num_deleted {
         0 => HttpResponse::NotFound().body("No contract found"),
-        _ => HttpResponse::Ok().json(json!({ "num_effected": num_deleted })),
+        _ => HttpResponse::Ok().json(json!({ "effected_num": num_deleted })),
     }
 }
 
@@ -88,5 +88,5 @@ pub async fn delete_contract(
 pub async fn delete_contracts(pool: Data<DbPool>, ckey: Path<String>) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
     let num_deleted = dlc_storage_writer::delete_all_contracts(&mut conn, &ckey).unwrap();
-    HttpResponse::Ok().json(json!({ "num_effected": num_deleted }))
+    HttpResponse::Ok().json(json!({ "effected_num": num_deleted }))
 }

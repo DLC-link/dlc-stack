@@ -41,7 +41,7 @@ pub async fn update_event(pool: Data<DbPool>, event: Json<UpdateEvent>) -> impl 
     };
     match num_updated {
         0 => HttpResponse::NotFound().body("No event found"),
-        _ => HttpResponse::Ok().json(json!({ "num_effected": num_updated })),
+        _ => HttpResponse::Ok().json(json!({ "effected_num": num_updated })),
     }
 }
 
@@ -57,7 +57,7 @@ pub async fn delete_event(pool: Data<DbPool>, event: Json<DeleteEvent>) -> impl 
     };
     match num_deleted {
         0 => HttpResponse::NotFound().body("No event found"),
-        _ => HttpResponse::Ok().json(json!({ "num_effected": num_deleted })),
+        _ => HttpResponse::Ok().json(json!({ "effected_num": num_deleted })),
     }
 }
 
@@ -65,5 +65,5 @@ pub async fn delete_event(pool: Data<DbPool>, event: Json<DeleteEvent>) -> impl 
 pub async fn delete_events(pool: Data<DbPool>, ckey: Path<String>) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
     let num_deleted = dlc_storage_writer::delete_events(&mut conn, &ckey).unwrap();
-    HttpResponse::Ok().json(json!({ "num_effected": num_deleted }))
+    HttpResponse::Ok().json(json!({ "effected_num": num_deleted }))
 }
