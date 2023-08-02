@@ -1,9 +1,0 @@
-Dockerfile
-config
-LICENSE
-README.md
-.gitignore
-.github
-events
-target
-docker/

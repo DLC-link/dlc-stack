@@ -1,8 +1,0 @@
-/target
-.DS_STORE
-.idea
-/events_db*
-nohup.out
-.env
-!.env.template
-*.iml
