@@ -78,7 +78,14 @@ struct ErrorsResponse {
     status: u64,
 }
 
-fn get_attestors() -> Option<Vec<String>> {
+pub fn to_oracle_error<T>(e: T) -> dlc_manager::error::Error
+where
+    T: std::fmt::Display,
+{
+    dlc_manager::error::Error::OracleError(e.to_string())
+}
+
+fn get_attestors() -> Result<Vec<String>, dlc_manager::error::Error> {
     let blockchain_interface_url = env::var("BLOCKCHAIN_INTERFACE_URL")
         .expect("BLOCKCHAIN_INTERFACE_URL environment variable not set, couldn't get attestors");
 
@@ -86,30 +93,28 @@ fn get_attestors() -> Option<Vec<String>> {
 
     let client = reqwest::blocking::Client::builder()
         .use_rustls_tls()
-        .build();
+        .build()
+        .map_err(to_oracle_error)?;
 
-    if client.is_ok() {
-        let res = client
-            .unwrap()
-            .get(get_all_attestors_endpoint_url.as_str())
-            .send();
+    debug!("loaded client:{:?}", client);
 
-        match res {
-            Ok(res) => match res.error_for_status() {
-                Ok(_res) => {
-                    let attestors: Vec<String> = _res.json().unwrap();
-                    return Some(attestors);
-                }
-                Err(e) => {
-                    info!("Error getting attestor urls: {}", e.to_string());
-                }
-            },
-            Err(e) => {
-                info!("Error getting attestor urls: {}", e.to_string());
-            }
-        }
+    let res = client
+        .get(get_all_attestors_endpoint_url.as_str())
+        .send()
+        .map_err(to_oracle_error)?;
+
+    debug!("got res:{:?}", res);
+
+    let attestors = res.json::<Vec<String>>().map_err(to_oracle_error)?;
+
+    debug!("got attestors:{:?}", attestors);
+
+    match attestors.len() {
+        0 => Err(dlc_manager::error::Error::OracleError(
+            "No attestors found".to_string(),
+        )),
+        _ => Ok(attestors),
     }
-    None
 }
 
 fn get_or_generate_secret_from_config(
@@ -141,9 +146,7 @@ fn get_or_generate_secret_from_config(
 fn main() {
     env_logger::init();
 
-    let attestor_urls: Vec<String> = get_attestors().unwrap_or_else(|| {
-        panic!("No attestors received, couldn't setup DLC Manager");
-    });
+    let attestor_urls: Vec<String> = retry!(get_attestors(), 10, "Loading attestors");
 
     let blockchain_interface_url = env::var("BLOCKCHAIN_INTERFACE_URL")
         .expect("BLOCKCHAIN_INTERFACE_URL environment variable not set, couldn't get attestors");
