@@ -116,7 +116,11 @@ impl AsyncStorage for DlcMemoryStorageProvider {
         let mut map = self.contracts.write().expect("Could not get write lock");
         match contract {
             a @ Contract::Accepted(_) | a @ Contract::Signed(_) => {
-                map.remove(&a.get_temporary_id());
+                if let Some(temporary_contract) = map.get(&a.get_temporary_id()) {
+                    map.remove(&a.get_temporary_id());
+                } else {
+                    panic!("Temporary contract is null");
+                } 
             }
             _ => {}
         };

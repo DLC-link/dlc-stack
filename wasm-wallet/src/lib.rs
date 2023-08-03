@@ -3,7 +3,7 @@
 extern crate console_error_panic_hook;
 extern crate log;
 
-use bitcoin::{Network, PrivateKey};
+use bitcoin::{Network, PrivateKey, XOnlyPublicKey};
 use dlc_messages::{Message, OfferDlc, SignDlc};
 use wasm_bindgen::prelude::*;
 
@@ -31,7 +31,6 @@ use std::fmt::Write as _;
 
 use storage::async_storage_api::AsyncStorageApiProvider;
 // use dlc_memory_storage_provider::DlcMemoryStorageProvider;
-use log::info;
 
 use esplora_async_blockchain_provider::EsploraAsyncBlockchainProvider;
 
@@ -39,12 +38,28 @@ use js_interface_wallet::JSInterfaceWallet;
 
 use oracle_client::P2PDOracleClient;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 mod oracle_client;
 mod storage;
 mod utils;
 #[macro_use]
 mod macros;
+
+async fn generate_p2pd_clients(
+    attestor_urls: Vec<String>,
+) -> HashMap<XOnlyPublicKey, Arc<P2PDOracleClient>> {
+    let mut attestor_clients = HashMap::new();
+
+    for url in attestor_urls.iter() {
+        let p2p_client: P2PDOracleClient = P2PDOracleClient::new(url)
+            .await
+            .expect("Error creating oracle client");
+        let attestor = Arc::new(p2p_client);
+        attestor_clients.insert(attestor.get_public_key(), attestor.clone());
+    }
+    return attestor_clients;
+}
 
 type DlcManager = Manager<
     Arc<JSInterfaceWallet>,
@@ -90,7 +105,7 @@ pub struct JsDLCInterface {
 // #[wasm_bindgen]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JsDLCInterfaceOptions {
-    joined_oracle_urls: String,
+    attestor_urls: String,
     network: String,
     electrs_url: String,
     address: String,
@@ -100,7 +115,7 @@ impl Default for JsDLCInterfaceOptions {
     // Default values for Manager Options
     fn default() -> Self {
         Self {
-            joined_oracle_urls: "https://dev-oracle.dlc.link/oracle".to_string(),
+            attestor_urls: "https://dev-oracle.dlc.link/oracle".to_string(),
             network: "regtest".to_string(),
             electrs_url: "https://dev-oracle.dlc.link/electrs".to_string(),
             address: "".to_string(),
@@ -115,21 +130,12 @@ impl JsDLCInterface {
         address: String,
         network: String,
         electrs_url: String,
-        joined_oracle_urls: String,
+        attestor_urls: String,
     ) -> JsDLCInterface {
         console_error_panic_hook::set_once();
 
-        clog!(
-            "Received JsDLCInterface parameters: privkey={}, address={}, network={}, electrs_url={}, oracle_urls={}",
-            privkey,
-            address,
-            network,
-            electrs_url,
-            joined_oracle_urls
-        );
-
         let options = JsDLCInterfaceOptions {
-            joined_oracle_urls,
+            attestor_urls,
             network,
             electrs_url,
             address,
@@ -153,12 +159,10 @@ impl JsDLCInterface {
         let pubkey =
             bitcoin::PublicKey::from_private_key(&secp, &PrivateKey::new(seckey, active_network));
 
-        info!("Starting DLC Manager with pubkey: {}", pubkey.to_string());
-
         // Set up DLC store
         let dlc_store = AsyncStorageApiProvider::new(
             pubkey.to_string(),
-            "http://localhost:8100".to_string(),
+            "https://devnet.dlc.link/storage-api".to_string(),
         );
 
         // Set up wallet
@@ -168,19 +172,18 @@ impl JsDLCInterface {
             PrivateKey::new(seckey, active_network),
         ));
 
-        let oracle_urls: Vec<&str> = options.joined_oracle_urls.split(',').collect();
-
         // Set up Oracle Clients
-        let mut oracles: HashMap<bitcoin::XOnlyPublicKey, Arc<P2PDOracleClient>> = HashMap::new();
+        let attestor_urls_vec: Vec<String> =
+            match serde_json::from_str(&options.attestor_urls.clone()) {
+                Ok(vec) => vec,
+                Err(e) => {
+                    eprintln!("Error deserializing Attestor URLs: {}", e);
+                    Vec::new()
+                }
+            };
 
-        for url in oracle_urls {
-            let p2p_client: P2PDOracleClient = P2PDOracleClient::new(url)
-                .await
-                .expect("To be able to connect to the oracle");
+        let attestors = generate_p2pd_clients(attestor_urls_vec).await;
 
-            let oracle = Arc::new(p2p_client);
-            oracles.insert(oracle.get_public_key(), oracle.clone());
-        }
         // Set up time provider
         let time_provider = SystemTimeProvider {};
 
@@ -190,13 +193,11 @@ impl JsDLCInterface {
                 Arc::clone(&wallet),
                 Arc::clone(&blockchain),
                 Box::new(dlc_store),
-                oracles,
+                attestors,
                 Arc::new(time_provider),
             )
             .unwrap(),
         ));
-
-        clog!("Finished setting up manager");
 
         blockchain.refresh_chain_data(options.address.clone()).await;
 
@@ -260,9 +261,7 @@ impl JsDLCInterface {
 
     pub async fn accept_offer(&self, offer_json: String) -> String {
         let dlc_offer_message: OfferDlc = serde_json::from_str(&offer_json).unwrap();
-        clog!("Offer to accept: {:?}", dlc_offer_message);
 
-        clog!("receive_offer - after on_dlc_message");
         let temporary_contract_id = dlc_offer_message.temporary_contract_id;
 
         match self
@@ -277,12 +276,9 @@ impl JsDLCInterface {
         {
             Ok(_) => (),
             Err(e) => {
-                clog!("DLC manager - receive offer error: {:?}", e);
-                return "".to_string();
+                return e.to_string();
             }
         }
-
-        clog!("accepting contract with id {:?}", temporary_contract_id);
 
         let (_contract_id, _public_key, accept_msg) = self
             .manager
@@ -292,14 +288,11 @@ impl JsDLCInterface {
             .await
             .expect("Error accepting contract offer");
 
-        clog!("receive_offer - after accept_contract_offer");
         serde_json::to_string(&accept_msg).unwrap()
     }
 
     pub async fn countersign_and_broadcast(&self, dlc_sign_message: String) -> String {
-        clog!("sign_offer - before on_dlc_message");
         let dlc_sign_message: SignDlc = serde_json::from_str(&dlc_sign_message).unwrap();
-        clog!("dlc_sign_message: {:?}", dlc_sign_message);
         match self
             .manager
             .lock()
@@ -312,11 +305,10 @@ impl JsDLCInterface {
         {
             Ok(_) => (),
             Err(e) => {
-                info!("DLC manager - sign offer error: {}", e.to_string());
+                log_to_console!("DLC manager - sign offer error: {}", e.to_string());
                 panic!();
             }
         }
-        clog!("sign_offer - after on_dlc_message");
         let manager = self.manager.lock().unwrap();
         let store = manager.get_store();
         let contract: SignedContract = store

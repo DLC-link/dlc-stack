@@ -1,7 +1,6 @@
 import { ConfigSet } from '../../config/models.js';
 import fetch from 'cross-fetch';
 import { ethers } from 'ethers';
-import { WebSocketProvider } from './utilities/websocket-provider.js';
 import { DeploymentInfo } from '../shared/models/deployment-info.interface.js';
 import fs from 'fs';
 import { WrappedContract } from '../shared/models/wrapped-contract.interface.js';
@@ -30,23 +29,23 @@ async function getLocalDeploymentInfo(path: string, contract: string, version: s
 
 export default async (config: ConfigSet): Promise<WrappedContract> => {
     let deploymentInfo: DeploymentInfo = {} as DeploymentInfo;
-    let provider: ethers.providers.WebSocketProvider | ethers.providers.JsonRpcProvider;
+    let provider: ethers.providers.JsonRpcProvider;
     let wallet: ethers.Wallet;
 
     switch (config.chain) {
         case 'ETH_MAINNET':
             deploymentInfo = await fetchDeploymentInfo('mainnet', config.version, config.branch);
-            provider = new WebSocketProvider(`wss://mainnet.infura.io/ws/v3/${config.apiKey}`);
+            provider = new ethers.providers.JsonRpcProvider(`https://mainnet.infura.io/v3/${config.apiKey}`);
             wallet = new ethers.Wallet(config.privateKey, provider);
             break;
         case 'ETH_SEPOLIA':
             deploymentInfo = await fetchDeploymentInfo('sepolia', config.version, config.branch);
-            provider = new WebSocketProvider(`wss://sepolia.infura.io/ws/v3/${config.apiKey}`);
+            provider = new ethers.providers.JsonRpcProvider(`https://sepolia.infura.io/v3/${config.apiKey}`);
             wallet = new ethers.Wallet(config.privateKey, provider);
             break;
         case 'ETH_GOERLI':
             deploymentInfo = await fetchDeploymentInfo('goerli', config.version, config.branch);
-            provider = new WebSocketProvider(`wss://goerli.infura.io/ws/v3/${config.apiKey}`);
+            provider = new ethers.providers.JsonRpcProvider(`https://goerli.infura.io/v3/${config.apiKey}`);
             wallet = new ethers.Wallet(config.privateKey, provider);
             break;
         case 'ETH_LOCAL':

@@ -20,7 +20,7 @@ use std::{
     vec,
 };
 
-use bitcoin::Address;
+use bitcoin::{Address, XOnlyPublicKey};
 // use dlc_link_manager::Manager;
 use dlc_manager::{
     contract::{
@@ -41,7 +41,7 @@ use crate::storage::storage_provider::StorageProvider;
 use oracle_client::P2PDOracleClient;
 use rouille::Response;
 use serde::{de::IntoDeserializer, Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::fmt::Write as _;
 use utils::get_numerical_contract_info;
 
@@ -96,18 +96,12 @@ fn get_attestors() -> Result<Vec<String>, dlc_manager::error::Error> {
         .build()
         .map_err(to_oracle_error)?;
 
-    debug!("loaded client:{:?}", client);
-
     let res = client
         .get(get_all_attestors_endpoint_url.as_str())
         .send()
         .map_err(to_oracle_error)?;
 
-    debug!("got res:{:?}", res);
-
     let attestors = res.json::<Vec<String>>().map_err(to_oracle_error)?;
-
-    debug!("got attestors:{:?}", attestors);
 
     match attestors.len() {
         0 => Err(dlc_manager::error::Error::OracleError(
@@ -141,6 +135,20 @@ fn get_or_generate_secret_from_config(
             .unwrap();
         new_key
     }
+}
+
+fn generate_p2pd_clients(
+    attestor_urls: Vec<String>,
+) -> HashMap<XOnlyPublicKey, Arc<P2PDOracleClient>> {
+    let mut attestor_clients = HashMap::new();
+
+    for url in attestor_urls.iter() {
+        let p2p_client: P2PDOracleClient =
+            retry!(P2PDOracleClient::new(url), 10, "oracle client creation");
+        let attestor = Arc::new(p2p_client);
+        attestor_clients.insert(attestor.get_public_key(), attestor.clone());
+    }
+    return attestor_clients;
 }
 
 fn main() {
@@ -190,14 +198,7 @@ fn main() {
     let static_address = wallet.get_new_address().unwrap();
 
     // Set up Oracle Client
-    let mut protocol_wallet_attestors = HashMap::new();
-
-    for url in attestor_urls.iter() {
-        let p2p_client: P2PDOracleClient =
-            retry!(P2PDOracleClient::new(url), 10, "oracle client creation");
-        let attestor = Arc::new(p2p_client);
-        protocol_wallet_attestors.insert(attestor.get_public_key(), attestor.clone());
-    }
+    let protocol_wallet_attestors = generate_p2pd_clients(attestor_urls.clone());
 
     // Set up time provider
     let time_provider = SystemTimeProvider {};
@@ -290,10 +291,23 @@ fn main() {
                         accept_collateral: u64,
                         offer_collateral: u64,
                         total_outcomes: u64,
+                        attestor_list: String
                     }
+
                     let req: OfferRequest = try_or_400!(rouille::input::json_input(request));
 
-                    add_access_control_headers(create_new_offer(manager.clone(), attestor_urls.clone(), protocol_wallet_attestors.values().cloned().collect(), active_network, req.uuid, req.accept_collateral, req.offer_collateral, req.total_outcomes))
+                            // Set up Oracle Clients
+                    let bitcoin_contract_attestor_urls: Vec<String> = match serde_json::from_str(&req.attestor_list.clone()) {
+                        Ok(vec) => vec,
+                        Err(e) => {
+                            eprintln!("Error deserializing Attestor URLs: {}", e);
+                            Vec::new()
+                        }
+                    };
+
+                    let bitcoin_contract_attestors: HashMap<XOnlyPublicKey, Arc<P2PDOracleClient>> = generate_p2pd_clients(bitcoin_contract_attestor_urls.clone());
+
+                    add_access_control_headers(create_new_offer(manager.clone(), bitcoin_contract_attestors.values().cloned().collect(), active_network, req.uuid, req.accept_collateral, req.offer_collateral, req.total_outcomes))
                 },
                 (OPTIONS) (/offer) => {
                     add_access_control_headers(Response::empty_204())
@@ -489,7 +503,6 @@ fn periodic_check(
 
 fn create_new_offer(
     manager: Arc<Mutex<DlcManager>>,
-    attestor_urls: Vec<String>,
     attestors: Vec<Arc<P2PDOracleClient>>,
     active_network: bitcoin::Network,
     event_id: String,
@@ -561,7 +574,7 @@ fn create_new_offer(
         &contract_input,
         STATIC_COUNTERPARTY_NODE_ID.parse().unwrap(),
     ) {
-        Ok(dlc) => Response::json(&(dlc, attestor_urls)),
+        Ok(dlc) => Response::json(&(dlc)),
         Err(e) => {
             info!("DLC manager - send offer error: {}", e.to_string());
             Response::json(

@@ -23,7 +23,7 @@ async function getOrGenerateSecretFromConfig(secretKeyFile: string): Promise<str
 
 function createMaturationDate() {
   const maturationDate = new Date();
-  maturationDate.setMinutes(maturationDate.getMinutes() + 1);
+  maturationDate.setMinutes(maturationDate.getMinutes() + 3);
   return maturationDate.toISOString();
 }
 

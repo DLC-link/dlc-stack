@@ -1,0 +1,9 @@
+/target
+**/*.rs.bk
+.env
+!.env.template
+.idea
+/contracts_db
+.vscode
+
+node_modules
