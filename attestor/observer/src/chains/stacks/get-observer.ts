@@ -35,7 +35,7 @@ export default async (config: ConfigSet): Promise<Observer> => {
             return;
           }
           if (dlcManager.checkAddresses(address)) {
-            dlcManager.handleTx(txInfo);
+            await dlcManager.handleTx(txInfo);
           }
         } catch (error) {
           console.error(error);

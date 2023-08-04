@@ -38,7 +38,7 @@ export interface ContractConfig {
   init: () => Promise<void>;
   registeredContractSubscriptions: Array<AddressSubscription>;
   checkAddresses: (address: string) => boolean;
-  handleTx: (tx: ContractCallTransaction) => void;
+  handleTx: (tx: ContractCallTransaction) => Promise<void>;
 }
 
 export interface NetworkConfig {
@@ -61,17 +61,14 @@ export type FunctionName =
 
 export type ArgumentName =
   | 'uuid'
-  | 'emergency-refund-time'
   | 'outcome'
   | 'callback-contract'
   | 'creator'
-  | 'receiver'
-  | 'nonce'
+  | 'protocol-wallet'
   | 'contract-address'
+  | 'attestor-ids'
   | 'actual-closing-time'
-  | 'event-source'
-  | 'caller'
-  | 'price';
+  | 'event-source';
 
 export type UnwrappedPrintEvent = {
   [arg in ArgumentName]?: {
