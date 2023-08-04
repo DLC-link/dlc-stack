@@ -26,7 +26,7 @@ impl AsyncStorageApiProvider {
         }
     }
 
-    // TODO: For testing only, delete later
+    // TODO: For testing only, delete before production
     pub async fn delete_contracts(&self) {
         let _res = self.client.delete_contracts(self.key.clone());
     }
@@ -136,33 +136,35 @@ impl AsyncStorage for AsyncStorageApiProvider {
     }
 
     async fn update_contract(&self, contract: &Contract) -> Result<(), Error> {
-        let state = get_contract_state_str(contract);
-        let uuid = get_contract_id_string(contract.get_id());
         match contract {
             a @ Contract::Accepted(_) | a @ Contract::Signed(_) => {
-                if let Some(_) = self.get_contract(&a.get_temporary_id()).await? {
-                    self.delete_contract(&a.get_temporary_id()).await?;
+                match self.delete_contract(&a.get_temporary_id()).await {
+                    Ok(_) => {}
+                    Err(_) => {} // This happens when the temp contract was already deleted upon moving from Offered to Accepted
                 }
-                if let Some(_) = self.get_contract(&contract.get_id()).await? {
-                    self.client
-                        .update_contract(UpdateContract {
-                            uuid: get_contract_id_string(contract.get_id()),
-                            state: Some(get_contract_state_str(contract)),
-                            content: Some(base64::encode(serialize_contract(contract).unwrap())),
-                            key: self.key.clone(),
-                        })
-                        .await
-                        .map_err(to_storage_error)?;
-                } else {
-                    self.client
-                        .create_contract(NewContract {
-                            uuid: get_contract_id_string(contract.get_id()),
-                            state: get_contract_state_str(contract),
-                            content: base64::encode(serialize_contract(contract).unwrap()),
-                            key: self.key.clone(),
-                        })
-                        .await
-                        .map_err(to_storage_error)?;
+                // This could be replaced with an UPSERT
+                match self
+                    .client
+                    .update_contract(UpdateContract {
+                        uuid: get_contract_id_string(contract.get_id()),
+                        state: Some(get_contract_state_str(contract)),
+                        content: Some(base64::encode(serialize_contract(contract).unwrap())),
+                        key: self.key.clone(),
+                    })
+                    .await
+                {
+                    Ok(_) => {}
+                    Err(_) => {
+                        self.client
+                            .create_contract(NewContract {
+                                uuid: get_contract_id_string(contract.get_id()),
+                                state: get_contract_state_str(contract),
+                                content: base64::encode(serialize_contract(contract).unwrap()),
+                                key: self.key.clone(),
+                            })
+                            .await
+                            .map_err(to_storage_error)?;
+                    }
                 }
                 Ok(())
             }

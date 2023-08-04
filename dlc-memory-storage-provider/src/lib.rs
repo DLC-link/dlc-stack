@@ -1,42 +1,24 @@
 #![feature(async_fn_in_trait)]
 
-use bitcoin::{Address, OutPoint, Txid};
-use dlc_manager::chain_monitor::ChainMonitor;
-use dlc_manager::channel::{
-    offered_channel::OfferedChannel,
-    signed_channel::{SignedChannel, SignedChannelStateType},
-    Channel,
-};
 use dlc_manager::contract::{
     offered_contract::OfferedContract, signed_contract::SignedContract, Contract, PreClosedContract,
 };
 
 use dlc_link_manager::AsyncStorage;
-use dlc_manager::{error::Error as DaemonError, ChannelId, ContractId, Utxo};
-use secp256k1_zkp::{PublicKey, SecretKey};
+use dlc_manager::{error::Error as DaemonError, ContractId};
 use std::collections::HashMap;
 use std::sync::{Mutex, RwLock};
 
 pub struct DlcMemoryStorageProvider {
     contracts: RwLock<HashMap<ContractId, Contract>>,
-    // channels: RwLock<HashMap<ChannelId, Channel>>,
     contracts_saved: Mutex<Option<HashMap<ContractId, Contract>>>,
-    // channels_saved: Mutex<Option<HashMap<ChannelId, Channel>>>,
-    // addresses: RwLock<HashMap<Address, SecretKey>>,
-    // utxos: RwLock<HashMap<OutPoint, Utxo>>,
-    // key_pairs: RwLock<HashMap<PublicKey, SecretKey>>,
 }
 
 impl DlcMemoryStorageProvider {
     pub fn new() -> Self {
         DlcMemoryStorageProvider {
             contracts: RwLock::new(HashMap::new()),
-            // channels: RwLock::new(HashMap::new()),
             contracts_saved: Mutex::new(None),
-            // channels_saved: Mutex::new(None),
-            // addresses: RwLock::new(HashMap::new()),
-            // utxos: RwLock::new(HashMap::new()),
-            // key_pairs: RwLock::new(HashMap::new()),
         }
     }
 

@@ -1,5 +1,4 @@
 use crate::DbPool;
-use actix_web::body::BoxBody;
 use actix_web::web;
 use actix_web::web::{Data, Json, Path};
 use actix_web::{delete, get, post, put, HttpResponse, Responder};

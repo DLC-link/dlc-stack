@@ -177,25 +177,31 @@ impl Storage for StorageApiProvider {
         );
         match contract {
             a @ Contract::Accepted(_) | a @ Contract::Signed(_) => {
-                let res = self.delete_contract(&a.get_temporary_id());
-                match res {
-                    Ok(_) => {
-                        debug!("Contract has been successfully deleted (during update) with id {} and state '{}'", get_contract_id_string(a.get_temporary_id()), state);
-                    }
-                    Err(err) => {
-                        warn!("Deleting contract has failed (during update) with id {} and state '{}'", get_contract_id_string(a.get_temporary_id()), state);
-                        return Err(to_storage_error(err));
+                match self.delete_contract(&a.get_temporary_id()) {
+                    Ok(_) => {}
+                    Err(_) => {} // This happens when the temp contract was already deleted upon moving from Offered to Accepted
+                }
+                // This could be replaced with an UPSERT
+                match self
+                    .runtime
+                    .block_on(self.client.update_contract(UpdateContract {
+                        uuid: get_contract_id_string(contract.get_id()),
+                        state: Some(get_contract_state_str(contract)),
+                        content: Some(base64::encode(serialize_contract(contract).unwrap())),
+                        key: self.key.clone(),
+                    })) {
+                    Ok(_) => {}
+                    Err(_) => {
+                        self.runtime
+                            .block_on(self.client.create_contract(NewContract {
+                                uuid: get_contract_id_string(contract.get_id()),
+                                state: get_contract_state_str(contract),
+                                content: base64::encode(serialize_contract(contract).unwrap()),
+                                key: self.key.clone(),
+                            }))
+                            .map_err(to_storage_error)?;
                     }
                 }
-                self.runtime
-                    .block_on(self.client.create_contract(NewContract {
-                        uuid: get_contract_id_string(contract.get_id()),
-                        state: get_contract_state_str(contract),
-                        content: base64::encode(serialize_contract(contract).unwrap()),
-                        key: self.key.clone(),
-                    }))
-                    .map_err(to_storage_error)?;
-                debug!("Created new contract to replace temporary one during update with id {} and state '{}'", get_contract_id_string(contract.get_id()), state);
                 Ok(())
             }
             _ => {
