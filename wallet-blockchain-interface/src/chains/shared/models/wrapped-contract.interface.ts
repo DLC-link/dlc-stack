@@ -1,7 +1,8 @@
 import { TransactionReceipt } from '@ethersproject/abstract-provider';
+import { TxBroadcastResult } from '@stacks/transactions';
 
 export interface WrappedContract {
-    setStatusFunded: (uuid: string) => Promise<TransactionReceipt>;
-    postCloseDLC: (uuid: string, btcTxId: string) => Promise<TransactionReceipt>;
+    setStatusFunded: (uuid: string) => Promise<TransactionReceipt> | Promise<TxBroadcastResult>;
+    postCloseDLC: (uuid: string, btcTxId: string) => Promise<TransactionReceipt> | Promise<TxBroadcastResult>;
     getAllAttestors: () => Promise<string[]>;
 }
