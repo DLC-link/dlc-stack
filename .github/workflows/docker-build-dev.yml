@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-storageapi-public:
-    name: Build storage-api
+    name: Build storage-api and Push to ECR Public on Dev Push
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -63,7 +63,7 @@ jobs:
           ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           REGISTRY_ALIAS: dlc-link
           ECR_REPOSITORY: dlc-attestor
-          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
+          IMAGE_TAG: dev-${{ steps.vars.outputs.sha_short }}
         run: |
           docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f attestor/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
@@ -94,7 +94,7 @@ jobs:
           ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           REGISTRY_ALIAS: dlc-link
           ECR_REPOSITORY: dlc-blockchain-interface
-          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
+          IMAGE_TAG: dev-${{ steps.vars.outputs.sha_short }}
         run: |
           docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f wallet-blockchain-interface/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
@@ -125,7 +125,7 @@ jobs:
           ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           REGISTRY_ALIAS: dlc-link
           ECR_REPOSITORY: dlc-protocol-wallet
-          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
+          IMAGE_TAG: dev-${{ steps.vars.outputs.sha_short }}
         run: |
           docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f wallet/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
