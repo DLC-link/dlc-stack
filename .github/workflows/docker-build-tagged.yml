@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-storageapi-public:
-    name: Build storage-api and Push to ECR Public on Master
+    name: Build storage-api and Push to ECR Public on Tag
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
