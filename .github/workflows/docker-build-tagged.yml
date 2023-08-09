@@ -8,8 +8,8 @@ on:
       - v[0-9]*
 
 jobs:
-  build:
-    name: Build DLC Stack and Push to ECR on Tag
+  build-storageapi-public:
+    name: Build storage-api on Tag
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -28,14 +28,14 @@ jobs:
       - name: Set outputs
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      - name: Build, tag, and push dlc-link-stack to Amazon ECR
+      - name: Build, tag, and push storage-api to Amazon ECR
         env:
           ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           REGISTRY_ALIAS: dlc-link
-          ECR_REPOSITORY: dlc-link-stack
+          ECR_REPOSITORY: storage-api
           IMAGE_TAG: ${{ github.ref_name }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f docker/Dockerfile .
+          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f storage/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
 
   build-attestor-public:

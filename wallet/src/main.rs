@@ -111,31 +111,31 @@ fn get_attestors() -> Result<Vec<String>, dlc_manager::error::Error> {
     }
 }
 
-fn get_or_generate_secret_from_config(
-    secp: &Secp256k1<All>,
-    secret_key_file_path: std::path::PathBuf,
-) -> SecretKey {
-    let mut secret_key = String::new();
-    if secret_key_file_path.exists() {
-        info!(
-            "reading secret key from {} (default)",
-            secret_key_file_path.file_name().unwrap().to_string_lossy()
-        );
-        File::open(secret_key_file_path)
-            .unwrap()
-            .read_to_string(&mut secret_key)
-            .unwrap();
-        secret_key.retain(|c| !c.is_whitespace());
-        SecretKey::from_str(&secret_key).unwrap()
-    } else {
-        info!("no secret key file was found, generating secret key");
-        let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
-        let mut file = File::create(secret_key_file_path).unwrap();
-        file.write_all(new_key.display_secret().to_string().as_bytes())
-            .unwrap();
-        new_key
-    }
-}
+// fn get_or_generate_secret_from_config(
+//     secp: &Secp256k1<All>,
+//     secret_key_file_path: std::path::PathBuf,
+// ) -> SecretKey {
+//     let mut secret_key = String::new();
+//     if secret_key_file_path.exists() {
+//         info!(
+//             "reading secret key from {} (default)",
+//             secret_key_file_path.file_name().unwrap().to_string_lossy()
+//         );
+//         File::open(secret_key_file_path)
+//             .unwrap()
+//             .read_to_string(&mut secret_key)
+//             .unwrap();
+//         secret_key.retain(|c| !c.is_whitespace());
+//         SecretKey::from_str(&secret_key).unwrap()
+//     } else {
+//         info!("no secret key file was found, generating secret key");
+//         let new_key = secp.generate_keypair(&mut rand::thread_rng()).0;
+//         let mut file = File::create(secret_key_file_path).unwrap();
+//         file.write_all(new_key.display_secret().to_string().as_bytes())
+//             .unwrap();
+//         new_key
+//     }
+// }
 
 fn generate_p2pd_clients(
     attestor_urls: Vec<String>,
@@ -183,6 +183,18 @@ fn main() {
         active_network,
     ));
 
+    let secp: Secp256k1<All> = Secp256k1::new();
+    let secret_key: SecretKey = match env::var("PRIVATE_KEY") {
+        Ok(key) => SecretKey::from_str(&key).unwrap(),
+        Err(_) => {
+            panic!("No private key provided, please set PRIVATE_KEY in your env variables")
+        }
+    };
+
+    let pubkey = PublicKey::from_secret_key(&secp, &secret_key);
+
+    info!("Starting DLC Manager with pubkey: {}", pubkey.to_string());
+
     // Set up wallet store
     let root_sled_path: String = env::var("SLED_WALLET_PATH").unwrap_or("wallet_db".to_string());
     let sled_path = format!("{root_sled_path}_{}", active_network);
@@ -208,12 +220,6 @@ fn main() {
         10,
         "get blockchain height"
     );
-
-    let secp: Secp256k1<All> = Secp256k1::new();
-    let secret_key = get_or_generate_secret_from_config(&secp, PathBuf::from("secret.key"));
-    let pubkey = PublicKey::from_secret_key(&secp, &secret_key);
-
-    info!("Starting DLC Manager with pubkey: {}", pubkey.to_string());
 
     // Set up DLC store
     let dlc_store = StorageProvider::new(pubkey.to_string()).unwrap();
@@ -533,6 +539,10 @@ fn create_new_offer(
     };
 
     for attestor in attestors {
+        info!(
+            "Getting announcement from oracle: {}",
+            attestor.get_public_key()
+        );
         // check if the oracle has an event with the id of event_id
         match attestor.get_announcement(&event_id) {
             Ok(_announcement) => (),

@@ -1,7 +1,7 @@
 version: '3.9'
 services:
   dlc-link-attestor-1:
-    image: attestor
+    image: attestor:local
     ports:
       - 8801:8801
     environment:
@@ -14,7 +14,7 @@ services:
       - ./attestor/observer/src:/app/attestor/observer/src
 
   dlc-link-attestor-2:
-    image: attestor
+    image: attestor:local
     ports:
       - 8802:8802
     environment:
@@ -27,7 +27,7 @@ services:
       - ./attestor/observer/src:/app/attestor/observer/src
 
   dlc-link-attestor-3:
-    image: attestor
+    image: attestor:local
     ports:
       - 8803:8803
     environment:
@@ -89,7 +89,7 @@ services:
   storageapi:
     container_name: storageapi
     hostname: storageapi
-    image: dlc-link-storage-api
+    image: storage-api:test
     environment:
       RUST_LOG: "debug"
       DATABASE_URL: "postgresql://postgres:changeme@postgresdlc:5432/postgres"

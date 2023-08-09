@@ -1,12 +1,14 @@
+# Build and push docker image on push to dev branch
+
 name: Build docker
 
 on:
   push:
-    branches: [master]
+    branches: [1.0/prerelease]
 
 jobs:
   build-storageapi-public:
-    name: Build storage-api on Master
+    name: Build storage-api
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -30,14 +32,14 @@ jobs:
           ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           REGISTRY_ALIAS: dlc-link
           ECR_REPOSITORY: storage-api
-          IMAGE_TAG: ${{ github.ref_name }}-${{ steps.vars.outputs.sha_short }}
+          IMAGE_TAG: dev-${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f storage/Dockerfile .
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest
+          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f storage/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev
 
   build-attestor-public:
-    name: Build Attestor and Push to ECR Public on Master
+    name: Build Attestor and Push to ECR Public on Dev Push
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -61,14 +63,14 @@ jobs:
           ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           REGISTRY_ALIAS: dlc-link
           ECR_REPOSITORY: dlc-attestor
-          IMAGE_TAG: ${{ github.ref_name }}
+          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f attestor/Dockerfile .
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest
+          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f attestor/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev
 
   build-BI-public:
-    name: Build Blockchain Interface and Push to ECR Public on Master
+    name: Build Blockchain Interface and Push to ECR Public on Dev Push
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -92,14 +94,14 @@ jobs:
           ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           REGISTRY_ALIAS: dlc-link
           ECR_REPOSITORY: dlc-blockchain-interface
-          IMAGE_TAG: ${{ github.ref_name }}
+          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f wallet-blockchain-interface/Dockerfile .
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest
+          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f wallet-blockchain-interface/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev
 
   build-wallet-public:
-    name: Build Protocol Wallet and Push to ECR Public on Master
+    name: Build Protocol Wallet and Push to ECR Public on Dev Push
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -123,8 +125,8 @@ jobs:
           ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           REGISTRY_ALIAS: dlc-link
           ECR_REPOSITORY: dlc-protocol-wallet
-          IMAGE_TAG: ${{ github.ref_name }}
+          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f wallet/Dockerfile .
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest
+          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f wallet/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev
