@@ -48,21 +48,6 @@ export function hexToBytes(hex: string): Uint8Array {
 }
 
 /**
- * Converts a lite signature to the format expected by Stacks. It merely
- * subtracts 27 from the recovery byte and returns it as a Uint8Array.
- * @param liteSignature
- * @returns Uint8Array
- */
-export function liteSignatureToStacksSignature(liteSignature: Uint8Array | string) {
-  if (typeof liteSignature === 'string') liteSignature = hexToBytes(liteSignature);
-  if (liteSignature.byteLength !== 65)
-    throw new Error(`Invalid liteSignature, expected 65 bytes got ${liteSignature.byteLength}`);
-  let converted = new Uint8Array(liteSignature);
-  if (converted[64] > 3) converted[64] -= 27; // subtract from V
-  return converted;
-}
-
-/**
  * Shifts the price value according to RedStone serialisation.
  * @param value
  * @returns shifted value
