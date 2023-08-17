@@ -66,7 +66,7 @@ export type ArgumentName =
   | 'creator'
   | 'protocol-wallet'
   | 'contract-address'
-  | 'attestor-ids'
+  | 'attestors'
   | 'actual-closing-time'
   | 'event-source';
 

@@ -7,6 +7,11 @@ import { getEnv } from '../../../config/read-env-configs.js';
 function setupSocketClient(endpoint: string): StacksApiSocketClient {
   const _socket = io(endpoint, {
     transports: ['websocket'],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    randomizationFactor: 0.5,
   });
 
   // NOTE: any

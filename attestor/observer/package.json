@@ -15,7 +15,7 @@
     "run:1": "PORT=8801 SECRET_KEY_FILE=secret1.key npm run run",
     "run:2": "PORT=8802 SECRET_KEY_FILE=secret2.key npm run run",
     "run:3": "PORT=8803 SECRET_KEY_FILE=secret3.key npm run run",
-    "dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"npm run run\"",
+    "dev": "NODE_ENV=development tsc-watch --noClear -p ./tsconfig.json --onSuccess \"npm run run\"",
     "dev:1": "PORT=8801 SECRET_KEY_FILE=secret1.key npm run dev",
     "dev:2": "PORT=8802 SECRET_KEY_FILE=secret2.key npm run dev",
     "dev:3": "PORT=8803 SECRET_KEY_FILE=secret3.key npm run dev",
