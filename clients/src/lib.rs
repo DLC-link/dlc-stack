@@ -1,6 +1,6 @@
 extern crate serde;
 
-use log::{debug, info, warn};
+use log::{info, warn};
 use reqwest::{Client, Error, Response, StatusCode, Url};
 use std::fmt::{Debug, Formatter};
 use std::{error, fmt};
@@ -275,7 +275,6 @@ impl StorageApiClient {
         contract: ContractsRequestParams,
     ) -> Result<Vec<Contract>, ApiError> {
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()),);
-        debug!("get_contracts calling for URI: {}", uri);
         let url = Url::parse(uri.as_str()).unwrap();
 
         let res = match self.client.get(url).query(&contract).send().await {

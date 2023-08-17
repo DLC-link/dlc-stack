@@ -8,7 +8,7 @@ version = "0.1.0"
 bitcoin = {version = "0.29.2", features=["serde"]}
 futures = {version = "0.3.28", default-features = false }
 lightning = {version = "0.0.113" }
-dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", rev="e59ed0ce2a7d10ab974b5890f8c0d0fb103c761a", features = ["use-serde"] }
+dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", features = ["use-serde"] }
 js-interface-wallet = { path = "../js-interface-wallet"}
 serde = {version = "*", features = ["derive"]}
 bdk = {version = "0.28.0", default-features = false, features = ["async-interface", "use-esplora-async"]}

@@ -7,8 +7,8 @@ version = "0.1.0"
 
 [dependencies]
 bitcoin = {version = "0.29.2", features=["serde"]}
-dlc = { git = "https://github.com/dlc-link/rust-dlc", rev="e59ed0ce2a7d10ab974b5890f8c0d0fb103c761a", features = ["use-serde"] }
-dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", rev="e59ed0ce2a7d10ab974b5890f8c0d0fb103c761a", features = ["use-serde"] }
+dlc = { git = "https://github.com/dlc-link/rust-dlc", features = ["use-serde"] }
+dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", features = ["use-serde"] }
 lightning = {version = "0.0.113"}
 rust-bitcoin-coin-selection = {version = "0.1.0", git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection", features = ["rand"]}
 secp256k1-zkp = {version = "0.7.0"}
