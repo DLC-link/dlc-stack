@@ -1,5 +1,27 @@
-import { bufferCV, bufferCVFromString, ClarityValue } from '@stacks/transactions';
+import {
+    bufferCV,
+    bufferCVFromString,
+    callReadOnlyFunction,
+    ClarityValue,
+    cvToValue,
+    ReadOnlyFunctionOptions,
+} from '@stacks/transactions';
 import { hexToBytes as hexToBytesMS } from 'micro-stacks/common';
+
+export const callReadOnly = async (
+    txOptions: ReadOnlyFunctionOptions,
+    dirDepth: number = 3
+): Promise<{
+    cv: ClarityValue;
+    cvToValue: any;
+}> => {
+    const transaction = await callReadOnlyFunction(txOptions);
+    // console.log('[readOnly] transaction:');
+    // console.dir(transaction, { depth: dirDepth });
+    // console.log('[readOnly] cvToValue():');
+    // console.dir(cvToValue(transaction), { depth: dirDepth });
+    return { cv: transaction, cvToValue: cvToValue(transaction) };
+};
 
 /**
  * Shift a number's decimal place by a specified amount.

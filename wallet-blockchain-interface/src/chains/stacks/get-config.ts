@@ -13,11 +13,12 @@ import {
     createAssetInfo,
     makeContractNonFungiblePostCondition,
     stringAsciiCV,
+    uintCV,
 } from '@stacks/transactions';
 import type { TxBroadcastResult } from '@stacks/transactions';
 import { ConfigSet } from '../../config/models.js';
 import { WrappedContract } from '../shared/models/wrapped-contract.interface.js';
-import { hexToBytes, uuidToCV } from './helper-functions.js';
+import { callReadOnly, hexToBytes, uuidToCV } from './helper-functions.js';
 import { StacksMainnet, StacksMocknet, StacksNetwork, StacksTestnet } from '@stacks/network';
 import { getEnv } from '../../config/read-env-configs.js';
 import { NFTHoldingsData } from '../shared/models/nft-holdings-data.interface.js';
@@ -38,17 +39,40 @@ async function getCallbackContract(uuid: string, contractName: string, deployer:
     return parsePrincipalString(callbackContract) as ContractPrincipal;
 }
 
+async function getRegisteredAttestor(deployer: string, contractName: string, id: number, network: StacksNetwork) {
+    const txOptions = {
+        contractAddress: deployer,
+        contractName: contractName,
+        functionName: 'get-registered-attestor',
+        functionArgs: [uintCV(id)],
+        senderAddress: deployer,
+        network,
+    };
+    return await callReadOnly(txOptions);
+}
+
 async function getAllAttestors(
     deployer: string,
     contractName: string,
     nftName: string,
-    api_base_extended: string
-): Promise<NFTHoldingsData> {
+    api_base_extended: string,
+    network: StacksNetwork
+): Promise<string[]> {
     const getAttestorNFTsURL = `${api_base_extended}/tokens/nft/holdings?asset_identifiers=${deployer}.${contractName}::${nftName}&principal=${deployer}.${contractName}`;
     console.log(`[Stacks] Loading registered attestors from ${getAttestorNFTsURL}...`);
+
     try {
         const response = await fetch(getAttestorNFTsURL);
-        return (await response.json()) as NFTHoldingsData;
+        const data = (await response.json()) as NFTHoldingsData;
+        const attestorIDs: string[] = data.results.map((res) => res.value.repr);
+        console.log(`[Stacks] Loaded registered attestorIDs:`, attestorIDs);
+        const attestors = await Promise.all(
+            attestorIDs.map(async (id) => {
+                const attestor = await getRegisteredAttestor(deployer, contractName, parseInt(id.slice(1)), network);
+                return attestor.cvToValue.value.dns.value;
+            })
+        );
+        return attestors;
     } catch (err) {
         console.error(err);
         throw err;
@@ -56,11 +80,12 @@ async function getAllAttestors(
 }
 
 export default async (config: ConfigSet): Promise<WrappedContract> => {
+    console.log(`[Stacks] Loading contract config for ${config.chain}...`);
     const adminKey = getEnv('PRIVATE_KEY');
     let api_base_extended: string;
     const contractName = 'dlc-manager-v1';
     const dlcNFTName = `open-dlc`;
-    const attestorNFTName = 'dlc-attestor';
+    const attestorNFTName = 'dlc-attestors';
 
     let network: StacksNetwork;
     let deployer: string;
@@ -171,9 +196,9 @@ export default async (config: ConfigSet): Promise<WrappedContract> => {
 
         getAllAttestors: async () => {
             try {
-                const data = await getAllAttestors(deployer, contractName, attestorNFTName, api_base_extended);
-                const attestors: string[] = data.results.map((res) => res.value.repr);
-                return attestors as any;
+                console.log('Getting all attestors...');
+                const data = await getAllAttestors(deployer, contractName, attestorNFTName, api_base_extended, network);
+                return data as any;
             } catch (error) {
                 console.log(error);
                 return error;

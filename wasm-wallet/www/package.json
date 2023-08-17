@@ -11,9 +11,7 @@
     "start": "webpack-dev-server"
   },
   "dependencies": {
-    "dlc_protocol_wallet": "file:../pkg",
-    "npm": "^9.8.0",
-    "start": "^5.1.0"
+    "dlc_protocol_wallet": "file:../pkg"
   },
   "devDependencies": {
     "copy-webpack-plugin": "^11.0.0",
