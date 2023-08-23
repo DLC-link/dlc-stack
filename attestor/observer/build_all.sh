@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Save the current working directory
+cwd=$(pwd)
+
 # Change to the directory of the current script
 cd "$(dirname "$0")"
 
@@ -21,3 +24,6 @@ npx tsc -p .
 
 # Reinstalling updated attestor pkg
 npm ci attestor
+
+# Return to the original working directory
+cd "$cwd"

@@ -12,21 +12,51 @@ The Attestor project is made up of two parts:
  - A numeric DLC Attestor implementation, written in Rust, which compiles into WASM
  - An Observer wrapper, which creates an interface between blockchain events and the Attestor, written as a Node.js app
 
-## TL:DR to run
+## How to run
 
-- Set up `.env` file in `./observer` folder according to the template file
+There are two ways to run this attestor. We have prebuilt docker images available on our AWS Container Registry, or one can pull this repository, and build & run from source.
+
+> Important!
+>
+> If you wish to participate in the DLC.Link Attestation Layer, you must also register your attestor on our network. This requires a static public IP address, and the registration of this address on our smart contracts. Contact us for details.
+
+### Option 1. Run using Docker
+
+You will need docker installed on your machine. Fetch the preset docker-compose file:
+
+```bash
+$ wget https://github.com/DLC-link/dlc-stack/raw/master/attestor/docker-compose.yml
+```
+
+Note the environment variables set in this file. It is preset to a default configuration, listening to one particular chain. Attestors can listen to multiple chains simultaneously. See an example [here](./observer/.env.template).
+
+>! Important !
+>
+> When using Ethereum, you must provide an API key for Infura as an environment variable.
+> (Option for listening to other providers/own nodes to be added later).
+
+> You can provide your own PRIVATE_KEY too, but if omitted, the attestor will generate one for you. Take good care of this key.
+
+You can set the environment variables and start the service in one go using the following format:
+```sh
+$ INFURA_API_KEY=[your-infura-api-key] PRIVATE_KEY=[your-private-key] docker compose up
+```
+
+### Option 2. Build and run locally
+
+- Set up a `.env` file in the `./observer` folder according to the template file
 - Run the `build_and_start.sh` script
 
 ```sh
-. ./build_and_start.sh
+$ . ./build_and_start.sh
 ```
 
-For Development mode (auto-recompiling Typescript, not Rust):
+For Development mode (auto-recompiling Typescript, but _not_ Rust):
 
 ```sh
-. ./build.sh
-cd ./observer
-npm run dev
+$ . ./build.sh
+$ cd ./observer
+$ npm run dev
 ```
 
 ## Key management (WIP)
@@ -49,7 +79,7 @@ The Blockchain Observer needs _read_ access to the configured chains. Ethereum n
 ### List all oracle events (announcements)
 
 ```sh
-curl -X GET http://localhost:3000/events
+$ curl -X GET http://localhost:8801/events
 ```
 
 This endpoint returns a JSON array of oracle event objects.
@@ -75,7 +105,7 @@ Output example:
 ### Get oracle event (announcement)
 
 ```sh
-curl -X GET http://localhost:3000/event?uuid=0xfbde22faa2c3dbd680587b5dcf39eaaf267a4ea805aaddc2618c107a75b0f7d4
+$ curl -X GET http://localhost:8801/event/0xfbde22faa2c3dbd680587b5dcf39eaaf267a4ea805aaddc2618c107a75b0f7d4
 ```
 
 This endpoint returns an [oracle event object](#list-all-oracle-events-announcements).
@@ -95,10 +125,10 @@ Output example:
     }
 ```
 
-### Get health (WIP)
+### Get health
 
 ```sh
-curl -X GET http://localhost:3000/health
+$ curl -X GET http://localhost:8801/health
 ```
 
 This endpoint returns the [oracle config](#configure).
