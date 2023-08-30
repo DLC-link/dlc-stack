@@ -12,7 +12,7 @@ dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", features = [
   "use-serde",
 ] }
 lightning = { version = "0.0.113" }
-rust-bitcoin-coin-selection = { version = "0.2.0", git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection", rev = "17fbd82", features = [
+rust-bitcoin-coin-selection = { version = "0.1.0", git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection", rev = "4054519", features = [
   "rand",
 ] }
 secp256k1-zkp = { version = "0.7.0" }
