@@ -15,7 +15,7 @@
     "run:1": "PORT=8801 npm run run",
     "run:2": "PORT=8802 npm run run",
     "run:3": "PORT=8803 npm run run",
-    "dev": "NODE_ENV=development tsc-watch --noClear -p ./tsconfig.json --onSuccess \"npm run run\"",
+    "dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"npm run run\"",
     "dev:1": "PORT=8801 npm run dev",
     "dev:2": "PORT=8802 npm run dev",
     "dev:3": "PORT=8803 npm run dev",
