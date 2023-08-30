@@ -1,0 +1,66 @@
+# Build on PR to 1.0/prerelease / master branch
+
+name: Build docker images on PR
+
+on:
+  pull_request:
+    branches:
+      - 1.0/prerelease
+      - master
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  build-storageapi:
+    name: Build storage-api
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Build
+        env:
+          REGISTRY_ALIAS: dlc-link
+          ECR_REPOSITORY: storage-api
+        run: |
+          docker build -f storage/Dockerfile .
+
+  build-attestor:
+    name: Build Attestor
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Build
+        env:
+          REGISTRY_ALIAS: dlc-link
+          ECR_REPOSITORY: dlc-attestor
+        run: |
+          docker build -f attestor/Dockerfile .
+
+  build-BI:
+    name: Build Blockchain Interface
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Build
+        env:
+          REGISTRY_ALIAS: dlc-link
+          ECR_REPOSITORY: dlc-blockchain-interface
+        run: |
+          docker build -f wallet-blockchain-interface/Dockerfile .
+
+  build-wallet:
+    name: Build Protocol Wallet
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Build
+        env:
+          REGISTRY_ALIAS: dlc-link
+          ECR_REPOSITORY: dlc-protocol-wallet
+        run: |
+          docker build -f wallet/Dockerfile .
