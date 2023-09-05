@@ -195,7 +195,15 @@ impl AsyncOracle for AttestorClient {
         info!("Getting announcement for event_id {event_id}");
         let path = announcement_path(&self.host, event_id);
         info!("Getting announcement at URL {path}");
-        let v = get_json(&path).await?;
+        let v = match get_json(&path).await {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(DlcManagerError::OracleError(format!(
+                    "Error getting announcement: {e}",
+                    e = e
+                )))
+            }
+        };
 
         let encoded_hex_announcement = match v["rust_announcement"].as_str() {
             //call to_string instead of as_str and watch your world crumble to pieces
@@ -208,7 +216,8 @@ impl AsyncOracle for AttestorClient {
             Some(s) => s,
         };
 
-        let buffer = decode_hex(&encoded_hex_announcement).unwrap();
+        let buffer = decode_hex(encoded_hex_announcement)
+            .map_err(|e| DlcManagerError::OracleError(format!("Error decoding hex: {e}", e = e)))?;
 
         let mut announcement_cursor = Cursor::new(buffer);
         let decoded_announcement =
@@ -238,7 +247,7 @@ impl AsyncOracle for AttestorClient {
             Some(s) => s,
         };
 
-        let buffer = decode_hex(&encoded_hex_attestation).unwrap();
+        let buffer = decode_hex(encoded_hex_attestation).unwrap();
 
         let mut attestation_cursor = Cursor::new(buffer);
         let decoded_attestation =

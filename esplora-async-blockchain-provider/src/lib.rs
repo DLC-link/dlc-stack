@@ -247,7 +247,12 @@ impl Blockchain for EsploraAsyncBlockchainProvider {
     fn send_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
         let x = self.blockchain.clone();
         let y = transaction.clone();
-        spawn_local(async move { x.broadcast(&y).await.unwrap() });
+        spawn_local(async move {
+            match x.broadcast(&y).await {
+                Ok(_) => (),
+                Err(e) => error!("Error broadcasting tx: {}", e),
+            }
+        });
         Ok(())
     }
 

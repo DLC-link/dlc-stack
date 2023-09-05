@@ -286,25 +286,20 @@ impl JsDLCInterface {
     }
 
     pub async fn accept_offer(&self, offer_json: String) -> String {
-        log_to_console!("running accept_offer function1");
-
         let accept_msg_result = async {
             let dlc_offer_message: OfferDlc =
                 serde_json::from_str(&offer_json).map_err(|e| WalletError(e.to_string()))?;
-            log_to_console!("running accept_offer function2");
             let temporary_contract_id = dlc_offer_message.temporary_contract_id;
 
             let counterparty = STATIC_COUNTERPARTY_NODE_ID
                 .parse()
                 .map_err(|e: UpstreamError| WalletError(e.to_string()))?;
-            log_to_console!("running accept_offer function3");
             self.manager
                 .lock()
                 .unwrap()
                 .on_dlc_message(&Message::Offer(dlc_offer_message.clone()), counterparty)
                 .await
                 .map_err(|e| WalletError(e.to_string()))?;
-            log_to_console!("running accept_offer function4");
             let (_contract_id, _public_key, accept_msg) = self
                 .manager
                 .lock()
@@ -312,7 +307,6 @@ impl JsDLCInterface {
                 .accept_contract_offer(&temporary_contract_id)
                 .await
                 .expect("Error accepting contract offer");
-            log_to_console!("running accept_offer function5");
             serde_json::to_string(&accept_msg).map_err(|e| WalletError(e.to_string()))
         }
         .await;

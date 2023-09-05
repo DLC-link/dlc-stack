@@ -232,7 +232,7 @@ where
         for oracles in oracle_set {
             let mut announcements = Vec::new();
             for oracle in oracles {
-                announcements.push(oracle.get_announcement(&event_id).await.unwrap());
+                announcements.push(oracle.get_announcement(event_id).await?);
             }
             oracle_announcements.push(announcements)
         }

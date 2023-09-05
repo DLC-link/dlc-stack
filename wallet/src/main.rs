@@ -529,23 +529,21 @@ async fn create_new_offer(
         contract_descriptor: descriptor,
     };
 
-    for (_k, attestor) in attestors {
-        // check if the oracle has an event with the id of event_id
-        let _announcement = attestor.get_announcement(&event_id).await.map_err(|e| {
-            WalletError(format!(
-                "Error getting announcement from attestor: {}",
-                e.to_string()
-            ))
-        })?;
-    }
+    // for (_k, attestor) in attestors {
+    //     // check if the oracle has an event with the id of event_id
+    //     let _announcement = attestor.get_announcement(&event_id).await.map_err(|e| {
+    //         WalletError(format!(
+    //             "Error getting announcement from attestor: {}",
+    //             e.to_string()
+    //         ))
+    //     })?;
+    // }
 
     // Some regtest networks have an unreliable fee estimation service
     let fee_rate = match active_network {
         bitcoin::Network::Regtest => 1,
         _ => 400,
     };
-
-    println!("contract_info: {:?}", contract_info);
 
     let contract_input = ContractInput {
         offer_collateral,

@@ -166,12 +166,12 @@ async function main() {
     console.log("Error accepting offer: ", pared_response);
     process.exit(1);
   }
-  console.log("Accepted Contract:", acceptedContract);
+  console.log("Contract accepted with tempId:", pared_response);
 
   const signedContract = await sendAcceptedOfferToProtocolWallet(
     acceptedContract
   );
-  console.log("Signed Contract: ", signedContract);
+  console.log("Contract signed with id: ", signedContract);
 
   const txID = await dlcManager.countersign_and_broadcast(
     JSON.stringify(signedContract)
