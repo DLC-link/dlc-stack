@@ -218,9 +218,11 @@ async fn run() {
     }
     let blockchain_interface_url = env::var("BLOCKCHAIN_INTERFACE_URL")
         .expect("BLOCKCHAIN_INTERFACE_URL environment variable not set, couldn't get attestors");
+    let storage_api_url = env::var("STORAGE_API_ENDPOINT")
+        .expect("STORAGE_API_ENDPOINT environment variable not set");
     let root_sled_path: String = env::var("SLED_WALLET_PATH").unwrap_or("wallet_db".to_string());
-
-    // Set up Blockchain Connection Object
+    let electrs_host =
+        env::var("ELECTRUM_API_URL").expect("ELECTRUM_API_URL environment variable not set"); // Set up Blockchain Connection Object
     let active_network = match env::var("BITCOIN_NETWORK").as_deref() {
         Ok("bitcoin") => bitcoin::Network::Bitcoin,
         Ok("testnet") => bitcoin::Network::Testnet,
@@ -245,14 +247,13 @@ async fn run() {
         .unwrap();
 
     // ELECTRUM / ELECTRS
-    let electrs_host =
-        env::var("ELECTRUM_API_URL").unwrap_or("https://blockstream.info/testnet/api/".to_string());
     let blockchain = Arc::new(EsploraAsyncBlockchainProvider::new(
         electrs_host.to_string(),
         active_network,
     ));
     let (pubkey_ext, wallet) = setup_wallets(xpriv, active_network, sled);
 
+    // Do one initial sync of the wallet
     refresh_wallet(blockchain.clone(), wallet.clone())
         .await
         .unwrap();
@@ -274,7 +275,7 @@ async fn run() {
     // Set up DLC store
     let dlc_store = Arc::new(AsyncStorageApiProvider::new(
         pubkey_ext.to_string(),
-        "https://devnet.dlc.link/storage-api".to_string(),
+        storage_api_url,
     ));
 
     // Set up time provider
@@ -553,16 +554,6 @@ async fn create_new_offer(
         },
         contract_descriptor: descriptor,
     };
-
-    // for (_k, attestor) in attestors {
-    //     // check if the oracle has an event with the id of event_id
-    //     let _announcement = attestor.get_announcement(&event_id).await.map_err(|e| {
-    //         WalletError(format!(
-    //             "Error getting announcement from attestor: {}",
-    //             e.to_string()
-    //         ))
-    //     })?;
-    // }
 
     // Some regtest networks have an unreliable fee estimation service
     let fee_rate = match active_network {
