@@ -1,11 +1,7 @@
 use bdk::descriptor;
-use bitcoin::{
-    util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey},
-    Address, PrivateKey,
-};
+use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey};
 use std::{env, str::FromStr};
 
-use secp256k1_zkp::{Secp256k1, SecretKey};
 use serde_json::json;
 
 fn main() {

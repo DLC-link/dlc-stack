@@ -9,6 +9,7 @@ use tokio::sync::oneshot;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::Error;
 use hyper::{header, Body, Method, Response, Server, StatusCode};
+use tokio::{task, time};
 use url::form_urlencoded;
 
 use bdk::{descriptor, FeeRate, SyncOptions};
@@ -35,7 +36,7 @@ use dlc_manager::{
 };
 use dlc_messages::{AcceptDlc, Message};
 use esplora_async_blockchain_provider::EsploraAsyncBlockchainProvider;
-use log::{debug, error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use attestor_client::AttestorClient;
 use dlc_clients::async_storage_provider::AsyncStorageApiProvider;
@@ -134,18 +135,37 @@ async fn generate_attestor_client(
     attestor_clients
 }
 
-fn main() {
-    pretty_env_logger::init();
-
-    // Configure a runtime that runs everything on the current thread
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("build runtime");
-
-    // Combine it with a `LocalSet,  which means it can spawn !Send futures...
-    let local = tokio::task::LocalSet::new();
-    local.block_on(&rt, run());
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::fmt::init();
+    let wallet_backend_port: String = env::var("WALLET_BACKEND_PORT").unwrap_or("8085".to_string());
+    let bitcoin_check_interval_seconds: u64 = env::var("BITCOIN_CHECK_INTERVAL_SECONDS")
+        .unwrap_or("10".to_string())
+        .parse::<u64>()
+        .unwrap_or(60);
+    let local = task::LocalSet::new();
+    local.spawn_local(async move {
+        let mut interval =
+            time::interval(time::Duration::from_secs(bitcoin_check_interval_seconds));
+        loop {
+            interval.tick().await;
+            match reqwest::get(format!(
+                "http://localhost:{}/periodic_check",
+                wallet_backend_port
+            ))
+            .await
+            {
+                Ok(_) => (),
+                Err(e) => {
+                    warn!("Error running periodic check: {}, will retry", e);
+                }
+            }
+        }
+    });
+    local.spawn_local(async move {
+        run().await;
+    });
+    local.await;
 }
 
 fn build_success_response(message: String) -> Result<Response<Body>, GenericError> {
@@ -188,8 +208,14 @@ async fn run() {
     let xpriv = ExtendedPrivKey::from_str(&xpriv_str).expect("Unable to decode xpriv env variable");
     let fingerprint = env::var("FINGERPRINT")
         .expect("FINGERPRINT environment variable not set, please run `just generate-key`, securely backup the output, and set this env_var accordingly");
-
-    // assert fingerprint matches xpriv.fingerprint
+    if fingerprint
+        != xpriv
+            .fingerprint(&bitcoin::secp256k1::Secp256k1::new())
+            .to_string()
+    {
+        error!("Fingerprint does not match xpriv fingerprint! Please make sure you have the correct xpriv and fingerprint set in your env variables\n\nExiting...");
+        return;
+    }
     let blockchain_interface_url = env::var("BLOCKCHAIN_INTERFACE_URL")
         .expect("BLOCKCHAIN_INTERFACE_URL environment variable not set, couldn't get attestors");
     let root_sled_path: String = env::var("SLED_WALLET_PATH").unwrap_or("wallet_db".to_string());
@@ -225,7 +251,6 @@ async fn run() {
         electrs_host.to_string(),
         active_network,
     ));
-
     let (pubkey_ext, wallet) = setup_wallets(xpriv, active_network, sled);
 
     refresh_wallet(blockchain.clone(), wallet.clone())
