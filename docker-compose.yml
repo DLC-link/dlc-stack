@@ -179,8 +179,8 @@ services:
       dockerfile: ./it/Dockerfile
     environment:
       - ENV=docker
-      - HANDLE_ATTESTORS=true
-      - SUCCESSFUL_ATTESTING=true
+      - "HANDLE_ATTESTORS=${HANDLE_ATTESTORS:-true}"
+      - "SUCCESSFUL_ATTESTING=${SUCCESSFUL_ATTESTING:-true}"
     volumes:
     - ./it:/app/it
     depends_on:

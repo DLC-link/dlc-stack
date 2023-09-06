@@ -1,0 +1,14 @@
+FROM cimg/rust:1.71.0-node
+
+USER circleci
+
+# Install necessary dependencies and wasm-pack, and clean up
+RUN sudo apt-get update && \
+  sudo apt-get install -y curl jq bash build-essential clang && \
+  cargo install wasm-pack && \
+  sudo apt-get clean
+
+RUN sudo mkdir /app
+RUN sudo chown -R circleci:circleci /app/
+WORKDIR /app
+RUN rustup override set nightly

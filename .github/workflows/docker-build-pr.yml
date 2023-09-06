@@ -37,7 +37,7 @@ jobs:
           ECR_REPOSITORY: storage-api
           IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f storage/Dockerfile .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f storage/Dockerfile.fromBase .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
   build-attestor:
@@ -64,7 +64,7 @@ jobs:
           ECR_REPOSITORY: dlc-attestor
           IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f attestor/Dockerfile .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f attestor/Dockerfile.fromBase .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
   build-BI:
@@ -118,7 +118,7 @@ jobs:
           ECR_REPOSITORY: dlc-protocol-wallet
           IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f wallet/Dockerfile .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f wallet/Dockerfile.fromBase .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
   build-it:
@@ -145,7 +145,7 @@ jobs:
           ECR_REPOSITORY: dlc-integration-test
           IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f it/Dockerfile .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f it/Dockerfile.fromBase .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
   run-test:
