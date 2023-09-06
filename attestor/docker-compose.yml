@@ -1,7 +1,7 @@
 version: '3.9'
 services:
   dlc-link-attestor:
-    image: public.ecr.aws/dlc-link/dlc-attestor:v0.5.13
+    image: public.ecr.aws/dlc-link/dlc-attestor:latest
     ports:
       - ${ATTESTOR_PORT:-8801}:8801
     environment:
@@ -17,7 +17,7 @@ services:
       "STORAGE_API_ENDPOINT": "https://devnet.dlc.link/storage-api"
       # Optional BRANCH: the branch in dlc-solidity repo to fetch deployment info from
       # Default: master
-      "BRANCH": "1.0/prerelease"
+      "BRANCH": "dev"
       # Optional PRIVATE_KEY: the private key to use for signing attestations
       # If none is provided, a random key will be generated
       "PRIVATE_KEY": ${PRIVATE_KEY}

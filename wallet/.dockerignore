@@ -4,4 +4,7 @@ README.md
 .gitignore
 .github
 target
-docker/
+wallet-blockchain-interface/
+wallet_db_regtest
+wallet_db_testnet
+release

@@ -96,8 +96,6 @@ services:
     container_name: blockchain-interface
     hostname: blockchain-interface
     image: 903295530547.dkr.ecr.us-east-1.amazonaws.com/dlc-blockchain-interface:${IMAGE_TAG}
-    volumes:
-      - ./wallet-blockchain-interface:/usr/src/app
     ports:
       - 3000:3000
     environment:
@@ -113,8 +111,6 @@ services:
     container_name: router-wallet
     hostname: router-wallet
     image: 903295530547.dkr.ecr.us-east-1.amazonaws.com/dlc-protocol-wallet:${IMAGE_TAG}
-    volumes:
-      - ./wallet:/usr/src/app
     ports:
       - 8085:8085
     environment:
@@ -124,7 +120,7 @@ services:
       # - "ELECTRUM_API_URL=https://blockstream.info/testnet/api"
       # For Bitcoin Mainnet
       # ELECTRUM_API_URL="https://blockstream.info/api"
-      - "BITCOIN_CHECK_INTERVAL_SECONDS=10"
+      - "BITCOIN_CHECK_INTERVAL_SECONDS=60"
       - "BITCOIN_NETWORK=regtest"
       - "RUST_LOG=warn,dlc_protocol_wallet=debug"
       - "RUST_BACKTRACE=full"

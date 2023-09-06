@@ -1,6 +1,6 @@
 # Build and push docker image when not master, but was tagged with v[0-9]*
 
-name: Build docker
+name: Build & Push Docker on Tag
 
 on:
   push:
@@ -95,7 +95,7 @@ jobs:
           ECR_REPOSITORY: dlc-blockchain-interface
           IMAGE_TAG: ${{ github.ref_name }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f wallet-blockchain-interface/Dockerfile .
+          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f wallet/wallet-blockchain-interface/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
 
   build-wallet-public:

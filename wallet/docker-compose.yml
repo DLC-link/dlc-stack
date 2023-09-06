@@ -1,0 +1,51 @@
+version: '3.9'
+services:
+  wallet-blockchain-interface:
+    container_name: wallet-blockchain-interface
+    hostname: wallet-blockchain-interface
+    image: public.ecr.aws/dlc-link/dlc-blockchain-interface:latest
+    ports:
+      - "${WBI_PORT:-3000}:3000"
+    environment:
+      - "PORT=3000"
+      - "MOCKNET_ADDRESS=${MOCKNET_ADDRESS:-dev-oracle.dlc.link}"
+      - "CHAIN=${CHAIN:-STACKS_MOCKNET}"
+      - "VERSION=${VERSION:-1}"
+      - "API_KEY=${API_KEY}"
+      - "PRIVATE_KEY=${PRIVATE_KEY}"
+    restart: on-failure
+
+  protocol-wallet:
+    container_name: protocol-wallet
+    hostname: protocol-wallet
+    image: public.ecr.aws/dlc-link/dlc-protocol-wallet:latest
+    ports:
+      - "${WALLET_PORT:-8085}:8085"
+    environment:
+      # NOTE: these will overwrite envs set in a .env file
+      # For DLC.Link Bitcoin Mocknet
+      - "ELECTRUM_API_URL=https://devnet.dlc.link/electrs"
+      - "BITCOIN_NETWORK=regtest"
+      - "STORAGE_API_ENDPOINT=https://devnet.dlc.link/storage-api"
+      # For Bitcoin Testnet
+      # - "ELECTRUM_API_URL=https://blockstream.info/testnet/api"
+      # - "BITCOIN_NETWORK=testnet"
+      # - "STORAGE_API_ENDPOINT=https://testnet.dlc.link/storage-api"
+      # Common:
+      - "BITCOIN_CHECK_INTERVAL_SECONDS=60"
+      - "RUST_LOG=warn,dlc_protocol_wallet=debug"
+      - "RUST_BACKTRACE=full"
+      - "STORAGE_API_ENABLED=true"
+      - "CONTRACT_CLEANUP_ENABLED=${CONTRACT_CLEANUP_ENABLED:-false}"
+      - "BLOCKCHAIN_INTERFACE_URL=http://wallet-blockchain-interface:3000"
+      - "XPRIV=${XPRIV}"
+      - "FINGERPRINT=${FINGERPRINT}"
+    depends_on:
+        - wallet-blockchain-interface
+    restart: on-failure
+    healthcheck:
+      test: curl --fail http://localhost:8085/info || exit 1
+      interval: 3s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
