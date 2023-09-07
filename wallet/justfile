@@ -42,5 +42,5 @@ generate-address-from-key: build-wallet
 build: build-wbi build-wallet
 
 run: build
-  TEST_MODE_ENABLED=$TEST_MODE_ENABLED just wbi &
-  XPRIV=${XPRIV} FINGERPRINT=${FINGERPRINT} just wallet && fg
+  just wbi &
+  just wallet && fg
