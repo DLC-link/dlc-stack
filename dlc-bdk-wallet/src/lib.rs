@@ -1,7 +1,5 @@
-use std::{
-    ops::Deref,
-    sync::{Arc, Mutex},
-};
+use parking_lot::Mutex;
+use std::{ops::Deref, sync::Arc};
 
 use bdk::{
     database::AnyDatabase,
@@ -95,7 +93,7 @@ impl Wallet for DlcBdkWallet {
         let org_utxos = self
             .bdk_wallet
             .lock()
-            .unwrap()
+            // .unwrap()
             .list_unspent()
             .unwrap()
             .clone();
@@ -109,7 +107,7 @@ impl Wallet for DlcBdkWallet {
 
         let selection = BranchAndBoundCoinSelection::default()
             .coin_select(
-                &AnyDatabase::Sled(self.bdk_wallet.lock().unwrap().database().deref().clone()),
+                &AnyDatabase::Sled(self.bdk_wallet.lock().database().deref().clone()),
                 vec![],
                 utxos,
                 FeeRate::from_sat_per_vb(fee_rate.unwrap_or(0) as f32),

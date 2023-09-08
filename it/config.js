@@ -66,7 +66,7 @@ const docker = {
 const custom = {
   testWalletPrivateKey: devnet.testWalletPrivateKey,
   testWalletAddress: devnet.testWalletAddress,
-  bitcoinNetwork: local.bitcoinNetwork,
+  bitcoinNetwork: devnet.bitcoinNetwork,
   bitcoinNetworkURL: devnet.bitcoinNetworkURL,
   protocolWalletURL: local.protocolWalletURL,
   attestorList: devnet.attestorList,

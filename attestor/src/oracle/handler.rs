@@ -4,10 +4,8 @@ use dlc_clients::{
     EventRequestParams, EventsRequestParams, MemoryApiClient, NewEvent, StorageApiClient,
     UpdateEvent,
 };
-// use log::info;
 
 extern crate futures;
-// extern crate tokio;
 
 // A macro to provide `println!(..)`-style syntax for `console.log` logging.
 macro_rules! clog {
@@ -78,9 +76,7 @@ impl MemoryApiConn {
                 .await;
             match res {
                 Ok(_) => Ok(Some(new_event.clone())),
-                Err(err) => {
-                    Err(OracleError::StorageApiError(err))
-                }
+                Err(err) => Err(OracleError::StorageApiError(err)),
             }
         } else {
             let event = NewEvent {
@@ -91,9 +87,7 @@ impl MemoryApiConn {
             let res = self.client.create_event(event).await;
             match res {
                 Ok(_) => Ok(Some(new_event.clone())),
-                Err(err) => {
-                    Err(OracleError::StorageApiError(err))
-                }
+                Err(err) => Err(OracleError::StorageApiError(err)),
             }
         }
     }
@@ -160,9 +154,7 @@ impl StorageApiConn {
             let res = self.client.update_event(update_event).await;
             match res {
                 Ok(_) => Ok(Some(new_event.clone())),
-                Err(err) => {
-                    Err(OracleError::StorageApiError(err))
-                }
+                Err(err) => Err(OracleError::StorageApiError(err)),
             }
         } else {
             let event = NewEvent {
@@ -173,9 +165,7 @@ impl StorageApiConn {
             let res = self.client.create_event(event).await;
             match res {
                 Ok(_) => Ok(Some(new_event.clone())),
-                Err(err) => {
-                    Err(OracleError::StorageApiError(err))
-                }
+                Err(err) => Err(OracleError::StorageApiError(err)),
             }
         }
     }

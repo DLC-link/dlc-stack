@@ -7,7 +7,7 @@ use dlc_storage_common::models::{
 };
 use dlc_storage_reader;
 use dlc_storage_writer;
-use log::{info, warn};
+use log::{debug, info, warn};
 use serde_json::json;
 
 #[get("/contracts")]
@@ -33,7 +33,7 @@ pub async fn create_contract(
     let mut conn = pool.get().expect("couldn't get db connection from pool");
     match dlc_storage_writer::create_contract(&mut conn, contract_params.into_inner()) {
         Ok(contract) => {
-            info!("Created contract: {:?}", contract);
+            debug!("Created contract: {:?}", contract);
             HttpResponse::Ok().json(contract)
         }
         Err(e) => {

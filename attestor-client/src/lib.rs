@@ -16,13 +16,14 @@ extern crate dlc_messages;
 extern crate secp256k1_zkp;
 extern crate serde;
 
-use std::{fmt, io::Cursor, num::ParseIntError};
+use std::{fmt, io::Cursor, num::ParseIntError, time::Duration};
 
 use chrono::{DateTime, Utc};
 use dlc_link_manager::AsyncOracle;
 use dlc_manager::error::Error as DlcManagerError;
 use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
 use log::info;
+use reqwest::ClientBuilder;
 use secp256k1_zkp::{schnorr::Signature, XOnlyPublicKey};
 use serde_json::Value;
 
@@ -115,7 +116,10 @@ impl AttestorClient {
     /// oracle uses an incompatible format.
     #[allow(dead_code)]
     pub async fn new(host: &str) -> Result<AttestorClient, DlcManagerError> {
-        let client = reqwest::Client::new();
+        let client = ClientBuilder::new()
+            .timeout(Duration::from_secs(10))
+            .build()
+            .expect("Client::new()");
         if host.is_empty() {
             return Err(DlcManagerError::InvalidParameters(
                 "Invalid host".to_string(),

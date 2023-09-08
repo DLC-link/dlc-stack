@@ -12,6 +12,7 @@ dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", features = ["use-s
 lightning = {version = "0.0.113"}
 log = "0.4.17"
 bdk = {version = "0.28.0", default-features = false, features = ["key-value-db"] }
+parking_lot = {version = "0.12.1", features = ["nightly", "deadlock_detection"]}
 secp256k1-zkp = {version = "0.7.0"}
 
 [dev-dependencies]

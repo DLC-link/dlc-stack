@@ -24,7 +24,7 @@ dlc-trie = { git = "https://github.com/dlc-link/rust-dlc", features = ["use-serd
 getrandom = { version = "0.2", features = ["js"] }
 lightning = { version = "0.0.113" }
 log = "0.4.17"
-reqwest = { version = "0.11.16", default-features = false, features = ["json"] }
+reqwest = {git = "https://github.com/dlc-link/reqwest", branch = "add-wasm-timeout-to-request-builder",  features = ["json", "rustls-tls"]}
 serde = { version = "*", features = ["derive"] }
 serde_json = "1.0.81"
 secp256k1-zkp = { version = "0.7.0", features = [

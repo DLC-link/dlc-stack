@@ -41,9 +41,10 @@ fn main() {
             ]),
         )
         .unwrap();
-    let pubkey = ExtendedPubKey::from_priv(&secp, &derived_ext_xpriv);
+    let pubkey = ExtendedPubKey::from_priv(&secp, &derived_ext_xpriv).public_key;
+    let secret_key = derived_ext_xpriv.private_key;
     println!(
         "{}",
-        json!({ "public_key": pubkey, "network": network, "address": address })
+        json!({ "derviced_private_key": secret_key, "derived_public_key": pubkey, "network": network, "address": address })
     )
 }

@@ -17,12 +17,9 @@ use bdk::{SignOptions, Wallet as BdkWallet};
 use serde::{Deserialize, Serialize};
 
 use core::panic;
-use std::{
-    collections::HashMap,
-    env,
-    str::FromStr,
-    sync::{Arc, Mutex},
-};
+use parking_lot::{deadlock, Mutex};
+use std::time::Duration;
+use std::{collections::HashMap, env, str::FromStr, sync::Arc};
 
 use bitcoin::{Address, XOnlyPublicKey};
 use dlc_bdk_wallet::DlcBdkWallet;
@@ -98,6 +95,7 @@ async fn get_attestors(
     let get_all_attestors_endpoint_url = format!("{}/get-all-attestors", blockchain_interface_url);
 
     let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
         .use_rustls_tls()
         .build()
         .map_err(to_oracle_error)?;
@@ -135,37 +133,65 @@ async fn generate_attestor_client(
     attestor_clients
 }
 
-#[tokio::main]
-async fn main() {
+// #[tokio::main]
+fn main() {
     tracing_subscriber::fmt::init();
     let wallet_backend_port: String = env::var("WALLET_BACKEND_PORT").unwrap_or("8085".to_string());
     let bitcoin_check_interval_seconds: u64 = env::var("BITCOIN_CHECK_INTERVAL_SECONDS")
-        .unwrap_or("10".to_string())
+        .unwrap_or("60".to_string())
         .parse::<u64>()
         .unwrap_or(60);
-    let local = task::LocalSet::new();
-    local.spawn_local(async move {
-        let mut interval =
-            time::interval(time::Duration::from_secs(bitcoin_check_interval_seconds));
-        loop {
-            interval.tick().await;
-            match reqwest::get(format!(
-                "http://localhost:{}/periodic_check",
-                wallet_backend_port
-            ))
-            .await
-            {
-                Ok(_) => (),
-                Err(e) => {
-                    warn!("Error running periodic check: {}, will retry", e);
-                }
-            }
-        }
-    });
-    local.spawn_local(async move {
-        run().await;
-    });
-    local.await;
+    // let local = task::LocalSet::new();
+    // local.spawn_local(async move {
+    //     let mut interval =
+    //         time::interval(time::Duration::from_secs(bitcoin_check_interval_seconds));
+    //     loop {
+    //         interval.tick().await;
+    //         match reqwest::get(format!(
+    //             "http://localhost:{}/periodic_check",
+    //             wallet_backend_port
+    //         ))
+    //         .await
+    //         {
+    //             Ok(_) => (),
+    //             Err(e) => {
+    //                 warn!("Error running periodic check: {}, will retry", e);
+    //             }
+    //         }
+    //     }
+    // });
+    // local.spawn_local(async move {
+    //     run().await;
+    // });
+    // local.spawn_local(async move {
+    //     let mut interval = time::interval(time::Duration::from_secs(10));
+    //     loop {
+    //         interval.tick().await;
+    //         warn!("Checking for deadlocks");
+    //         let deadlocks = deadlock::check_deadlock();
+    //         if deadlocks.is_empty() {
+    //             continue;
+    //         }
+
+    //         warn!("{} deadlocks detected", deadlocks.len());
+    //         for (i, threads) in deadlocks.iter().enumerate() {
+    //             warn!("Deadlock #{}", i);
+    //             for t in threads {
+    //                 warn!("Thread Id {:#?}", t.thread_id());
+    //                 warn!("{:#?}", t.backtrace());
+    //             }
+    //         }
+    //     }
+    // });
+    // local.await;
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build runtime");
+
+    // Combine it with a `LocalSet,  which means it can spawn !Send futures...
+    let local = tokio::task::LocalSet::new();
+    local.block_on(&rt, run());
 }
 
 fn build_success_response(message: String) -> Result<Response<Body>, GenericError> {
@@ -478,6 +504,21 @@ async fn run() {
     }
 }
 
+// Since the Server needs to spawn some background tasks, we needed
+// to configure an Executor that can spawn !Send futures...
+#[derive(Clone, Copy, Debug)]
+struct LocalExec;
+
+impl<F> hyper::rt::Executor<F> for LocalExec
+where
+    F: std::future::Future + 'static, // not requiring `Send`
+{
+    fn execute(&self, fut: F) {
+        // This will spawn into the currently running `LocalSet`.
+        tokio::task::spawn_local(fut);
+    }
+}
+
 fn setup_wallets(
     xpriv: ExtendedPrivKey,
     active_network: bitcoin::Network,
@@ -569,7 +610,7 @@ async fn create_new_offer(
     };
 
     //had to make this mutable because of the borrow, not sure why
-    let mut man = manager.lock().unwrap();
+    let mut man = manager.lock();
 
     let offer = man
         .send_offer(
@@ -587,7 +628,7 @@ async fn accept_offer(
 ) -> Result<String, GenericError> {
     let dlc = manager
         .lock()
-        .unwrap()
+        // .unwrap()
         .on_dlc_message(
             &Message::Accept(accept_dlc),
             STATIC_COUNTERPARTY_NODE_ID.parse().unwrap(),
@@ -673,8 +714,8 @@ async fn get_wallet_info(
     contracts_json["PreClosed"] = collected_contracts[8].clone().into();
 
     info_response["wallet"] = json!({
-        "unconfirmed_balance": wallet.bdk_wallet.lock().unwrap().get_balance().unwrap().untrusted_pending,
-        "balance": wallet.bdk_wallet.lock().unwrap().get_balance().unwrap().confirmed,
+        "unconfirmed_balance": wallet.bdk_wallet.lock().get_balance().unwrap().untrusted_pending,
+        "balance": wallet.bdk_wallet.lock().get_balance().unwrap().confirmed,
         "address": wallet.address
     });
     info_response["contracts"] = contracts_json;
@@ -691,17 +732,20 @@ async fn refresh_wallet(
     blockchain: Arc<EsploraAsyncBlockchainProvider>,
     wallet: Arc<DlcBdkWallet>,
 ) -> Result<(), WalletError> {
-    let bdk = match wallet.bdk_wallet.lock() {
-        Ok(wallet) => wallet,
-        Err(e) => {
-            error!("Error locking wallet: {}", e.to_string());
-            return Err(WalletError(e.to_string()));
-        }
-    };
+    let bdk = wallet.bdk_wallet.lock();
+    //  {
+    //     Ok(wallet) => wallet,
+    //     Err(e) => {
+    //         error!("Error locking wallet: {}", e.to_string());
+    //         return Err(WalletError(e.to_string()));
+    //     }
+    // };
 
     bdk.sync(&blockchain.blockchain, SyncOptions::default())
         .await
         .map_err(|e| WalletError(e.to_string()))?;
+
+    parking_lot::MutexGuard::unlock_fair(bdk);
 
     debug!("BDK done syncing, now syncing blockchain");
     blockchain
@@ -724,7 +768,7 @@ async fn periodic_check(
 
     // This should ideally not be done as a mutable ref as it could cause a runtime error
     // when you have a reference to an object as mut and not mut at the same time
-    let mut man = manager.lock().unwrap();
+    let mut man = manager.lock();
 
     let updated_contracts = match man.periodic_check().await {
         Ok(updated_contracts) => updated_contracts,
@@ -766,7 +810,10 @@ async fn periodic_check(
     for uuid in newly_confirmed_uuids {
         if !funded_uuids.contains(&uuid) {
             debug!("Contract is funded, setting funded to true: {}", uuid);
-            reqwest::Client::new()
+            reqwest::ClientBuilder::new()
+                .timeout(Duration::from_secs(10))
+                .build()
+                .expect("Client::new()")
                 .post(&funded_url)
                 .json(&json!({ "uuid": uuid }))
                 .send()
@@ -777,7 +824,10 @@ async fn periodic_check(
     for (uuid, txid) in newly_closed_uuids {
         if !closed_uuids.contains(&uuid) {
             debug!("Contract is closed, firing post-close url: {}", uuid);
-            reqwest::Client::new()
+            reqwest::ClientBuilder::new()
+                .timeout(Duration::from_secs(10))
+                .build()
+                .expect("Client::new()")
                 .post(&closed_url)
                 .json(&json!({"uuid": uuid, "btcTxId": txid.to_string()}))
                 .send()
@@ -792,13 +842,15 @@ async fn empty_to_address(
     wallet: Arc<DlcBdkWallet>,
     blockchain: Arc<EsploraAsyncBlockchainProvider>,
 ) -> Result<String, WalletError> {
-    let bdk = match wallet.bdk_wallet.lock() {
-        Ok(wallet) => wallet,
-        Err(e) => {
-            error!("Error locking wallet: {}", e.to_string());
-            return Err(WalletError(e.to_string()));
-        }
-    };
+    let bdk = wallet.bdk_wallet.lock();
+
+    // {
+    //     Ok(wallet) => wallet,
+    //     Err(e) => {
+    //         error!("Error locking wallet: {}", e.to_string());
+    //         return Err(WalletError(e.to_string()));
+    //     }
+    // };
 
     let to_address = Address::from_str(address).map_err(|e| WalletError(e.to_string()))?;
     info!("draining wallet to address: {}", to_address);
@@ -824,18 +876,4 @@ async fn empty_to_address(
         .await
         .map_err(|e| WalletError(e.to_string()))?;
     Ok(format!("Transaction broadcast successfully, TXID: {txid}"))
-}
-// Since the Server needs to spawn some background tasks, we needed
-// to configure an Executor that can spawn !Send futures...
-#[derive(Clone, Copy, Debug)]
-struct LocalExec;
-
-impl<F> hyper::rt::Executor<F> for LocalExec
-where
-    F: std::future::Future + 'static, // not requiring `Send`
-{
-    fn execute(&self, fut: F) {
-        // This will spawn into the currently running `LocalSet`.
-        tokio::task::spawn_local(fut);
-    }
 }

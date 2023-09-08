@@ -153,7 +153,6 @@ impl Attestor {
             }
         };
         event = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).unwrap();
-        clog!("[WASM-ATTESTOR] Got event from StorageAPI: {:?}", event);
 
         let outstanding_sk_nonces = event.clone().0.unwrap();
 
@@ -251,9 +250,7 @@ impl Attestor {
             .unwrap();
 
         match result {
-            Some(event) => {
-                serde_wasm_bindgen::to_value(&parse_database_entry(event)).unwrap()
-            }
+            Some(event) => serde_wasm_bindgen::to_value(&parse_database_entry(event)).unwrap(),
             None => JsValue::NULL,
         }
     }

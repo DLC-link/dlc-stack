@@ -1,10 +1,11 @@
+use bdk::esplora_client::AsyncClient;
 use bitcoin::consensus::Decodable;
 use bitcoin::{Address, Block, Network, OutPoint, Script, Transaction, TxOut, Txid};
 use dlc_manager::{error::Error, Blockchain, Utxo};
 
 use js_interface_wallet::WalletBlockchainProvider;
 use lightning::chain::chaininterface::FeeEstimator;
-use reqwest::Response;
+use reqwest::{ClientBuilder, Response};
 
 use serde::{Deserialize, Serialize};
 
@@ -12,11 +13,14 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use std::vec;
 
 use log::*;
 
 use bdk::blockchain::esplora::EsploraBlockchain;
+// use esplora_client::Builder;
+use bdk::esplora_client::Builder;
 use wasm_bindgen_futures::spawn_local;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -60,7 +64,18 @@ struct ChainCacheData {
 
 impl EsploraAsyncBlockchainProvider {
     pub fn new(host: String, _network: Network) -> Self {
-        let blockchain = EsploraBlockchain::new(&host, 20);
+        // let timeout = Duration::from_secs(10);
+        // let client = ClientBuilder::new()
+        //     .timeout(timeout)
+        //     .build()
+        //     .expect("Client::new()");
+        let builder = Builder::new(&host).timeout(10);
+        // let client = reqwest::async_impl::client::ClientBuilder::new()
+        //     .timeout(timeout)
+        //     .build()
+        //     .expect("Client::new()");
+        let url_client = AsyncClient::from_builder(builder).unwrap();
+        let blockchain = EsploraBlockchain::from_client(url_client, 20);
 
         Self {
             host,
@@ -80,8 +95,10 @@ impl EsploraAsyncBlockchainProvider {
         } else {
             format!("{}/", self.host)
         };
-        self.blockchain
-            .client()
+        ClientBuilder::new()
+            .timeout(Duration::from_secs(10))
+            .build()
+            .expect("Client::new()")
             .get(format!("{}{}", host, sub_url))
             .send()
             .await
@@ -91,6 +108,7 @@ impl EsploraAsyncBlockchainProvider {
                     x,
                 ))
             })
+        // Ok(Response::))
     }
 
     async fn get_from_json<T>(&self, sub_url: &str) -> Result<T, Error>

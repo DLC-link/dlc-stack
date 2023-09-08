@@ -108,6 +108,19 @@ async function unlockUTXOsInProtocolWallet() {
   }
 }
 
+async function fetchTxDetails(txId) {
+  try {
+    const res = await fetch(`https://devnet.dlc.link/electrs/tx/${txId}`, {
+      method: "get",
+      headers: { "Content-Type": "application/json" },
+    });
+    return await res.json();
+  } catch (error) {
+    console.error("Error fetching funding tx, maybe the broadcast failed?: ", error);
+    process.exit(1);
+  }
+}
+
 async function waitForBalance(dlcManager) {
   let balance = 0;
   while (balance <= 0) {
@@ -156,8 +169,6 @@ async function main() {
 
   await waitForBalance(dlcManager);
 
-  // console.log("Starting DLC flow");
-
   const acceptedContract = await dlcManager.accept_offer(
     JSON.stringify(offerResponse)
   );
@@ -166,18 +177,24 @@ async function main() {
     console.log("Error accepting offer: ", pared_response);
     process.exit(1);
   }
-  console.log("Contract accepted with tempId:", pared_response);
+  console.log("Contract accepted: ", pared_response);
 
   const signedContract = await sendAcceptedOfferToProtocolWallet(
     acceptedContract
   );
-  console.log("Contract signed with id: ", signedContract);
+  console.log("Contract signed: ", signedContract);
 
   const txID = await dlcManager.countersign_and_broadcast(
     JSON.stringify(signedContract)
   );
   console.log(`Broadcast funding transaction with TX ID: ${txID}`);
-  // await runDLCFlow(dlcManager, offerResponse);
+
+  // wait for 3 seconds for electrs to get it's act together
+  console.log("Fetching tx details to make sure the broadcast was successful...");
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+  // fetch the tx details from electrs to make sure it was broadcasted
+  const txDetails = await fetchTxDetails(txID);
+  console.log("Funding TX Details: {}", txDetails);
 
   if (handleAttestors) {
     console.log("Attesting to Events");

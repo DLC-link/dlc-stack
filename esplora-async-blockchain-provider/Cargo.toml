@@ -12,6 +12,6 @@ futures = {version = "0.3.28", default-features = false }
 lightning = {version = "0.0.113" }
 log = "0.4.14"
 js-interface-wallet = { path = "../js-interface-wallet"}
-reqwest = {version = "0.11", features = ["json"]}
+reqwest = {git = "https://github.com/dlc-link/reqwest", branch = "add-wasm-timeout-to-request-builder",  features = ["json", "rustls-tls"]}
 serde = {version = "*", features = ["derive"]}
 wasm-bindgen-futures = { version = "0.4.34"}

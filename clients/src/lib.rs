@@ -2,8 +2,9 @@
 extern crate serde;
 
 use log::{info, warn};
-use reqwest::{Client, Error, Response, StatusCode, Url};
+use reqwest::{Client, ClientBuilder, Error, Response, StatusCode, Url};
 use std::fmt::{Debug, Formatter};
+use std::time::Duration;
 use std::{error, fmt};
 
 use std::collections::HashMap;
@@ -146,8 +147,11 @@ impl Debug for WalletBackendClient {
 impl WalletBackendClient {
     pub fn new(host: String) -> Self {
         Self {
-            client: Client::new(),
-            host: host,
+            client: ClientBuilder::new()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .expect("Client::new()"),
+            host,
         }
     }
 
@@ -269,8 +273,11 @@ impl Debug for StorageApiClient {
 impl StorageApiClient {
     pub fn new(host: String) -> Self {
         Self {
-            client: Client::new(),
-            host: host,
+            client: ClientBuilder::new()
+                .timeout(Duration::from_secs(10))
+                .build()
+                .expect("Client::new()"),
+            host,
         }
     }
 
