@@ -321,7 +321,7 @@ async fn run() {
                 let mut closed_uuids = closed_uuids.clone();
                 async move {
                     // We currently lock the main process because of the various std::mutex calls inside
-                    let _ = action.lock().await;
+                    let _asdf = action.lock().await;
                     match (req.method(), req.uri().path()) {
                         (&Method::GET, "/empty_to_address") => {
                             let result = async {
