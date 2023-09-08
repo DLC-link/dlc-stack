@@ -24,6 +24,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use tokio::sync::Mutex as AsyncMutex;
+
 use bitcoin::{Address, XOnlyPublicKey};
 use dlc_bdk_wallet::DlcBdkWallet;
 use dlc_link_manager::{AsyncOracle, AsyncStorage, Manager};
@@ -292,7 +294,9 @@ async fn run() {
         .unwrap(),
     ));
 
+    let action = Arc::new(AsyncMutex::new("single_thread_lock"));
     let make_service = make_service_fn(move |_| {
+        let action = action.clone();
         // For each connection, clone the counter to use in our service...
         let manager = manager.clone();
         let blockchain = blockchain.clone();
@@ -304,7 +308,9 @@ async fn run() {
         let closed_uuids = closed_uuids.clone();
 
         async move {
+            let action = action.clone();
             Ok::<_, Error>(service_fn(move |req| {
+                let action = action.clone();
                 let manager = manager.clone();
                 let blockchain = blockchain.clone();
                 let dlc_store = dlc_store.clone();
@@ -314,6 +320,8 @@ async fn run() {
                 let closed_endpoint_url = closed_endpoint_url.clone();
                 let mut closed_uuids = closed_uuids.clone();
                 async move {
+                    // We currently lock the main process because of the various std::mutex calls inside
+                    let _ = action.lock().await;
                     match (req.method(), req.uri().path()) {
                         (&Method::GET, "/empty_to_address") => {
                             let result = async {
@@ -475,6 +483,21 @@ async fn run() {
     // The server would block on current thread to await !Send futures.
     if let Err(e) = server.await {
         panic!("server error: {}", e);
+    }
+}
+
+// Since the Server needs to spawn some background tasks, we needed
+// to configure an Executor that can spawn !Send futures...
+#[derive(Clone, Copy, Debug)]
+struct LocalExec;
+
+impl<F> hyper::rt::Executor<F> for LocalExec
+where
+    F: std::future::Future + 'static, // not requiring `Send`
+{
+    fn execute(&self, fut: F) {
+        // This will spawn into the currently running `LocalSet`.
+        tokio::task::spawn_local(fut);
     }
 }
 
@@ -824,18 +847,4 @@ async fn empty_to_address(
         .await
         .map_err(|e| WalletError(e.to_string()))?;
     Ok(format!("Transaction broadcast successfully, TXID: {txid}"))
-}
-// Since the Server needs to spawn some background tasks, we needed
-// to configure an Executor that can spawn !Send futures...
-#[derive(Clone, Copy, Debug)]
-struct LocalExec;
-
-impl<F> hyper::rt::Executor<F> for LocalExec
-where
-    F: std::future::Future + 'static, // not requiring `Send`
-{
-    fn execute(&self, fut: F) {
-        // This will spawn into the currently running `LocalSet`.
-        tokio::task::spawn_local(fut);
-    }
 }
