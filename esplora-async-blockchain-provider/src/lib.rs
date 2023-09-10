@@ -1,3 +1,4 @@
+use bdk::esplora_client::{AsyncClient, Builder};
 use bitcoin::consensus::Decodable;
 use bitcoin::{Address, Block, Network, OutPoint, Script, Transaction, TxOut, Txid};
 use dlc_manager::{error::Error, Blockchain, Utxo};
@@ -18,6 +19,8 @@ use log::*;
 
 use bdk::blockchain::esplora::EsploraBlockchain;
 use wasm_bindgen_futures::spawn_local;
+
+const REQWEST_TIMEOUT: u64 = 30;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct UtxoResp {
@@ -60,7 +63,9 @@ struct ChainCacheData {
 
 impl EsploraAsyncBlockchainProvider {
     pub fn new(host: String, _network: Network) -> Self {
-        let blockchain = EsploraBlockchain::new(&host, 20);
+        let client_builder = Builder::new(&host).timeout(REQWEST_TIMEOUT);
+        let url_client = AsyncClient::from_builder(client_builder).unwrap();
+        let blockchain = EsploraBlockchain::from_client(url_client, 20);
 
         Self {
             host,

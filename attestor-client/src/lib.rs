@@ -16,7 +16,7 @@ extern crate dlc_messages;
 extern crate secp256k1_zkp;
 extern crate serde;
 
-use std::{fmt, io::Cursor, num::ParseIntError};
+use std::{fmt, io::Cursor, num::ParseIntError, time::Duration};
 
 use chrono::{DateTime, Utc};
 use dlc_link_manager::AsyncOracle;
@@ -26,6 +26,7 @@ use log::info;
 use secp256k1_zkp::{schnorr::Signature, XOnlyPublicKey};
 use serde_json::Value;
 
+const REQWEST_TIMEOUT: Duration = Duration::from_secs(30);
 /// Enables interacting with a DLC oracle.
 pub struct AttestorClient {
     host: String,
@@ -85,7 +86,10 @@ struct AttestationResponse {
 // }
 
 async fn get_json(path: &str) -> Result<Value, DlcManagerError> {
-    reqwest::get(path)
+    reqwest::Client::new()
+        .get(path)
+        .timeout(REQWEST_TIMEOUT)
+        .send()
         .await
         .map_err(|x| {
             dlc_manager::error::Error::IOError(std::io::Error::new(std::io::ErrorKind::Other, x))
@@ -115,7 +119,10 @@ impl AttestorClient {
     /// oracle uses an incompatible format.
     #[allow(dead_code)]
     pub async fn new(host: &str) -> Result<AttestorClient, DlcManagerError> {
-        let client = reqwest::Client::new();
+        let client = reqwest::ClientBuilder::new()
+            .timeout(REQWEST_TIMEOUT)
+            .build()
+            .unwrap();
         if host.is_empty() {
             return Err(DlcManagerError::InvalidParameters(
                 "Invalid host".to_string(),
@@ -130,8 +137,9 @@ impl AttestorClient {
         let path = pubkey_path(&host);
         info!("Getting pubkey from {}", path);
 
-        let attestor_key = client
+        let attestor_key = reqwest::Client::new()
             .get(path)
+            .timeout(REQWEST_TIMEOUT)
             .send()
             .await
             .map_err(|e| DlcManagerError::OracleError(format!("Oracle PubKey Error: {e}")))?
