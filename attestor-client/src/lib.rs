@@ -5,8 +5,8 @@
 #![deny(non_upper_case_globals)]
 #![deny(non_camel_case_types)]
 #![deny(non_snake_case)]
-#![deny(unused_mut)]
-#![deny(dead_code)]
+// #![deny(unused_mut)]
+// #![deny(dead_code)]
 #![deny(unused_imports)]
 // #![deny(missing_docs)]
 
@@ -86,9 +86,20 @@ struct AttestationResponse {
 // }
 
 async fn get_json(path: &str) -> Result<Value, DlcManagerError> {
-    reqwest::Client::new()
+    let mut client_builder = reqwest::ClientBuilder::new();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        client_builder = client_builder.timeout(REQWEST_TIMEOUT);
+    }
+    client_builder
+        .build()
+        .map_err(|e| {
+            DlcManagerError::IOError(std::io::Error::new(
+                std::io::ErrorKind::NotConnected,
+                e.to_string(),
+            ))
+        })?
         .get(path)
-        .timeout(REQWEST_TIMEOUT)
         .send()
         .await
         .map_err(|x| {
@@ -119,10 +130,6 @@ impl AttestorClient {
     /// oracle uses an incompatible format.
     #[allow(dead_code)]
     pub async fn new(host: &str) -> Result<AttestorClient, DlcManagerError> {
-        let client = reqwest::ClientBuilder::new()
-            .timeout(REQWEST_TIMEOUT)
-            .build()
-            .unwrap();
         if host.is_empty() {
             return Err(DlcManagerError::InvalidParameters(
                 "Invalid host".to_string(),
@@ -137,9 +144,20 @@ impl AttestorClient {
         let path = pubkey_path(&host);
         info!("Getting pubkey from {}", path);
 
-        let attestor_key = reqwest::Client::new()
+        let mut client_builder = reqwest::ClientBuilder::new();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            client_builder = client_builder.timeout(REQWEST_TIMEOUT);
+        }
+        let attestor_key = client_builder
+            .build()
+            .map_err(|e| {
+                DlcManagerError::IOError(std::io::Error::new(
+                    std::io::ErrorKind::NotConnected,
+                    e.to_string(),
+                ))
+            })?
             .get(path)
-            .timeout(REQWEST_TIMEOUT)
             .send()
             .await
             .map_err(|e| DlcManagerError::OracleError(format!("Oracle PubKey Error: {e}")))?
