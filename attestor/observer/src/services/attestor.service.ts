@@ -18,7 +18,7 @@ function getOrGenerateSecretFromConfig(): string {
 
 function createMaturationDate() {
   const maturationDate = new Date();
-  maturationDate.setMinutes(maturationDate.getMinutes() + 3);
+  maturationDate.setMonth(maturationDate.getMonth() + 3);
   return maturationDate.toISOString();
 }
 

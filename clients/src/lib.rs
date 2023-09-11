@@ -4,12 +4,15 @@ extern crate serde;
 use log::{info, warn};
 use reqwest::{Client, Error, Response, StatusCode, Url};
 use std::fmt::{Debug, Formatter};
+use std::time::Duration;
 use std::{error, fmt};
 
 use std::collections::HashMap;
 
 pub mod async_storage_provider;
 mod utils;
+
+const REQWEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -145,9 +148,14 @@ impl Debug for WalletBackendClient {
 
 impl WalletBackendClient {
     pub fn new(host: String) -> Self {
+        let mut client_builder = Client::builder();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            client_builder = client_builder.timeout(REQWEST_TIMEOUT);
+        }
         Self {
-            client: Client::new(),
-            host: host,
+            client: client_builder.build().unwrap(),
+            host,
         }
     }
 
@@ -268,9 +276,14 @@ impl Debug for StorageApiClient {
 
 impl StorageApiClient {
     pub fn new(host: String) -> Self {
+        let mut client_builder = Client::builder();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            client_builder = client_builder.timeout(REQWEST_TIMEOUT);
+        }
         Self {
-            client: Client::new(),
-            host: host,
+            client: client_builder.build().unwrap(),
+            host,
         }
     }
 

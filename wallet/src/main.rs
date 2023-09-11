@@ -17,12 +17,15 @@ use bdk::{SignOptions, Wallet as BdkWallet};
 use serde::{Deserialize, Serialize};
 
 use core::panic;
+use std::time::Duration;
 use std::{
     collections::HashMap,
     env,
     str::FromStr,
     sync::{Arc, Mutex},
 };
+
+use tokio::sync::Mutex as AsyncMutex;
 
 use bitcoin::{Address, XOnlyPublicKey};
 use dlc_bdk_wallet::DlcBdkWallet;
@@ -71,6 +74,8 @@ type DlcManager<'a> = Manager<
 const STATIC_COUNTERPARTY_NODE_ID: &str =
     "02fc8e97419286cf05e5d133f41ff6d51f691dda039e9dc007245a421e2c7ec61c";
 
+const REQWEST_TIMEOUT: Duration = Duration::from_secs(30);
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ErrorResponse {
@@ -97,13 +102,9 @@ async fn get_attestors(
 ) -> Result<Vec<String>, dlc_manager::error::Error> {
     let get_all_attestors_endpoint_url = format!("{}/get-all-attestors", blockchain_interface_url);
 
-    let client = reqwest::Client::builder()
-        .use_rustls_tls()
-        .build()
-        .map_err(to_oracle_error)?;
-
-    let res = client
+    let res = reqwest::Client::new()
         .get(get_all_attestors_endpoint_url.as_str())
+        .timeout(REQWEST_TIMEOUT)
         .send()
         .await
         .map_err(to_oracle_error)?;
@@ -149,11 +150,14 @@ async fn main() {
             time::interval(time::Duration::from_secs(bitcoin_check_interval_seconds));
         loop {
             interval.tick().await;
-            match reqwest::get(format!(
-                "http://localhost:{}/periodic_check",
-                wallet_backend_port
-            ))
-            .await
+            match reqwest::Client::new()
+                .get(format!(
+                    "http://localhost:{}/periodic_check",
+                    wallet_backend_port
+                ))
+                .timeout(REQWEST_TIMEOUT)
+                .send()
+                .await
             {
                 Ok(_) => (),
                 Err(e) => {
@@ -292,7 +296,9 @@ async fn run() {
         .unwrap(),
     ));
 
+    let action = Arc::new(AsyncMutex::new("single_thread_lock"));
     let make_service = make_service_fn(move |_| {
+        let action = action.clone();
         // For each connection, clone the counter to use in our service...
         let manager = manager.clone();
         let blockchain = blockchain.clone();
@@ -304,7 +310,9 @@ async fn run() {
         let closed_uuids = closed_uuids.clone();
 
         async move {
+            let action = action.clone();
             Ok::<_, Error>(service_fn(move |req| {
+                let action = action.clone();
                 let manager = manager.clone();
                 let blockchain = blockchain.clone();
                 let dlc_store = dlc_store.clone();
@@ -314,6 +322,8 @@ async fn run() {
                 let closed_endpoint_url = closed_endpoint_url.clone();
                 let mut closed_uuids = closed_uuids.clone();
                 async move {
+                    // We currently lock the main process because of the various std::mutex calls inside
+                    let _asdf = action.lock().await;
                     match (req.method(), req.uri().path()) {
                         (&Method::GET, "/empty_to_address") => {
                             let result = async {
@@ -475,6 +485,21 @@ async fn run() {
     // The server would block on current thread to await !Send futures.
     if let Err(e) = server.await {
         panic!("server error: {}", e);
+    }
+}
+
+// Since the Server needs to spawn some background tasks, we needed
+// to configure an Executor that can spawn !Send futures...
+#[derive(Clone, Copy, Debug)]
+struct LocalExec;
+
+impl<F> hyper::rt::Executor<F> for LocalExec
+where
+    F: std::future::Future + 'static, // not requiring `Send`
+{
+    fn execute(&self, fut: F) {
+        // This will spawn into the currently running `LocalSet`.
+        tokio::task::spawn_local(fut);
     }
 }
 
@@ -768,6 +793,7 @@ async fn periodic_check(
             debug!("Contract is funded, setting funded to true: {}", uuid);
             reqwest::Client::new()
                 .post(&funded_url)
+                .timeout(REQWEST_TIMEOUT)
                 .json(&json!({ "uuid": uuid }))
                 .send()
                 .await?;
@@ -779,6 +805,7 @@ async fn periodic_check(
             debug!("Contract is closed, firing post-close url: {}", uuid);
             reqwest::Client::new()
                 .post(&closed_url)
+                .timeout(REQWEST_TIMEOUT)
                 .json(&json!({"uuid": uuid, "btcTxId": txid.to_string()}))
                 .send()
                 .await?;
@@ -824,18 +851,4 @@ async fn empty_to_address(
         .await
         .map_err(|e| WalletError(e.to_string()))?;
     Ok(format!("Transaction broadcast successfully, TXID: {txid}"))
-}
-// Since the Server needs to spawn some background tasks, we needed
-// to configure an Executor that can spawn !Send futures...
-#[derive(Clone, Copy, Debug)]
-struct LocalExec;
-
-impl<F> hyper::rt::Executor<F> for LocalExec
-where
-    F: std::future::Future + 'static, // not requiring `Send`
-{
-    fn execute(&self, fut: F) {
-        // This will spawn into the currently running `LocalSet`.
-        tokio::task::spawn_local(fut);
-    }
 }

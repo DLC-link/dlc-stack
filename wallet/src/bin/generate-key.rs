@@ -1,7 +1,8 @@
+use bdk::descriptor;
 use bdk::keys::bip39::{Language, Mnemonic, WordCount};
 use bdk::keys::{DerivableKey, ExtendedKey, GeneratableKey, GeneratedKey};
 use bdk::miniscript::Segwitv0;
-use bitcoin::util::bip32::DerivationPath;
+use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPubKey};
 use std::env;
 use std::str::FromStr;
 
@@ -37,15 +38,33 @@ fn main() {
         .trim()
         .to_string();
 
-    let ext_path = DerivationPath::from_str("m/44h/0h/0h/0").expect("A valid derivation path");
+    // Generating derived keys and first address
+    let external_derivation_path =
+        DerivationPath::from_str("m/44h/0h/0h/0").expect("A valid derivation path");
 
-    let derived_ext_xpriv = xprv.derive_priv(&secp, &ext_path).unwrap();
-    let seckey_ext = derived_ext_xpriv.private_key;
+    let signing_external_descriptor = descriptor!(wpkh((
+        xprv,
+        external_derivation_path.extend([ChildNumber::Normal { index: 0 }])
+    )))
+    .unwrap();
 
-    let pubkey_ext = seckey_ext.public_key(&secp);
+    let x = signing_external_descriptor.0.clone();
+
+    let address = x.at_derivation_index(0).address(network).unwrap();
+    let derived_ext_xpriv = xprv
+        .derive_priv(
+            &secp,
+            &external_derivation_path.extend([
+                ChildNumber::Normal { index: 0 },
+                ChildNumber::Normal { index: 0 },
+            ]),
+        )
+        .unwrap();
+    let pubkey = ExtendedPubKey::from_priv(&secp, &derived_ext_xpriv).public_key;
+    let secret_key = derived_ext_xpriv.private_key;
 
     println!(
         "{}",
-        json!({ "mnemonic": phrase, "xprv": xprv.to_string(), "fingerprint": fingerprint.to_string(), "secret_key": seckey_ext, "public_key": pubkey_ext, "network": network })
+        json!({ "mnemonic": phrase, "xprv": xprv.to_string(), "fingerprint": fingerprint.to_string(), "secret_key": secret_key, "public_key": pubkey, "network": network, "address": address })
     )
 }
