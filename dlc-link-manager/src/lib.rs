@@ -517,21 +517,24 @@ where
                 .enumerate()
                 .collect();
             if announcements.len() >= contract_info.threshold {
-                let attestations: Vec<_> = futures::future::join_all(
-                    announcements.iter().filter_map(|(i, announcement)| {
-                        Some(async move {
-                            let oracle = self.oracles.get(&announcement.oracle_public_key).unwrap();
-                            (
-                                *i,
-                                oracle
-                                    .get_attestation(&announcement.oracle_event.event_id)
-                                    .await
-                                    .unwrap(), // .ok(),
-                            )
-                        })
-                    }),
-                )
+                let attestations: Vec<_> = futures::future::join_all(announcements.iter().map(
+                    |(i, announcement)| async move {
+                        let oracle = self.oracles.get(&announcement.oracle_public_key).unwrap();
+                        (
+                            *i,
+                            oracle
+                                .get_attestation(&announcement.oracle_event.event_id)
+                                .await
+                                .ok(),
+                        )
+                    },
+                ))
                 .await;
+                let attestations: Vec<_> = attestations
+                    .iter()
+                    .filter(|&pair| pair.1.is_some())
+                    .map(|pair| (pair.0, pair.1.as_ref().unwrap().clone()))
+                    .collect();
                 if attestations.len() >= contract_info.threshold {
                     return Some((contract_info, adaptor_info, attestations));
                 }
