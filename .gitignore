@@ -23,7 +23,7 @@
 
 .vscode
 .env
-!.env.tempalte
+!.env.template
 docker/data
 
 # Ingore Mac OS files
