@@ -194,7 +194,7 @@ async function main() {
   await new Promise((resolve) => setTimeout(resolve, 3000));
   // fetch the tx details from electrs to make sure it was broadcasted
   const txDetails = await fetchTxDetails(txID);
-  console.log("Funding TX Details: {}", txDetails);
+  console.log("Funding TX Details: ", txDetails);
 
   if (handleAttestors) {
     console.log("Attesting to Events");
