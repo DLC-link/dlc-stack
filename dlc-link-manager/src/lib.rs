@@ -286,14 +286,6 @@ where
         Ok((contract_id, counter_party, accept_msg))
     }
 
-    // pub async fn periodic_check(&mut self) -> Result<(), Error> {
-    //     self.check_signed_contracts().await?;
-    //     self.check_confirmed_contracts().await?;
-    //     self.check_preclosed_contracts().await?;
-
-    //     Ok(())
-    // }
-
     /// Function to call to check the state of the currently executing DLCs and
     /// update them if possible.
     pub async fn periodic_check(&mut self) -> Result<Vec<(ContractId, String)>, Error> {
@@ -519,17 +511,14 @@ where
         let contract_infos = &contract.accepted_contract.offered_contract.contract_info;
         let adaptor_infos = &contract.accepted_contract.adaptor_infos;
         for (contract_info, adaptor_info) in contract_infos.iter().zip(adaptor_infos.iter()) {
-            let matured: Vec<_> = contract_info
+            let announcements: Vec<(usize, &OracleAnnouncement)> = contract_info
                 .oracle_announcements
                 .iter()
-                .filter(|x| {
-                    (x.oracle_event.event_maturity_epoch as u64) <= self.time.unix_time_now()
-                })
                 .enumerate()
                 .collect();
-            if matured.len() >= contract_info.threshold {
-                let attestations: Vec<_> =
-                    futures::future::join_all(matured.iter().filter_map(|(i, announcement)| {
+            if announcements.len() >= contract_info.threshold {
+                let attestations: Vec<_> = futures::future::join_all(
+                    announcements.iter().filter_map(|(i, announcement)| {
                         Some(async move {
                             let oracle = self.oracles.get(&announcement.oracle_public_key).unwrap();
                             (
@@ -540,9 +529,9 @@ where
                                     .unwrap(), // .ok(),
                             )
                         })
-                    }))
-                    .await;
-                // .collect();
+                    }),
+                )
+                .await;
                 if attestations.len() >= contract_info.threshold {
                     return Some((contract_info, adaptor_info, attestations));
                 }
