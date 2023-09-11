@@ -1,14 +1,15 @@
-# Build and push docker image on push to dev branch
+# Integration Test on PR to dev / master branch
 
-name: Build & Push Docker on Dev
+name: ITest & ECR on dev Push
 
 on:
   push:
-    branches: [dev]
+    branches:
+      - dev
 
 jobs:
-  build-storageapi-public:
-    name: Build storage-api and Push to ECR Public on Dev Push
+  build-storageapi:
+    name: Build storage-api
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -19,27 +20,23 @@ jobs:
           aws-access-key-id: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - name: Login to Amazon ECR Public
-        id: login-ecr-public
+      - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-        with:
-          registry-type: public
       - name: Set outputs
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      - name: Build, tag, and push storage-api to Amazon ECR
+      - name: Build
         env:
-          ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
-          REGISTRY_ALIAS: dlc-link
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: storage-api
-          IMAGE_TAG: dev-${{ steps.vars.outputs.sha_short }}
+          IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f storage/Dockerfile .
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f storage/Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-  build-attestor-public:
-    name: Build attestor and Push to ECR Public on Dev Push
+  build-attestor:
+    name: Build Attestor
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -50,27 +47,23 @@ jobs:
           aws-access-key-id: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - name: Login to Amazon ECR Public
-        id: login-ecr-public
+      - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-        with:
-          registry-type: public
       - name: Set outputs
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      - name: Build and push docker image
+      - name: Build
         env:
-          ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
-          REGISTRY_ALIAS: dlc-link
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: dlc-attestor
-          IMAGE_TAG: dev-${{ steps.vars.outputs.sha_short }}
+          IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f attestor/Dockerfile .
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f attestor/Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-  build-BI-public:
-    name: Build WBI and Push to ECR Public on Dev Push
+  build-BI:
+    name: Build Blockchain Interface
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -81,27 +74,23 @@ jobs:
           aws-access-key-id: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - name: Login to Amazon ECR Public
-        id: login-ecr-public
+      - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-        with:
-          registry-type: public
       - name: Set outputs
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      - name: Build and push docker image
+      - name: Build
         env:
-          ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
-          REGISTRY_ALIAS: dlc-link
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: dlc-blockchain-interface
-          IMAGE_TAG: dev-${{ steps.vars.outputs.sha_short }}
+          IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f wallet/wallet-blockchain-interface/Dockerfile .
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f wallet/wallet-blockchain-interface/Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-  build-wallet-public:
-    name: Build protocol-wallet and Push to ECR Public on Dev Push
+  build-wallet:
+    name: Build Protocol Wallet
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -112,6 +101,64 @@ jobs:
           aws-access-key-id: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Set outputs
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Build
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: dlc-protocol-wallet
+          IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f wallet/Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+  build-it:
+    name: Build test container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Set outputs
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Build
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: dlc-integration-test
+          IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f it/Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+  run-test:
+    name: Run integration tests
+    runs-on: ubuntu-latest
+    needs: [build-storageapi, build-attestor, build-BI, build-wallet, build-it]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
       - name: Login to Amazon ECR Public
         id: login-ecr-public
         uses: aws-actions/amazon-ecr-login@v1
@@ -120,13 +167,67 @@ jobs:
       - name: Set outputs
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      - name: Build and push docker image
+      - name: Run test
         env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_PUBLIC_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           REGISTRY_ALIAS: dlc-link
-          ECR_REPOSITORY: dlc-protocol-wallet
-          IMAGE_TAG: dev-${{ steps.vars.outputs.sha_short }}
+          ECR_REPOSITORY: dlc-integration-test
+          IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
+          NEW_IMAGE_TAG: dev-${{ steps.vars.outputs.sha_short }}
+          XPRIV: ${{ secrets.XPRIV }}
+          FINGERPRINT: ${{ secrets.FINGERPRINT }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f wallet/Dockerfile .
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev
+          cd it && IMAGE_TAG=$IMAGE_TAG XPRIV=$XPRIV FINGERPRINT=$FINGERPRINT docker compose --profile it up -d
+      - name: Wait for the test container to complete
+        run: |
+          while true; do
+            status=$(docker ps -a -f name=integration-test --format '{{.Status}}')
+            exit_code=$(echo $status | awk '{print $2}' | tr -d '()')
+
+            echo "Debug: status = $status"
+            echo "Debug: exit_code = $exit_code"
+
+            if [[ "$status" =~ "Exited" ]]; then
+              if [[ "$exit_code" == "0" ]]; then
+                echo "Test succeeded"
+                break
+              elif [[ "$exit_code" != "" ]]; then
+                echo "Test failed with exit code $exit_code"
+                docker logs integration-test
+                exit 1
+              fi
+            else
+              echo "Waiting for test to complete, current status: $status"
+            fi
+            sleep 5
+          done
+
+      - name: Retrieve test logs
+        run: |
+          docker logs integration-test
+
+      - name: Retag images and push to ECR
+        run: |
+          docker tag $ECR_REGISTRY/storage-api:$IMAGE_TAG $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/storage-api:dev
+          docker tag $ECR_REGISTRY/storage-api:$IMAGE_TAG $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/storage-api:$NEW_IMAGE_TAG
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/storage-api:dev
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/storage-api:$NEW_IMAGE_TAG
+
+          docker tag $ECR_REGISTRY/dlc-attestor:$IMAGE_TAG $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-attestor:dev
+          docker tag $ECR_REGISTRY/dlc-attestor:$IMAGE_TAG $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-attestor:$NEW_IMAGE_TAG
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-attestor:dev
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-attestor:$NEW_IMAGE_TAG
+
+          docker tag $ECR_REGISTRY/dlc-blockchain-interface:$IMAGE_TAG $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-blockchain-interface:dev
+          docker tag $ECR_REGISTRY/dlc-blockchain-interface:$IMAGE_TAG $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-blockchain-interface:$NEW_IMAGE_TAG
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-blockchain-interface:dev
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-blockchain-interface:$NEW_IMAGE_TAG
+
+          docker tag $ECR_REGISTRY/dlc-protocol-wallet:$IMAGE_TAG $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-protocol-wallet:dev
+          docker tag $ECR_REGISTRY/dlc-protocol-wallet:$IMAGE_TAG $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-protocol-wallet:$NEW_IMAGE_TAG
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-protocol-wallet:dev
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/dlc-protocol-wallet:$NEW_IMAGE_TAG
+
+      - name: Remove containers
+        run: docker compose down
