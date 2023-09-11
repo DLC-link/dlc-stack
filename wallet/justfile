@@ -1,17 +1,46 @@
-build:
-  cargo build --release --bins --target-dir .
+set dotenv-load := true
 
-generate-key: build
-  ./release/generate-key
-
-wallet: build
-  ./release/dlc-protocol-wallet
-
-generate-address-from-key: build
-  ./release/generate-address-from-key
+##############################
+# utils
 
 clippy:
   cargo clippy -- -Aclippy::drop_non_drop
 
 clippy-mac:
   cd ./node-manager && AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang cargo clippy -- -Aclippy::drop_non_drop
+
+
+##############################
+# wallet-blockchain-interface
+
+build-wbi:
+  cd ./wallet-blockchain-interface && npm i && npm run build
+
+wbi: build-wbi
+  cd ./wallet-blockchain-interface && npm run start
+
+
+##############################
+# wallet
+
+build-wallet:
+  cargo build --release --bins --target-dir .
+
+generate-key: build-wallet
+  ./release/generate-key
+
+wallet: build-wallet
+  ./release/dlc-protocol-wallet
+
+generate-address-from-key: build-wallet
+  ./release/generate-address-from-key
+
+
+##############################
+# both
+
+build: build-wbi build-wallet
+
+run: build
+  just wbi &
+  just wallet && fg

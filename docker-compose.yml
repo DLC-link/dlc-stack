@@ -116,9 +116,9 @@ services:
     hostname: blockchain-interface
     build:
       context: .
-      dockerfile: ./wallet-blockchain-interface/Dockerfile
+      dockerfile: ./wallet/wallet-blockchain-interface/Dockerfile
     volumes:
-      - ./wallet-blockchain-interface:/usr/src/app
+      - ./wallet/wallet-blockchain-interface:/usr/src/app
     ports:
       - 3000:3000
     environment:
@@ -147,9 +147,9 @@ services:
       # - "ELECTRUM_API_URL=https://blockstream.info/testnet/api"
       # For Bitcoin Mainnet
       # ELECTRUM_API_URL="https://blockstream.info/api"
-      - "BITCOIN_CHECK_INTERVAL_SECONDS=10"
+      - "BITCOIN_CHECK_INTERVAL_SECONDS=60"
       - "BITCOIN_NETWORK=regtest"
-      - "RUST_LOG=debug,dlc_protocol_wallet=debug"
+      - "RUST_LOG=info,dlc_protocol_wallet=debug,dlc_clients=debug,bdk=debug,dlc_manager=debug,electrs_blockchain_provider=debug,dlc_bdk_wallet=debug,esplora_async_blockchain_provider=trace"
       - "RUST_BACKTRACE=full"
       - "STORAGE_API_ENABLED=true"
       - "STORAGE_API_ENDPOINT=http://storageapi:8100"
@@ -179,10 +179,10 @@ services:
       dockerfile: ./it/Dockerfile
     environment:
       - ENV=docker
-      - HANDLE_ATTESTORS=true
-      - SUCCESSFUL_ATTESTING=true
+      - "HANDLE_ATTESTORS=${HANDLE_ATTESTORS:-true}"
+      - "SUCCESSFUL_ATTESTING=${SUCCESSFUL_ATTESTING:-true}"
     volumes:
-      - ./it:/app/it
+    - ./it:/app/it
     depends_on:
       router-wallet:
         condition: service_healthy

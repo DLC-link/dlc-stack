@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "./scripts/build.sh",
-    "start": "NODE_OPTIONS=--experimental-wasm-modules node index.js",
+    "start": "NODE_OPTIONS=--experimental-wasm-modules node src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

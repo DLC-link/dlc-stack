@@ -1,6 +1,6 @@
 # Build and push docker image on push to dev branch
 
-name: Build docker
+name: Build & Push Docker on Dev
 
 on:
   push:
@@ -39,7 +39,7 @@ jobs:
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev
 
   build-attestor-public:
-    name: Build Attestor and Push to ECR Public on Dev Push
+    name: Build attestor and Push to ECR Public on Dev Push
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -70,7 +70,7 @@ jobs:
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev
 
   build-BI-public:
-    name: Build Blockchain Interface and Push to ECR Public on Dev Push
+    name: Build WBI and Push to ECR Public on Dev Push
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -96,12 +96,12 @@ jobs:
           ECR_REPOSITORY: dlc-blockchain-interface
           IMAGE_TAG: dev-${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f wallet-blockchain-interface/Dockerfile .
+          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev -f wallet/wallet-blockchain-interface/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:dev
 
   build-wallet-public:
-    name: Build Protocol Wallet and Push to ECR Public on Dev Push
+    name: Build protocol-wallet and Push to ECR Public on Dev Push
     runs-on: ubuntu-latest
     steps:
       - name: Check out code

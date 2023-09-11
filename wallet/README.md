@@ -34,7 +34,7 @@ The Router requires the companion service knows as the Wallet Blockchain Interfa
 
 Some functions of the DLC.Link Router Wallet require accessing a smart-contract on a corresponding blockchain which supports smart contracts. Currently supported are Ethereum and Stacks. This is done via a proxying JS service which runs separately, as a companion to the Router Wallet application.
 
-Learn more about this tool here [WBI-Readme](https://github.com/DLC-link/dlc-stack/tree/master/wallet-blockchain-interface)
+Learn more about this tool here [WBI-Readme](https://github.com/DLC-link/dlc-stack/tree/master/wallet/wallet-blockchain-interface)
 
 ### Generate a Key
 Use [Just](https://github.com/casey/just) to generate a key and a cooresponding fingerprint for your wallet. Back this up securely. Pass this into the env vars as described below. This takes an env variable for BITCOIN_NETWORK.
@@ -49,7 +49,7 @@ $ BITCOIN_NETWORK=regtest cargo run --bin generate-key
 The following environment variables must be passed into this application, whether running as docker or from source.
 
 * BITCOIN_NETWORK: "regtest" # regtest / sigtest / testnet / bitcoin
-* BLOCKCHAIN_INTERFACE_URL: "localhost:3003" # URL to a companion service called the Wallet Blockchain Interface. Learn more here: https://github.com/DLC-link/dlc-stack/tree/use-dlc-btc-wallet-for-both-wallet-apps/wallet-blockchain-interface
+* BLOCKCHAIN_INTERFACE_URL: "localhost:3003" # URL to a companion service called the Wallet Blockchain Interface. Learn more here: https://github.com/DLC-link/dlc-stack/tree/dev/wallet-blockchain-interface
 * CELECTRUM_API_URL: "https://blockstream.info/testnet/api/" # URL to an Esplora bitcoin API
 * FINGERPRINT: "3a64ca13" # The key fingerprint generated when running the Generate Key binary. See [here](#generate-a-key)
 * RUST_LOG: "info,dlc_protocol_wallet=debug,dlc_clients=debug,bdk=debug,dlc_manager=debug,electrs_blockchain_provider=debug,dlc_bdk_wallet=debug,esplora_async_blockchain_provider=trace" # Different logging levels for each package is supported.
