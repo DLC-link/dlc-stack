@@ -1,7 +1,9 @@
+#![feature(async_fn_in_trait)]
 use bdk::esplora_client::TxStatus;
 use bdk::esplora_client::{AsyncClient, Builder};
 use bitcoin::consensus::Decodable;
 use bitcoin::{Address, Block, Network, OutPoint, Script, Transaction, TxOut, Txid};
+use dlc_link_manager::AsyncBlockchain;
 use dlc_manager::{error::Error, Blockchain, Utxo};
 
 use js_interface_wallet::WalletBlockchainProvider;
@@ -267,6 +269,22 @@ impl EsploraAsyncBlockchainProvider {
             .iter()
             .map(|x| x.tx_out.value)
             .sum())
+    }
+}
+
+impl AsyncBlockchain for EsploraAsyncBlockchainProvider {
+    async fn get_transaction_confirmations_async(&self, tx_id: &Txid) -> Result<u32, Error> {
+        let tx_status = self
+            .get_from_json::<TxStatus>(&format!("tx/{tx_id}/status"))
+            .await?;
+        if tx_status.confirmed {
+            let block_chain_height = self.blockchain.get_height().await.unwrap() as u64;
+            if let Some(block_height) = tx_status.block_height {
+                return Ok((block_chain_height - block_height as u64 + 1) as u32);
+            }
+        }
+
+        Ok(0)
     }
 }
 

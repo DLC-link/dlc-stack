@@ -75,11 +75,16 @@ pub trait AsyncStorage {
     async fn get_preclosed_contracts(&self) -> Result<Vec<PreClosedContract>, Error>;
 }
 
+pub trait AsyncBlockchain {
+    async fn get_transaction_confirmations_async(&self, txid: &bitcoin::Txid)
+        -> Result<u32, Error>;
+}
+
 /// Used to create and update DLCs.
 pub struct Manager<W: Deref, B: Deref, S: Deref, O: Deref, T: Deref>
 where
     W::Target: Wallet,
-    B::Target: Blockchain,
+    B::Target: Blockchain + AsyncBlockchain,
     S::Target: AsyncStorage,
     O::Target: AsyncOracle,
     T::Target: Time,
@@ -138,7 +143,7 @@ macro_rules! get_contract_in_state {
 impl<W: Deref, B: Deref, S: Deref, O: Deref, T: Deref> Manager<W, B, S, O, T>
 where
     W::Target: Wallet,
-    B::Target: Blockchain,
+    B::Target: Blockchain + AsyncBlockchain,
     S::Target: AsyncStorage,
     O::Target: AsyncOracle,
     T::Target: Time,
@@ -426,9 +431,12 @@ where
     }
 
     async fn check_signed_contract(&mut self, contract: &SignedContract) -> Result<bool, Error> {
-        let confirmations = self.blockchain.get_transaction_confirmations(
-            &contract.accepted_contract.dlc_transactions.fund.txid(),
-        )?;
+        let confirmations = self
+            .blockchain
+            .get_transaction_confirmations_async(
+                &contract.accepted_contract.dlc_transactions.fund.txid(),
+            )
+            .await?;
         if confirmations >= NB_CONFIRMATIONS {
             self.store
                 .update_contract(&Contract::Confirmed(contract.clone()))
@@ -554,11 +562,14 @@ where
                 &attestations,
                 &self.wallet,
             )?;
-            match self.close_contract(
-                contract,
-                cet,
-                attestations.iter().map(|x| x.1.clone()).collect(),
-            ) {
+            match self
+                .close_contract(
+                    contract,
+                    cet,
+                    attestations.iter().map(|x| x.1.clone()).collect(),
+                )
+                .await
+            {
                 Ok(closed_contract) => {
                     self.store.update_contract(&closed_contract).await?;
                     return Ok(true);
@@ -616,7 +627,8 @@ where
         let broadcasted_txid = contract.signed_cet.txid();
         let confirmations = self
             .blockchain
-            .get_transaction_confirmations(&broadcasted_txid)?;
+            .get_transaction_confirmations_async(&broadcasted_txid)
+            .await?;
         if confirmations >= NB_CONFIRMATIONS {
             let closed_contract = ClosedContract {
                 attestations: contract.attestations.clone(),
@@ -646,7 +658,7 @@ where
         Ok(false)
     }
 
-    fn close_contract(
+    async fn close_contract(
         &mut self,
         contract: &SignedContract,
         signed_cet: Transaction,
@@ -654,7 +666,8 @@ where
     ) -> Result<Contract, Error> {
         let confirmations = self
             .blockchain
-            .get_transaction_confirmations(&signed_cet.txid())?;
+            .get_transaction_confirmations_async(&signed_cet.txid())
+            .await?;
 
         // Put it here for post-close, and here's the btc txid too.
         // But perhaps we'd rather have it in the final close place, and
@@ -710,7 +723,8 @@ where
             let refund = accepted_contract.dlc_transactions.refund.clone();
             let confirmations = self
                 .blockchain
-                .get_transaction_confirmations(&refund.txid())?;
+                .get_transaction_confirmations_async(&refund.txid())
+                .await?;
             if confirmations == 0 {
                 let refund = crate::dlc_manager::contract_updater::get_signed_refund(
                     &self.secp,

@@ -1034,6 +1034,7 @@ version = "0.1.0"
 dependencies = [
  "bdk",
  "bitcoin 0.29.2",
+ "dlc-link-manager",
  "dlc-manager",
  "futures",
  "js-interface-wallet",
