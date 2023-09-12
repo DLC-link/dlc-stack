@@ -3,15 +3,17 @@
 
 extern crate dlc_manager;
 
+use crate::contract_updater::{accept_contract, verify_accepted_and_sign_contract};
 use crate::dlc_manager::contract::{
     accepted_contract::AcceptedContract, contract_info::ContractInfo,
     contract_input::ContractInput, offered_contract::OfferedContract,
     signed_contract::SignedContract, AdaptorInfo, ClosedContract, Contract, FailedAcceptContract,
     FailedSignContract, PreClosedContract,
 };
-use crate::dlc_manager::contract_updater::{accept_contract, verify_accepted_and_sign_contract};
 use crate::dlc_manager::error::Error;
 use crate::dlc_manager::{Blockchain, Time, Wallet};
+pub mod contract_updater;
+mod utils;
 
 use bitcoin::Address;
 use bitcoin::Transaction;

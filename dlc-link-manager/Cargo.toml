@@ -26,3 +26,6 @@ version = "0.3"
 features = [
   "console",
 ]
+
+[dev-dependencies]
+bitcoin-test-utils = { git = "https://github.com/dlc-link/rust-dlc" }

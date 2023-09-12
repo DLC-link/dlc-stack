@@ -6,8 +6,6 @@ use bitcoin::{Address, Block, Network, OutPoint, Script, Transaction, TxOut, Txi
 use dlc_link_manager::AsyncBlockchain;
 use dlc_manager::{error::Error, Blockchain, Utxo};
 
-use js_interface_wallet::WalletBlockchainProvider;
-use lightning::chain::chaininterface::FeeEstimator;
 use reqwest::Response;
 
 use serde::{Deserialize, Serialize};
@@ -334,46 +332,5 @@ impl Blockchain for EsploraAsyncBlockchainProvider {
     fn get_transaction_confirmations(&self, _tx_id: &Txid) -> Result<u32, Error> {
         // This is no longer used anywhere, as all calls can be the async version
         unimplemented!("use async version");
-    }
-}
-
-impl WalletBlockchainProvider for EsploraAsyncBlockchainProvider {
-    fn get_utxos_for_address(&self, _address: &bitcoin::Address) -> Result<Vec<Utxo>, Error> {
-        Ok(self
-            .chain_data
-            .lock()
-            .unwrap()
-            .utxos
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .clone())
-    }
-
-    fn is_output_spent(&self, txid: &Txid, vout: u32) -> Result<bool, Error> {
-        let utxos = self
-            .chain_data
-            .lock()
-            .unwrap()
-            .utxos
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .clone();
-        let matched_utxo = utxos.into_iter().find(|utxo| utxo.outpoint.txid == *txid);
-        if matched_utxo.is_none() {
-            return Ok(false);
-        }
-        let matched_utxo = matched_utxo.unwrap();
-        Ok(matched_utxo.outpoint.vout == vout)
-    }
-}
-
-impl FeeEstimator for EsploraAsyncBlockchainProvider {
-    fn get_est_sat_per_1000_weight(
-        &self,
-        _confirmation_target: lightning::chain::chaininterface::ConfirmationTarget,
-    ) -> u32 {
-        unimplemented!()
     }
 }
