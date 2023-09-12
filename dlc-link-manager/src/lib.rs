@@ -78,6 +78,10 @@ pub trait AsyncStorage {
 pub trait AsyncBlockchain {
     async fn get_transaction_confirmations_async(&self, txid: &bitcoin::Txid)
         -> Result<u32, Error>;
+
+    async fn send_transaction_async(&self, tx: &Transaction) -> Result<(), Error>;
+
+    async fn get_network_async(&self) -> Result<bitcoin::Network, Error>;
 }
 
 /// Used to create and update DLCs.
@@ -391,7 +395,7 @@ where
             .update_contract(&Contract::Signed(signed_contract))
             .await?;
 
-        self.blockchain.send_transaction(&fund_tx)?;
+        self.blockchain.send_transaction_async(&fund_tx).await?;
 
         Ok(())
     }
@@ -678,7 +682,7 @@ where
             // mempool or blockchain, we might have been cheated. There is
             // not much to be done apart from possibly extracting a fraud
             // proof but ideally it should be handled.
-            self.blockchain.send_transaction(&signed_cet)?;
+            self.blockchain.send_transaction_async(&signed_cet).await?;
 
             let preclosed_contract = PreClosedContract {
                 signed_contract: contract.clone(),
@@ -731,7 +735,7 @@ where
                     contract,
                     &self.wallet,
                 )?;
-                self.blockchain.send_transaction(&refund)?;
+                self.blockchain.send_transaction_async(&refund).await?;
             }
 
             self.store

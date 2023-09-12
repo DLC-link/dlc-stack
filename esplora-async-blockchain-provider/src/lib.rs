@@ -21,7 +21,6 @@ use std::vec;
 use log::*;
 
 use bdk::blockchain::esplora::EsploraBlockchain;
-use wasm_bindgen_futures::spawn_local;
 
 const REQWEST_TIMEOUT: u64 = 30;
 
@@ -286,27 +285,32 @@ impl AsyncBlockchain for EsploraAsyncBlockchainProvider {
 
         Ok(0)
     }
+
+    async fn send_transaction_async(&self, tx: &Transaction) -> Result<(), Error> {
+        self.blockchain.broadcast(tx).await.map_err(|x| {
+            dlc_manager::error::Error::IOError(std::io::Error::new(std::io::ErrorKind::Other, x))
+        })
+    }
+
+    async fn get_network_async(&self) -> Result<bitcoin::network::constants::Network, Error> {
+        Ok(self.network)
+    }
 }
 
 impl Blockchain for EsploraAsyncBlockchainProvider {
-    fn send_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
-        let x = self.blockchain.clone();
-        let y = transaction.clone();
-        spawn_local(async move {
-            match x.broadcast(&y).await {
-                Ok(_) => (),
-                Err(e) => error!("Error broadcasting tx: {}", e),
-            }
-        });
-        Ok(())
+    fn send_transaction(&self, _transaction: &Transaction) -> Result<(), Error> {
+        // This is no longer used anywhere, as all calls can be the async version
+        unimplemented!("use async version");
     }
 
     fn get_network(&self) -> Result<bitcoin::network::constants::Network, Error> {
-        Ok(self.network)
+        // This is no longer used anywhere, as all calls can be the async version
+        unimplemented!("use async version");
     }
 
     fn get_blockchain_height(&self) -> Result<u64, Error> {
-        Ok(self.chain_data.lock().unwrap().height.borrow().unwrap())
+        // This is no longer used anywhere, as all calls can be the async version
+        unimplemented!("use async version");
     }
 
     fn get_block_at_height(&self, _height: u64) -> Result<Block, Error> {
@@ -314,6 +318,7 @@ impl Blockchain for EsploraAsyncBlockchainProvider {
         unimplemented!();
     }
 
+    // really close to not needing this implementation at all. just one call inside of a utils file in rust-dlc remains after that, no need to have this complex code.
     fn get_transaction(&self, tx_id: &Txid) -> Result<Transaction, Error> {
         let chain_data = self.chain_data.lock().unwrap();
         let txs = chain_data.txs.borrow();
@@ -326,15 +331,9 @@ impl Blockchain for EsploraAsyncBlockchainProvider {
             .map_err(|e| Error::BlockchainError(e.to_string()))
     }
 
-    fn get_transaction_confirmations(&self, tx_id: &Txid) -> Result<u32, Error> {
-        let chain_data = self.chain_data.lock().unwrap();
-        let txs = chain_data.txs.borrow();
-        let raw_txs = txs.as_ref().unwrap();
-        let confirmations = match raw_txs.get(&tx_id.to_string()) {
-            Some(x) => x.confirmations,
-            None => return Err(Error::BlockchainError(format!("tx not found {}", tx_id))),
-        };
-        Ok(confirmations)
+    fn get_transaction_confirmations(&self, _tx_id: &Txid) -> Result<u32, Error> {
+        // This is no longer used anywhere, as all calls can be the async version
+        unimplemented!("use async version");
     }
 }
 

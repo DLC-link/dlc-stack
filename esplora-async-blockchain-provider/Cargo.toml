@@ -15,4 +15,3 @@ log = "0.4.14"
 js-interface-wallet = { path = "../js-interface-wallet"}
 reqwest = {version = "0.11", features = ["json"]}
 serde = {version = "*", features = ["derive"]}
-wasm-bindgen-futures = { version = "0.4.34"}
