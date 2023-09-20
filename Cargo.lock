@@ -761,19 +761,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dlc-bdk-wallet"
-version = "0.1.0"
-dependencies = [
- "bdk",
- "bitcoin 0.29.2",
- "dlc",
- "dlc-manager",
- "lightning",
- "log",
- "secp256k1-zkp",
-]
-
-[[package]]
 name = "dlc-clients"
 version = "0.1.0"
 dependencies = [
@@ -843,14 +830,14 @@ dependencies = [
  "bytes",
  "chrono",
  "dlc",
- "dlc-bdk-wallet",
  "dlc-clients",
  "dlc-link-manager",
  "dlc-manager",
  "dlc-messages",
  "dlc-trie",
+ "dlc-wallet",
  "env_logger 0.9.3",
- "esplora-async-blockchain-provider",
+ "esplora-async-blockchain-provider-router-wallet",
  "futures-util",
  "hex",
  "http",
@@ -926,6 +913,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dlc-wallet"
+version = "0.1.0"
+dependencies = [
+ "bitcoin 0.29.2",
+ "dlc",
+ "dlc-manager",
+ "lightning",
+ "log",
+ "secp256k1-zkp",
+]
+
+[[package]]
 name = "dlc-wasm-wallet"
 version = "0.4.7"
 dependencies = [
@@ -939,7 +938,7 @@ dependencies = [
  "dlc-manager",
  "dlc-messages",
  "dlc-trie",
- "esplora-async-blockchain-provider",
+ "esplora-async-blockchain-provider-js-wallet",
  "getrandom",
  "js-interface-wallet",
  "lightning",
@@ -1029,7 +1028,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "esplora-async-blockchain-provider"
+name = "esplora-async-blockchain-provider-js-wallet"
+version = "0.1.0"
+dependencies = [
+ "bdk",
+ "bitcoin 0.29.2",
+ "dlc-link-manager",
+ "dlc-manager",
+ "futures",
+ "js-interface-wallet",
+ "lightning",
+ "log",
+ "reqwest",
+ "serde",
+]
+
+[[package]]
+name = "esplora-async-blockchain-provider-router-wallet"
 version = "0.1.0"
 dependencies = [
  "bdk",

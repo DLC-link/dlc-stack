@@ -93,23 +93,14 @@ async fn get_json(path: &str) -> Result<Value, DlcManagerError> {
     }
     client_builder
         .build()
-        .map_err(|e| {
-            DlcManagerError::IOError(std::io::Error::new(
-                std::io::ErrorKind::NotConnected,
-                e.to_string(),
-            ))
-        })?
+        .map_err(|x| dlc_manager::error::Error::OracleError(x.to_string()))?
         .get(path)
         .send()
         .await
-        .map_err(|x| {
-            dlc_manager::error::Error::IOError(std::io::Error::new(std::io::ErrorKind::Other, x))
-        })?
+        .map_err(|x| dlc_manager::error::Error::OracleError(x.to_string()))?
         .json::<Value>()
         .await
-        .map_err(|x| {
-            dlc_manager::error::Error::IOError(std::io::Error::new(std::io::ErrorKind::Other, x))
-        })
+        .map_err(|x| dlc_manager::error::Error::OracleError(x.to_string()))
 }
 
 fn pubkey_path(host: &str) -> String {

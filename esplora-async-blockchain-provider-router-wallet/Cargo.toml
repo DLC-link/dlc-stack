@@ -1,0 +1,17 @@
+[package]
+authors = ["DLC.Link"]
+edition = "2018"
+name = "esplora-async-blockchain-provider-router-wallet"
+version = "0.1.0"
+
+[dependencies]
+bdk = {version = "0.28.0", default-features = false, features = ["async-interface", "use-esplora-async"]}
+bitcoin = {version = "0.29.2", features=["serde"]}
+dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", features = ["use-serde"] }
+dlc-link-manager = { path = "../dlc-link-manager" }
+futures = {version = "0.3.28", default-features = false }
+lightning = {version = "0.0.113" }
+log = "0.4.14"
+js-interface-wallet = { path = "../js-interface-wallet"}
+reqwest = {version = "0.11", features = ["json"]}
+serde = {version = "*", features = ["derive"]}

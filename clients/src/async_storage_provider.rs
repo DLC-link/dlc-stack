@@ -33,17 +33,19 @@ impl AsyncStorageApiProvider {
     // }
 
     pub async fn get_contracts_by_state(&self, state: String) -> Result<Vec<DlcContract>, Error> {
-        let contracts_res: Result<Vec<Contract>, ApiError> = self
+        let contracts_res = self
             .client
             .get_contracts(ContractsRequestParams {
                 state: Some(state),
                 key: self.key.clone(),
                 uuid: None,
             })
-            .await;
+            .await
+            .map_err(to_storage_error)?;
         let mut contents: Vec<String> = vec![];
         let mut contracts: Vec<DlcContract> = vec![];
-        for c in contracts_res.unwrap() {
+        for c in contracts_res {
+            // don't unwrap here, as it will kill the thread
             contents.push(c.content);
         }
         for c in contents {

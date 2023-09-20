@@ -45,7 +45,7 @@ wasm-bindgen = { version = "0.2.84", features = ["serde-serialize"] }
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.6", optional = true }
 
-esplora-async-blockchain-provider = { path = "../esplora-async-blockchain-provider" }
+esplora-async-blockchain-provider-js-wallet = { path = "../esplora-async-blockchain-provider-js-wallet" }
 
 [dependencies.web-sys]
 version = "0.3"

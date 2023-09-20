@@ -13,8 +13,7 @@ use crate::dlc_manager::contract_updater::{accept_contract, verify_accepted_and_
 use crate::dlc_manager::error::Error;
 use crate::dlc_manager::{Blockchain, Time, Wallet};
 
-use bitcoin::Address;
-use bitcoin::Transaction;
+use bitcoin::{Address, Transaction, Txid};
 
 use dlc_manager::ContractId;
 use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
@@ -82,6 +81,8 @@ pub trait AsyncBlockchain {
     async fn send_transaction_async(&self, tx: &Transaction) -> Result<(), Error>;
 
     async fn get_network_async(&self) -> Result<bitcoin::Network, Error>;
+
+    async fn get_transaction_async(&self, tx_id: &Txid) -> Result<Transaction, Error>;
 }
 
 /// Used to create and update DLCs.
@@ -182,7 +183,7 @@ where
 
     /// Function called to pass a DlcMessage to the Manager.
     pub async fn on_dlc_message(
-        &mut self,
+        &self,
         msg: &DlcMessage,
         counter_party: PublicKey,
     ) -> Result<Option<DlcMessage>, Error> {
@@ -203,7 +204,7 @@ where
     /// Function called to create a new DLC. The offered contract will be stored
     /// and an OfferDlc message returned.
     pub async fn send_offer(
-        &mut self,
+        &self,
         contract_input: &ContractInput,
         counter_party: PublicKey,
     ) -> Result<OfferDlc, Error> {
@@ -297,7 +298,7 @@ where
 
     /// Function to call to check the state of the currently executing DLCs and
     /// update them if possible.
-    pub async fn periodic_check(&mut self) -> Result<Vec<(ContractId, String)>, Error> {
+    pub async fn periodic_check(&self) -> Result<Vec<(ContractId, String)>, Error> {
         let mut affected_contracts = Vec::<(ContractId, String)>::new();
         affected_contracts.extend_from_slice(&self.check_signed_contracts().await?);
         affected_contracts.extend_from_slice(&self.check_confirmed_contracts().await?);
@@ -307,7 +308,7 @@ where
     }
 
     async fn on_offer_message(
-        &mut self,
+        &self,
         offered_message: &OfferDlc,
         counter_party: PublicKey,
     ) -> Result<(), Error> {
@@ -328,7 +329,7 @@ where
     }
 
     async fn on_accept_message(
-        &mut self,
+        &self,
         accept_msg: &AcceptDlc,
         counter_party: &PublicKey,
     ) -> Result<DlcMessage, Error> {
@@ -369,7 +370,7 @@ where
     }
 
     async fn on_sign_message(
-        &mut self,
+        &self,
         sign_message: &SignDlc,
         peer_id: &PublicKey,
     ) -> Result<(), Error> {
@@ -401,7 +402,7 @@ where
     }
 
     async fn sign_fail_on_error<R>(
-        &mut self,
+        &self,
         accepted_contract: AcceptedContract,
         sign_message: SignDlc,
         e: Error,
@@ -418,7 +419,7 @@ where
     }
 
     async fn accept_fail_on_error<R>(
-        &mut self,
+        &self,
         offered_contract: OfferedContract,
         accept_message: AcceptDlc,
         e: Error,
@@ -434,7 +435,7 @@ where
         Err(e)
     }
 
-    async fn check_signed_contract(&mut self, contract: &SignedContract) -> Result<bool, Error> {
+    async fn check_signed_contract(&self, contract: &SignedContract) -> Result<bool, Error> {
         let confirmations = self
             .blockchain
             .get_transaction_confirmations_async(
@@ -450,7 +451,7 @@ where
         Ok(false)
     }
 
-    async fn check_signed_contracts(&mut self) -> Result<Vec<(ContractId, String)>, Error> {
+    async fn check_signed_contracts(&self) -> Result<Vec<(ContractId, String)>, Error> {
         let mut contracts_to_confirm = Vec::new();
         for c in self.store.get_signed_contracts().await? {
             match self.check_signed_contract(&c).await {
@@ -480,7 +481,7 @@ where
         Ok(contracts_to_confirm)
     }
 
-    async fn check_confirmed_contracts(&mut self) -> Result<Vec<(ContractId, String)>, Error> {
+    async fn check_confirmed_contracts(&self) -> Result<Vec<(ContractId, String)>, Error> {
         let mut contracts_to_close = Vec::new();
         for c in self.store.get_confirmed_contracts().await? {
             // Confirmed contracts from channel are processed in channel specific methods.
@@ -555,7 +556,7 @@ where
         None
     }
 
-    async fn check_confirmed_contract(&mut self, contract: &SignedContract) -> Result<bool, Error> {
+    async fn check_confirmed_contract(&self, contract: &SignedContract) -> Result<bool, Error> {
         let closable_contract_info = self.get_closable_contract_info(contract).await;
         if let Some((contract_info, adaptor_info, attestations)) = closable_contract_info {
             let cet = crate::dlc_manager::contract_updater::get_signed_cet(
@@ -593,7 +594,7 @@ where
         Ok(false)
     }
 
-    async fn check_preclosed_contracts(&mut self) -> Result<Vec<(ContractId, String)>, Error> {
+    async fn check_preclosed_contracts(&self) -> Result<Vec<(ContractId, String)>, Error> {
         let mut contracts_to_close = Vec::new();
         for c in self.store.get_preclosed_contracts().await? {
             match self.check_preclosed_contract(&c).await {
@@ -624,10 +625,7 @@ where
         Ok(contracts_to_close)
     }
 
-    async fn check_preclosed_contract(
-        &mut self,
-        contract: &PreClosedContract,
-    ) -> Result<bool, Error> {
+    async fn check_preclosed_contract(&self, contract: &PreClosedContract) -> Result<bool, Error> {
         let broadcasted_txid = contract.signed_cet.txid();
         let confirmations = self
             .blockchain
@@ -663,7 +661,7 @@ where
     }
 
     async fn close_contract(
-        &mut self,
+        &self,
         contract: &SignedContract,
         signed_cet: Transaction,
         attestations: Vec<OracleAttestation>,
@@ -713,7 +711,7 @@ where
         Ok(Contract::Closed(closed_contract))
     }
 
-    async fn check_refund(&mut self, contract: &SignedContract) -> Result<(), Error> {
+    async fn check_refund(&self, contract: &SignedContract) -> Result<(), Error> {
         // TODO(tibo): should check for confirmation of refund before updating state
         if contract
             .accepted_contract

@@ -51,7 +51,7 @@ struct UTXOSpent {
     spent: bool,
 }
 
-pub struct EsploraAsyncBlockchainProvider {
+pub struct EsploraAsyncBlockchainProviderJsWallet {
     host: String,
     pub blockchain: EsploraBlockchain,
     chain_data: Arc<Mutex<ChainCacheData>>,
@@ -68,7 +68,7 @@ struct ChainCacheData {
     height: RefCell<Option<u64>>,
 }
 
-impl EsploraAsyncBlockchainProvider {
+impl EsploraAsyncBlockchainProviderJsWallet {
     pub fn new(host: String, network: Network) -> Self {
         let client_builder = Builder::new(&host).timeout(REQWEST_TIMEOUT);
         let url_client = AsyncClient::from_builder(client_builder).unwrap();
@@ -106,6 +106,7 @@ impl EsploraAsyncBlockchainProvider {
             })
     }
 
+    // why using a local client here, but the blockchain client above??
     async fn get_from_json<T>(&self, sub_url: &str) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
@@ -143,11 +144,17 @@ impl EsploraAsyncBlockchainProvider {
     // gets all the utxos and txs and height of chain, and returns the balance of the address
     pub async fn refresh_chain_data(&self, address: String) -> Result<(), Error> {
         let height = self.blockchain.get_height().await.unwrap() as u64;
+        //Don't need height anymore? even in wasm_wallet? can likely get rid
 
         *self.chain_data.lock().unwrap().height.borrow_mut() = Some(height);
 
         debug!("fetching utxos from chain for address {}", address);
 
+        //This only grabs the utxos for this one address. For the BDk we would need more than that. But for the
+        //wasm wallet i guess that's fine? if it just has the one address for the DLCs? If router wallet doesn't
+        //lock funds anymore, than this doesnt matter for it at all. Yeah that's right, the get_transaction function
+        //could be left unimplemented for the router wallet because it would never get called in the party params function!
+        //wow, so the big refactor isn't needed anyway!
         let utxos: Vec<UtxoResp> = self
             .get_from_json(&format!("address/{address}/utxo"))
             .await
@@ -191,6 +198,8 @@ impl EsploraAsyncBlockchainProvider {
         //     utxo_spent_pairs.push((utxo, is_spent.spent));
         // }
 
+        // probably don't need this part anymore, because we don't need to store the utxos, just the tx infos
+        // ah yes we do, js_interface_wallet uses them in the get_utxos_for_amount function
         self.chain_data
             .lock()
             .unwrap()
@@ -213,6 +222,7 @@ impl EsploraAsyncBlockchainProvider {
 
         let chain_data = self.chain_data.lock().unwrap();
 
+        //here rather just loop over the utxos from the local var. so no need to lock the chain_data
         for utxo in chain_data.utxos.borrow().as_ref().unwrap() {
             let txid = utxo.outpoint.txid.to_string();
             trace!("fetching tx {}", txid);
@@ -221,6 +231,7 @@ impl EsploraAsyncBlockchainProvider {
             let tx_status = self
                 .get_from_json::<TxStatus>(&format!("tx/{txid}/status"))
                 .await?;
+            //Well i guess we no longer need confimrations here if they're all fetched with the async function
             let confirmations = match tx_status.confirmed {
                 true => {
                     if let Some(block_height) = tx_status.block_height {
@@ -271,7 +282,7 @@ impl EsploraAsyncBlockchainProvider {
     }
 }
 
-impl AsyncBlockchain for EsploraAsyncBlockchainProvider {
+impl AsyncBlockchain for EsploraAsyncBlockchainProviderJsWallet {
     async fn get_transaction_confirmations_async(&self, tx_id: &Txid) -> Result<u32, Error> {
         let tx_status = self
             .get_from_json::<TxStatus>(&format!("tx/{tx_id}/status"))
@@ -287,17 +298,24 @@ impl AsyncBlockchain for EsploraAsyncBlockchainProvider {
     }
 
     async fn send_transaction_async(&self, tx: &Transaction) -> Result<(), Error> {
-        self.blockchain.broadcast(tx).await.map_err(|x| {
-            dlc_manager::error::Error::IOError(std::io::Error::new(std::io::ErrorKind::Other, x))
-        })
+        self.blockchain
+            .broadcast(tx)
+            .await
+            .map_err(|x| dlc_manager::error::Error::OracleError(x.to_string()))
     }
 
     async fn get_network_async(&self) -> Result<bitcoin::network::constants::Network, Error> {
         Ok(self.network)
     }
+
+    async fn get_transaction_async(&self, tx_id: &Txid) -> Result<Transaction, Error> {
+        let raw_tx = self.get_bytes(&format!("tx/{tx_id}/raw")).await?;
+        Transaction::consensus_decode(&mut std::io::Cursor::new(&*raw_tx))
+            .map_err(|e| Error::BlockchainError(e.to_string()))
+    }
 }
 
-impl Blockchain for EsploraAsyncBlockchainProvider {
+impl Blockchain for EsploraAsyncBlockchainProviderJsWallet {
     fn send_transaction(&self, _transaction: &Transaction) -> Result<(), Error> {
         // This is no longer used anywhere, as all calls can be the async version
         unimplemented!("use async version");
@@ -337,7 +355,7 @@ impl Blockchain for EsploraAsyncBlockchainProvider {
     }
 }
 
-impl WalletBlockchainProvider for EsploraAsyncBlockchainProvider {
+impl WalletBlockchainProvider for EsploraAsyncBlockchainProviderJsWallet {
     fn get_utxos_for_address(&self, _address: &bitcoin::Address) -> Result<Vec<Utxo>, Error> {
         Ok(self
             .chain_data
@@ -369,7 +387,7 @@ impl WalletBlockchainProvider for EsploraAsyncBlockchainProvider {
     }
 }
 
-impl FeeEstimator for EsploraAsyncBlockchainProvider {
+impl FeeEstimator for EsploraAsyncBlockchainProviderJsWallet {
     fn get_est_sat_per_1000_weight(
         &self,
         _confirmation_target: lightning::chain::chaininterface::ConfirmationTarget,

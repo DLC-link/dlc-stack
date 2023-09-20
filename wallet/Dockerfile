@@ -4,8 +4,9 @@ COPY ./wallet /app/dlc-protocol-wallet/
 COPY ./dlc-link-manager /app/dlc-link-manager/
 COPY ./clients /app/clients/
 COPY ./attestor-client /app/attestor-client/
-COPY ./dlc-bdk-wallet /app/dlc-bdk-wallet/
-COPY ./esplora-async-blockchain-provider /app/esplora-async-blockchain-provider/
+COPY ./dlc-wallet /app/dlc-wallet/
+COPY ./esplora-async-blockchain-provider-js-wallet /app/esplora-async-blockchain-provider-js-wallet/
+COPY ./esplora-async-blockchain-provider-router-wallet /app/esplora-async-blockchain-provider-router-wallet/
 COPY ./js-interface-wallet /app/js-interface-wallet/
 
 WORKDIR /app/dlc-protocol-wallet/

@@ -34,7 +34,7 @@ use std::fmt::Write as _;
 
 use dlc_clients::async_storage_provider::AsyncStorageApiProvider;
 
-use esplora_async_blockchain_provider::EsploraAsyncBlockchainProvider;
+use esplora_async_blockchain_provider_js_wallet::EsploraAsyncBlockchainProviderJsWallet;
 
 use js_interface_wallet::JSInterfaceWallet;
 
@@ -63,12 +63,12 @@ async fn generate_attestor_client(
         let attestor = Arc::new(p2p_client);
         attestor_clients.insert(attestor.get_public_key().await, attestor.clone());
     }
-    return attestor_clients;
+    attestor_clients
 }
 
 type DlcManager = Manager<
     Arc<JSInterfaceWallet>,
-    Arc<EsploraAsyncBlockchainProvider>,
+    Arc<EsploraAsyncBlockchainProviderJsWallet>,
     Box<AsyncStorageApiProvider>,
     Arc<AttestorClient>,
     Arc<SystemTimeProvider>,
@@ -104,7 +104,7 @@ pub struct JsDLCInterface {
     options: JsDLCInterfaceOptions,
     manager: Arc<Mutex<DlcManager>>,
     wallet: Arc<JSInterfaceWallet>,
-    blockchain: Arc<EsploraAsyncBlockchainProvider>,
+    blockchain: Arc<EsploraAsyncBlockchainProviderJsWallet>,
 }
 
 // #[wasm_bindgen]
@@ -151,9 +151,11 @@ impl JsDLCInterface {
             .parse::<Network>()
             .expect("Must use a valid bitcoin network");
 
-        let blockchain: Arc<EsploraAsyncBlockchainProvider> = Arc::new(
-            EsploraAsyncBlockchainProvider::new(options.electrs_url.to_string(), active_network),
-        );
+        let blockchain: Arc<EsploraAsyncBlockchainProviderJsWallet> =
+            Arc::new(EsploraAsyncBlockchainProviderJsWallet::new(
+                options.electrs_url.to_string(),
+                active_network,
+            ));
 
         // Generate keypair from secret key
         let seckey = secp256k1_zkp::SecretKey::from_str(&privkey).unwrap();
@@ -286,6 +288,8 @@ impl JsDLCInterface {
     }
 
     pub async fn accept_offer(&self, offer_json: String) -> String {
+        //could consider doing a refresh_chain_data here to have the newest utxos
+
         let accept_msg_result = async {
             let dlc_offer_message: OfferDlc =
                 serde_json::from_str(&offer_json).map_err(|e| WalletError(e.to_string()))?;
