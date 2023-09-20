@@ -12,7 +12,8 @@ COPY ./clients/ /app/clients
 COPY ./attestor-client /app/attestor-client
 COPY ./dlc-link-manager/ /app/dlc-link-manager
 COPY ./js-interface-wallet/ /app/js-interface-wallet
-COPY ./esplora-async-blockchain-provider/ /app/esplora-async-blockchain-provider
+COPY ./esplora-async-blockchain-provider-js-wallet/ /app/esplora-async-blockchain-provider-js-wallet
+COPY ./esplora-async-blockchain-provider-router-wallet/ /app/esplora-async-blockchain-provider-router-wallet
 COPY ./wasm-wallet/ /app/wasm-wallet
 
 COPY ./it/ /app/it
