@@ -73,7 +73,6 @@ impl Attestor {
     }
 
     pub async fn get_health() -> Result<JsValue, JsValue> {
-        // pub async fn get_health() -> JsValue {
         Ok(serde_wasm_bindgen::to_value(&json!({
             "status": "healthy"
         }))?)

@@ -47,7 +47,7 @@ export default class AttestorService {
   public static async getHealth() {
     try {
       const health = await Attestor.get_health();
-      return { 'status': health.get('status') };
+      return JSON.stringify(Object.fromEntries(health));
     } catch (error) {
       console.error(error);
       return error;
