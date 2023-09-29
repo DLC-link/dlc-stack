@@ -166,6 +166,7 @@ async fn process_request(
     blockchain_interface_url: String,
 ) -> Result<Response<Body>, GenericError> {
     match (req.method(), req.uri().path()) {
+        (&Method::GET, "/health") => get_health().await,
         (&Method::GET, "/info") => get_wallet_info(dlc_store, wallet).await,
         (&Method::GET, "/periodic_check") => {
             let result =
@@ -525,10 +526,13 @@ async fn accept_offer(
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct ContractInfo {
-    id: String,
+async fn get_health() -> Result<Response<Body>, GenericError> {
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::from(json!({"status": "healthy"}).to_string()))?;
+    Ok(response)
 }
+
 async fn get_wallet_info(
     store: Arc<AsyncStorageApiProvider>,
     wallet: Arc<DlcWallet>,
