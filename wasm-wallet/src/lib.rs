@@ -159,10 +159,7 @@ impl JsDLCInterface {
             address,
         };
 
-        let active_network: Network = options
-            .network
-            .parse::<Network>()
-            .expect("Must use a valid bitcoin network");
+        let active_network: Network = options.network.parse::<Network>()?;
 
         let blockchain: Arc<EsploraAsyncBlockchainProviderJsWallet> =
             Arc::new(EsploraAsyncBlockchainProviderJsWallet::new(
@@ -219,6 +216,7 @@ impl JsDLCInterface {
                 log_to_console!("Error refreshing chain data: {}", e);
             }
         };
+        log_to_console!("options :{:?}", options);
 
         Ok(JsDLCInterface {
             options,
@@ -261,6 +259,7 @@ impl JsDLCInterface {
 
     // public async function for fetching all the contracts on the manager
     pub async fn get_contracts(&self) -> Result<JsValue, JsError> {
+        log_to_console!("get_contracts");
         // let mut errors: Vec<WalletError> = vec![];
         let contracts: Vec<JsContract> = self
             .manager
