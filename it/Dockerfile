@@ -26,9 +26,9 @@ RUN wasm-pack build --target bundler /app/wasm-wallet
 
 WORKDIR /app/it
 
-RUN jq '. + {type: "module", main: "dlc-wasm-wallet.js"} | del(.module)' ../wasm-wallet/pkg/package.json > temp.json && \
+RUN jq '. + {type: "module", main: "dlc-tools.js"} | del(.module)' ../wasm-wallet/pkg/package.json > temp.json && \
   mv temp.json ../wasm-wallet/pkg/package.json && \
-  echo 'import { webcrypto } from "node:crypto"; globalThis.crypto = webcrypto;' >> ../wasm-wallet/pkg/dlc_wasm_wallet_bg.js
+  echo 'import { webcrypto } from "node:crypto"; globalThis.crypto = webcrypto;' >> ../wasm-wallet/pkg/dlc_tools_bg.js
 
 
 RUN npm install && \
