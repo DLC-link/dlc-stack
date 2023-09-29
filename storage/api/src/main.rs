@@ -1,20 +1,26 @@
 mod contracts;
 mod events;
 
-use contracts::*;
 use actix_cors::Cors;
+use contracts::*;
 use events::*;
 extern crate log;
 use crate::events::get_events;
 use actix_web::web::Data;
-use actix_web::{ error, web, App, HttpResponse, HttpServer };
-use diesel::r2d2::{ self, ConnectionManager };
+use actix_web::{error, get, web, App, HttpResponse, HttpServer, Responder};
+use diesel::r2d2::{self, ConnectionManager};
 use diesel::PgConnection;
 use dlc_storage_writer::apply_migrations;
 use dotenv::dotenv;
+use serde_json::json;
 use std::env;
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
+
+#[get("/health")]
+pub async fn get_health() -> impl Responder {
+    HttpResponse::Ok().json(json!({"status": "healthy"}))
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
