@@ -46,8 +46,12 @@ export default class AttestorService {
 
   public static async getHealth() {
     try {
+      let health_response: any[] = [];
       const health = await Attestor.get_health();
-      return JSON.stringify(Object.fromEntries(health));
+      health.get('data').forEach((element: Iterable<readonly [PropertyKey, any]>) => {
+        health_response.push(Object.fromEntries(element));
+      });
+      return JSON.stringify({ 'data': health_response });
     } catch (error) {
       console.error(error);
       return error;

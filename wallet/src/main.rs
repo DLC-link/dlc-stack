@@ -166,7 +166,9 @@ async fn process_request(
     blockchain_interface_url: String,
 ) -> Result<Response<Body>, GenericError> {
     match (req.method(), req.uri().path()) {
-        (&Method::GET, "/health") => get_health().await,
+        (&Method::GET, "/health") => build_success_response(
+            json!({"data": [{"status": "healthy", "message": ""}]}).to_string(),
+        ),
         (&Method::GET, "/info") => get_wallet_info(dlc_store, wallet).await,
         (&Method::GET, "/periodic_check") => {
             let result =
@@ -524,13 +526,6 @@ async fn accept_offer(
         Some(Message::Sign(sign)) => serde_json::to_string(&sign).map_err(|e| e.into()),
         _ => Err("Error: invalid Sign message for accept_offer function".into()),
     }
-}
-
-async fn get_health() -> Result<Response<Body>, GenericError> {
-    let response = Response::builder()
-        .status(StatusCode::OK)
-        .body(Body::from(json!({"status": "healthy"}).to_string()))?;
-    Ok(response)
 }
 
 async fn get_wallet_info(

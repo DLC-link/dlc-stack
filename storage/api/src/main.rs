@@ -19,7 +19,7 @@ type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
 #[get("/health")]
 pub async fn get_health() -> impl Responder {
-    HttpResponse::Ok().json(json!({"status": "healthy"}))
+    HttpResponse::Ok().json(json!({"data": [{"status": "healthy", "message": ""}]}))
 }
 
 #[actix_web::main]

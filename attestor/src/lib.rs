@@ -73,9 +73,9 @@ impl Attestor {
     }
 
     pub async fn get_health() -> Result<JsValue, JsValue> {
-        Ok(serde_wasm_bindgen::to_value(&json!({
-            "status": "healthy"
-        }))?)
+        Ok(serde_wasm_bindgen::to_value(&json!({"data": [
+            {"status": "healthy", "message": ""}
+        ]}))?)
     }
 
     pub async fn create_event(&self, uuid: &str, maturation: &str) -> Result<(), JsValue> {
