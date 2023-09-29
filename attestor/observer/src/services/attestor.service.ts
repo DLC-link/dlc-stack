@@ -25,7 +25,7 @@ function createMaturationDate() {
 export default class AttestorService {
   private static attestor: Attestor;
 
-  private constructor() {}
+  private constructor() { }
 
   public static async getAttestor(): Promise<Attestor> {
     if (!this.attestor) {
@@ -42,6 +42,16 @@ export default class AttestorService {
 
   public static async init() {
     await this.getAttestor();
+  }
+
+  public static async getHealth() {
+    try {
+      const health = await Attestor.get_health();
+      return { 'status': health.get('status') };
+    } catch (error) {
+      console.error(error);
+      return error;
+    }
   }
 
   public static async createAnnouncement(uuid: string, maturation?: string) {

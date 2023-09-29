@@ -5,8 +5,9 @@ import AttestorService from '../services/attestor.service.js';
 
 const router = express.Router();
 
-router.get('/health', (req, res) => {
-  res.status(200).send('OK');
+router.get('/health', async (req, res) => {
+  const data = await AttestorService.getHealth();
+  res.status(200).send(data);
 });
 
 router.get('/event/:uuid', async (req, res) => {
