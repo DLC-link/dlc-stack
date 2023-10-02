@@ -108,26 +108,23 @@ impl AsyncStorage for AsyncStorageApiProvider {
             content: base64::encode(&data),
             key: self.key.clone(),
         };
-        let res = self.client.create_contract(req).await;
-        match res {
-            Ok(_) => Ok(()),
-            Err(err) => Err(to_storage_error(err)),
-        }
+        self.client
+            .create_contract(req)
+            .await
+            .map_err(to_storage_error)?;
+        Ok(())
     }
 
     async fn delete_contract(&self, id: &ContractId) -> Result<(), Error> {
         let cid = get_contract_id_string(*id);
-        let res = self
-            .client
+        self.client
             .delete_contract(ContractRequestParams {
                 key: self.key.clone(),
                 uuid: cid.clone(),
             })
-            .await;
-        match res {
-            Ok(r) => Ok(r),
-            Err(err) => Err(to_storage_error(err)),
-        }
+            .await
+            .map_err(to_storage_error)?;
+        Ok(())
     }
 
     async fn update_contract(&self, contract: &DlcContract) -> Result<(), Error> {
