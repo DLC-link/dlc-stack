@@ -215,16 +215,14 @@ impl MemoryApiClient {
     }
 
     pub async fn get_event(&self, uuid: String) -> Result<Option<Event>, ApiError> {
-        let res = self.events.get(&uuid);
-        match res {
+        match self.events.get(&uuid) {
             Some(res) => Ok(Some(Event {
                 id: 1,
                 event_id: uuid,
                 content: res.to_string(),
                 key: "mykey".to_string(),
             })),
-            None => Ok(None),
-            _ => Err(ApiError {
+            None => Err(ApiError {
                 message: "Event not found".to_string(),
                 status: StatusCode::NOT_FOUND.as_u16(),
             }),
@@ -243,16 +241,16 @@ impl MemoryApiClient {
     }
 
     pub async fn update_event(&mut self, uuid: String, event: UpdateEvent) -> Result<(), ApiError> {
-        let res = self.events.get(&uuid);
-        if res.is_none() {
-            return Err(ApiError {
+        match self.events.get(&uuid) {
+            None => Err(ApiError {
                 message: "Event not found".to_string(),
                 status: 404,
-            });
-        }
-        self.events.remove(&uuid);
-        self.events.insert(uuid, event.content);
-        Ok(())
+            }),
+            Some(_res) => {
+                self.events.remove(&uuid);
+                self.events.insert(uuid, event.content);
+                Ok(())
+            }
     }
 
     pub async fn delete_event(&self, _uuid: String) -> Result<(), ApiError> {
