@@ -251,6 +251,7 @@ impl MemoryApiClient {
                 self.events.insert(uuid, event.content);
                 Ok(())
             }
+        }
     }
 
     pub async fn delete_event(&self, _uuid: String) -> Result<(), ApiError> {
