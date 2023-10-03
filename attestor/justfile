@@ -1,0 +1,10 @@
+set dotenv-load := true
+
+default:
+  just --list
+
+build:
+  cd observer && ./build_all.sh
+
+run:
+  cd observer && ./start_attestor.sh
