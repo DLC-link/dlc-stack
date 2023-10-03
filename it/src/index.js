@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
-import { JsDLCInterface } from '../node_modules/wasm-wallet/index.js';
+import { JsDLCInterface } from '../node_modules/wasm-wallet/dlc_tools.js';
 import fetch from 'cross-fetch';
 import config from './config.js';
 import setupPolyfills from './polyfills.js';
@@ -20,6 +20,7 @@ const successfulAttesting = process.env.SUCCESSFUL_ATTESTING == 'true';
 
 function createMaturationDate() {
   const maturationDate = new Date();
+
   maturationDate.setMinutes(maturationDate.getMinutes() + 1);
   return maturationDate.toISOString();
 }
