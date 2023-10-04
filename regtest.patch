@@ -1,0 +1,812 @@
+diff --git a/clients/src/async_storage_provider.rs b/clients/src/async_storage_provider.rs
+index 539ae3c..249ed85 100644
+--- a/clients/src/async_storage_provider.rs
++++ b/clients/src/async_storage_provider.rs
+@@ -50,7 +50,7 @@ impl AsyncStorageApiProvider {
+         }
+         for c in contents {
+             let bytes = base64::decode(c.clone()).map_err(to_storage_error)?;
+-            let contract = deserialize_contract(&bytes)?;
++            let contract = deserialize_contract(&bytes).map_err(to_storage_error)?;
+             contracts.push(contract);
+         }
+         Ok(contracts)
+@@ -68,8 +68,8 @@ impl AsyncStorage for AsyncStorageApiProvider {
+             })
+             .await;
+         if let Some(res) = contract_res.map_err(to_storage_error)? {
+-            let bytes = base64::decode(res.content).unwrap();
+-            let contract = deserialize_contract(&bytes)?;
++            let bytes = base64::decode(res.content).map_err(to_storage_error)?;
++            let contract = deserialize_contract(&bytes).map_err(to_storage_error)?;
+             Ok(Some(contract))
+         } else {
+             Ok(None)
+@@ -92,8 +92,8 @@ impl AsyncStorage for AsyncStorageApiProvider {
+             contents.push(c.content);
+         }
+         for c in contents {
+-            let bytes = base64::decode(c.clone()).unwrap();
+-            let contract = deserialize_contract(&bytes).unwrap();
++            let bytes = base64::decode(c.clone()).map_err(to_storage_error)?;
++            let contract = deserialize_contract(&bytes).map_err(to_storage_error)?;
+             contracts.push(contract);
+         }
+         Ok(contracts)
+@@ -108,50 +108,36 @@ impl AsyncStorage for AsyncStorageApiProvider {
+             content: base64::encode(&data),
+             key: self.key.clone(),
+         };
+-        let res = self.client.create_contract(req).await;
+-        match res {
+-            Ok(_) => {
+-                return Ok(());
+-            }
+-            Err(err) => {
+-                return Err(to_storage_error(err));
+-            }
+-        }
++        self.client
++            .create_contract(req)
++            .await
++            .map_err(to_storage_error)?;
++        Ok(())
+     }
+ 
+     async fn delete_contract(&self, id: &ContractId) -> Result<(), Error> {
+         let cid = get_contract_id_string(*id);
+-        let res = self
+-            .client
++        self.client
+             .delete_contract(ContractRequestParams {
+                 key: self.key.clone(),
+                 uuid: cid.clone(),
+             })
+-            .await;
+-        match res {
+-            Ok(r) => {
+-                return Ok(r);
+-            }
+-            Err(err) => {
+-                return Err(to_storage_error(err));
+-            }
+-        }
++            .await
++            .map_err(to_storage_error)?;
++        Ok(())
+     }
+ 
+     async fn update_contract(&self, contract: &DlcContract) -> Result<(), Error> {
+         match contract {
+             a @ DlcContract::Accepted(_) | a @ DlcContract::Signed(_) => {
+-                match self.delete_contract(&a.get_temporary_id()).await {
+-                    Ok(_) => {}
+-                    Err(_) => {} // This happens when the temp contract was already deleted upon moving from Offered to Accepted
+-                }
++                self.delete_contract(&a.get_temporary_id()).await?;
+                 // This could be replaced with an UPSERT
+                 match self
+                     .client
+                     .update_contract(UpdateContract {
+                         uuid: get_contract_id_string(contract.get_id()),
+                         state: Some(get_contract_state_str(contract)),
+-                        content: Some(base64::encode(serialize_contract(contract).unwrap())),
++                        content: Some(base64::encode(serialize_contract(contract)?)),
+                         key: self.key.clone(),
+                     })
+                     .await
+@@ -162,7 +148,7 @@ impl AsyncStorage for AsyncStorageApiProvider {
+                             .create_contract(NewContract {
+                                 uuid: get_contract_id_string(contract.get_id()),
+                                 state: get_contract_state_str(contract),
+-                                content: base64::encode(serialize_contract(contract).unwrap()),
++                                content: base64::encode(serialize_contract(contract)?),
+                                 key: self.key.clone(),
+                             })
+                             .await
+@@ -176,7 +162,7 @@ impl AsyncStorage for AsyncStorageApiProvider {
+                     .update_contract(UpdateContract {
+                         uuid: get_contract_id_string(contract.get_id()),
+                         state: Some(get_contract_state_str(contract)),
+-                        content: Some(base64::encode(serialize_contract(contract).unwrap())),
++                        content: Some(base64::encode(serialize_contract(contract)?)),
+                         key: self.key.clone(),
+                     })
+                     .await
+@@ -194,7 +180,7 @@ impl AsyncStorage for AsyncStorageApiProvider {
+                 res.push(c.clone());
+             }
+         }
+-        return Ok(res);
++        Ok(res)
+     }
+ 
+     async fn get_signed_contracts(&self) -> Result<Vec<SignedContract>, Error> {
+@@ -205,7 +191,7 @@ impl AsyncStorage for AsyncStorageApiProvider {
+                 res.push(c.clone());
+             }
+         }
+-        return Ok(res);
++        Ok(res)
+     }
+ 
+     async fn get_confirmed_contracts(&self) -> Result<Vec<SignedContract>, Error> {
+@@ -216,7 +202,7 @@ impl AsyncStorage for AsyncStorageApiProvider {
+                 res.push(c.clone());
+             }
+         }
+-        return Ok(res);
++        Ok(res)
+     }
+ 
+     async fn get_preclosed_contracts(&self) -> Result<Vec<PreClosedContract>, Error> {
+@@ -229,6 +215,6 @@ impl AsyncStorage for AsyncStorageApiProvider {
+                 res.push(c.clone());
+             }
+         }
+-        return Ok(res);
++        Ok(res)
+     }
+ }
+diff --git a/clients/src/lib.rs b/clients/src/lib.rs
+index a4431d7..e7ab3d0 100644
+--- a/clients/src/lib.rs
++++ b/clients/src/lib.rs
+@@ -1,8 +1,9 @@
+ #![feature(async_fn_in_trait)]
++#![warn(clippy::unwrap_used)]
+ extern crate serde;
+ 
+ use log::{info, warn};
+-use reqwest::{Client, Error, Response, StatusCode, Url};
++use reqwest::{Client, Error, Response, StatusCode};
+ use std::fmt::{Debug, Formatter};
+ use std::time::Duration;
+ use std::{error, fmt};
+@@ -41,6 +42,19 @@ pub struct ApiError {
+     pub status: u16,
+ }
+ 
++// implement from reqwest error trait for ApiError
++impl From<reqwest::Error> for ApiError {
++    fn from(e: reqwest::Error) -> Self {
++        ApiError {
++            message: e.to_string(),
++            status: e
++                .status()
++                .unwrap_or_else(|| reqwest::StatusCode::BAD_REQUEST)
++                .into(),
++        }
++    }
++}
++
+ impl fmt::Display for ApiError {
+     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+         write!(f, "ApiError: {} - {}", self.status, self.message)
+@@ -134,12 +148,6 @@ pub struct WalletBackendClient {
+     host: String,
+ }
+ 
+-impl Default for WalletBackendClient {
+-    fn default() -> Self {
+-        Self::new("http://localhost:8085".to_string())
+-    }
+-}
+-
+ impl Debug for WalletBackendClient {
+     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+         write!(f, "({})", self.host)
+@@ -147,25 +155,22 @@ impl Debug for WalletBackendClient {
+ }
+ 
+ impl WalletBackendClient {
+-    pub fn new(host: String) -> Self {
++    pub fn new(host: String) -> Result<Self, Error> {
+         let mut client_builder = Client::builder();
+         #[cfg(not(target_arch = "wasm32"))]
+         {
+             client_builder = client_builder.timeout(REQWEST_TIMEOUT);
+         }
+-        Self {
+-            client: client_builder.build().unwrap(),
+-            host,
+-        }
++        let client = client_builder.build()?;
++        Ok(Self { client, host })
+     }
+ 
+     pub async fn post_offer_and_accept(
+         &self,
+         offer_request: OfferRequest,
+-    ) -> Result<ApiResult, Error> {
++    ) -> Result<ApiResult, ApiError> {
+         let uri = format!("{}/offer", String::as_str(&self.host.clone()));
+-        let url = Url::parse(uri.as_str()).unwrap();
+-        let res = self.client.post(url).json(&offer_request).send().await?;
++        let res = self.client.post(uri).json(&offer_request).send().await?;
+         let result = ApiResult {
+             status: res.status().as_u16(),
+             response: res,
+@@ -173,10 +178,9 @@ impl WalletBackendClient {
+         Ok(result)
+     }
+ 
+-    pub async fn put_accept(&self, accept_request: AcceptMessage) -> Result<ApiResult, Error> {
++    pub async fn put_accept(&self, accept_request: AcceptMessage) -> Result<ApiResult, ApiError> {
+         let uri = format!("{}/offer/accept", String::as_str(&self.host.clone()));
+-        let url = Url::parse(uri.as_str()).unwrap();
+-        let res = self.client.put(url).json(&accept_request).send().await?;
++        let res = self.client.put(uri).json(&accept_request).send().await?;
+         let result = ApiResult {
+             status: res.status().as_u16(),
+             response: res,
+@@ -211,16 +215,18 @@ impl MemoryApiClient {
+     }
+ 
+     pub async fn get_event(&self, uuid: String) -> Result<Option<Event>, ApiError> {
+-        let res = self.events.get(&uuid);
+-        if res.is_none() {
+-            return Ok(None);
++        match self.events.get(&uuid) {
++            Some(res) => Ok(Some(Event {
++                id: 1,
++                event_id: uuid,
++                content: res.to_string(),
++                key: "mykey".to_string(),
++            })),
++            None => Err(ApiError {
++                message: "Event not found".to_string(),
++                status: StatusCode::NOT_FOUND.as_u16(),
++            }),
+         }
+-        Ok(Some(Event {
+-            id: 1,
+-            event_id: uuid,
+-            content: res.unwrap().to_string(),
+-            key: "mykey".to_string(),
+-        }))
+     }
+ 
+     pub async fn create_event(&mut self, event: NewEvent) -> Result<Event, ApiError> {
+@@ -235,16 +241,17 @@ impl MemoryApiClient {
+     }
+ 
+     pub async fn update_event(&mut self, uuid: String, event: UpdateEvent) -> Result<(), ApiError> {
+-        let res = self.events.get(&uuid);
+-        if res.is_none() {
+-            return Err(ApiError {
++        match self.events.get(&uuid) {
++            None => Err(ApiError {
+                 message: "Event not found".to_string(),
+                 status: 404,
+-            });
++            }),
++            Some(_res) => {
++                self.events.remove(&uuid);
++                self.events.insert(uuid, event.content);
++                Ok(())
++            }
+         }
+-        self.events.remove(&uuid);
+-        self.events.insert(uuid, event.content);
+-        return Ok(());
+     }
+ 
+     pub async fn delete_event(&self, _uuid: String) -> Result<(), ApiError> {
+@@ -292,17 +299,8 @@ impl StorageApiClient {
+         contract: ContractsRequestParams,
+     ) -> Result<Vec<Contract>, ApiError> {
+         let uri = format!("{}/contracts", String::as_str(&self.host.clone()),);
+-        let url = Url::parse(uri.as_str()).unwrap();
+ 
+-        let res = match self.client.get(url).query(&contract).send().await {
+-            Ok(result) => result,
+-            Err(e) => {
+-                return Err(ApiError {
+-                    message: e.to_string(),
+-                    status: 0,
+-                })
+-            }
+-        };
++        let res = self.client.get(uri).query(&contract).send().await?;
+ 
+         let status = res.status();
+         match status.clone() {
+@@ -332,7 +330,7 @@ impl StorageApiClient {
+     ) -> Result<Option<Contract>, ApiError> {
+         info!("getting contract with uuid: {}", contract.uuid);
+ 
+-        let contracts = self
++        let contract = self
+             .get_contracts(ContractsRequestParams {
+                 uuid: Some(contract.uuid.clone()),
+                 key: contract.key,
+@@ -340,37 +338,12 @@ impl StorageApiClient {
+             })
+             .await?;
+ 
+-        match contracts.len() {
+-            0 => {
+-                info!("Contract not found with id: {}", contract.uuid);
+-                Ok(None)
+-            }
+-            1 => {
+-                info!("Contract found with id: {}", contract.uuid);
+-                Ok(Some(contracts.first().unwrap().clone()))
+-            }
+-            _ => {
+-                warn!("More than one contract found with id: {}", contract.uuid);
+-                Err(ApiError {
+-                    message: "Duplicate contracts found".to_string(),
+-                    status: 400,
+-                })
+-            }
+-        }
++        Ok(contract.first().cloned())
+     }
+ 
+     pub async fn get_events(&self, event: EventsRequestParams) -> Result<Vec<Event>, ApiError> {
+         let uri = format!("{}/events", String::as_str(&self.host.clone()));
+-        let url = Url::parse(uri.as_str()).unwrap();
+-        let res = match self.client.get(url).query(&event).send().await {
+-            Ok(result) => result,
+-            Err(e) => {
+-                return Err(ApiError {
+-                    message: e.to_string(),
+-                    status: 0,
+-                })
+-            }
+-        };
++        let res = self.client.get(uri).query(&event).send().await?;
+ 
+         let status = res.status();
+         match status.clone() {
+@@ -404,37 +377,12 @@ impl StorageApiClient {
+             })
+             .await?;
+ 
+-        match events.len() {
+-            0 => {
+-                info!("Event not found with id: {}", event.event_id);
+-                Ok(None)
+-            }
+-            1 => {
+-                info!("Event found with id: {}", event.event_id);
+-                Ok(Some(events.first().unwrap().clone()))
+-            }
+-            _ => {
+-                warn!("More than one contract found with id: {}", event.event_id);
+-                Err(ApiError {
+-                    message: "Duplicate events found".to_string(),
+-                    status: 400,
+-                })
+-            }
+-        }
++        Ok(events.first().cloned())
+     }
+ 
+     pub async fn create_contract(&self, contract: NewContract) -> Result<Contract, ApiError> {
+         let uri = format!("{}/contracts", String::as_str(&self.host.clone()));
+-        let url = Url::parse(uri.as_str()).unwrap();
+-        let res = match self.client.post(url).json(&contract).send().await {
+-            Ok(result) => result,
+-            Err(e) => {
+-                return Err(ApiError {
+-                    message: e.to_string(),
+-                    status: 0,
+-                })
+-            }
+-        };
++        let res = self.client.post(uri).json(&contract).send().await?;
+         let status = res.status();
+         match status.clone() {
+             StatusCode::OK => {
+@@ -459,16 +407,7 @@ impl StorageApiClient {
+ 
+     pub async fn create_event(&self, event: NewEvent) -> Result<Event, ApiError> {
+         let uri = format!("{}/events", String::as_str(&self.host.clone()));
+-        let url = Url::parse(uri.as_str()).unwrap();
+-        let res = match self.client.post(url).json(&event).send().await {
+-            Ok(result) => result,
+-            Err(e) => {
+-                return Err(ApiError {
+-                    message: e.to_string(),
+-                    status: 0,
+-                })
+-            }
+-        };
++        let res = self.client.post(uri).json(&event).send().await?;
+         let status = res.status();
+         match status.clone() {
+             StatusCode::OK => {
+@@ -493,16 +432,7 @@ impl StorageApiClient {
+ 
+     pub async fn update_event(&self, event: UpdateEvent) -> Result<(), ApiError> {
+         let uri = format!("{}/events", String::as_str(&self.host.clone()),);
+-        let url = Url::parse(uri.as_str()).unwrap();
+-        let res = match self.client.put(url).json(&event).send().await {
+-            Ok(result) => result,
+-            Err(e) => {
+-                return Err(ApiError {
+-                    message: e.to_string(),
+-                    status: 0,
+-                })
+-            }
+-        };
++        let res = self.client.put(uri).json(&event).send().await?;
+         let status = res.status();
+         match status.clone() {
+             StatusCode::OK => match res
+@@ -539,19 +469,10 @@ impl StorageApiClient {
+ 
+     pub async fn update_contract(&self, contract: UpdateContract) -> Result<(), ApiError> {
+         let uri = format!("{}/contracts", String::as_str(&self.host.clone()));
+-        let url = Url::parse(uri.as_str()).unwrap();
+ 
+-        info!("calling url: {:?}", url);
++        info!("calling url: {:?}", uri);
+ 
+-        let res = match self.client.put(url).json(&contract).send().await {
+-            Ok(result) => result,
+-            Err(e) => {
+-                return Err(ApiError {
+-                    message: e.to_string(),
+-                    status: 0,
+-                })
+-            }
+-        };
++        let res = self.client.put(uri).json(&contract).send().await?;
+         let status = res.status();
+         match status.clone() {
+             StatusCode::OK => match res
+@@ -589,19 +510,10 @@ impl StorageApiClient {
+     // key for all these too
+     pub async fn delete_event(&self, event: EventRequestParams) -> Result<(), ApiError> {
+         let uri = format!("{}/event", String::as_str(&self.host.clone()));
+-        let url = Url::parse(uri.as_str()).unwrap();
+ 
+-        info!("calling delete on url: {:?}", url);
++        info!("calling delete on url: {:?}", uri);
+ 
+-        let res = match self.client.delete(url).json(&event).send().await {
+-            Ok(result) => result,
+-            Err(e) => {
+-                return Err(ApiError {
+-                    message: e.to_string(),
+-                    status: 0,
+-                })
+-            }
+-        };
++        let res = self.client.delete(uri).json(&event).send().await?;
+         let status = res.status();
+         match status.clone() {
+             StatusCode::OK => match res
+@@ -638,19 +550,10 @@ impl StorageApiClient {
+ 
+     pub async fn delete_contract(&self, contract: ContractRequestParams) -> Result<(), ApiError> {
+         let uri = format!("{}/contract", String::as_str(&self.host.clone()));
+-        let url = Url::parse(uri.as_str()).unwrap();
+ 
+-        info!("calling delete on url: {:?}", url);
++        info!("calling delete on url: {:?}", uri);
+ 
+-        let res = match self.client.delete(url).json(&contract).send().await {
+-            Ok(result) => result,
+-            Err(e) => {
+-                return Err(ApiError {
+-                    message: e.to_string(),
+-                    status: 0,
+-                })
+-            }
+-        };
++        let res = self.client.delete(uri).json(&contract).send().await?;
+         let status = res.status();
+         match status.clone() {
+             StatusCode::OK => match res
+@@ -701,16 +604,8 @@ impl StorageApiClient {
+             path.as_str(),
+             key.clone()
+         );
+-        let url = Url::parse(uri.as_str()).unwrap();
+-        let res = match self.client.delete(url).send().await {
+-            Ok(result) => result,
+-            Err(e) => {
+-                return Err(ApiError {
+-                    message: e.to_string(),
+-                    status: 0,
+-                })
+-            }
+-        };
++
++        let res = self.client.delete(uri).send().await?;
+         let status = res.status();
+         match status.clone() {
+             StatusCode::OK => Ok(()),
+diff --git a/it/src/index.js b/it/src/index.js
+index c836097..c7067d6 100644
+--- a/it/src/index.js
++++ b/it/src/index.js
+@@ -1,24 +1,18 @@
+-import dotenv from "dotenv";
++import dotenv from 'dotenv';
+ dotenv.config();
+-import { JsDLCInterface } from "../node_modules/wasm-wallet/dlc_tools.js";
+-import fetch from "cross-fetch";
+-import config from "./config.js";
+-import setupPolyfills from "./polyfills.js";
++import { JsDLCInterface } from '../node_modules/wasm-wallet/dlc_tools.js';
++import fetch from 'cross-fetch';
++import config from './config.js';
++import setupPolyfills from './polyfills.js';
+ 
+ setupPolyfills();
+ 
+-const {
+-  testWalletPrivateKey,
+-  testWalletAddress,
+-  bitcoinNetwork,
+-  bitcoinNetworkURL,
+-  protocolWalletURL,
+-  attestorList,
+-} = config;
++const { testWalletPrivateKey, testWalletAddress, bitcoinNetwork, bitcoinNetworkURL, protocolWalletURL, attestorList } =
++  config;
+ 
+-const handleAttestors = process.env.HANDLE_ATTESTORS == "true";
++const handleAttestors = process.env.HANDLE_ATTESTORS == 'true';
+ const testUUID = process.env.UUID || `test${Math.floor(Math.random() * 1000)}`;
+-const successfulAttesting = process.env.SUCCESSFUL_ATTESTING == "true";
++const successfulAttesting = process.env.SUCCESSFUL_ATTESTING == 'true';
+ 
+ // const attestorListReplaced = attestorList.map((attestorURL) =>
+ //   attestorURL.replace("localhost", "host.docker.internal")
+@@ -26,6 +20,7 @@ const successfulAttesting = process.env.SUCCESSFUL_ATTESTING == "true";
+ 
+ function createMaturationDate() {
+   const maturationDate = new Date();
++
+   maturationDate.setMinutes(maturationDate.getMinutes() + 1);
+   return maturationDate.toISOString();
+ }
+@@ -34,25 +29,23 @@ async function createEvent(attestorURL, uuid) {
+   const maturationDate = createMaturationDate();
+   try {
+     const url = `${attestorURL}/create-announcement/${uuid}`;
+-    console.log("Creating event at: ", url);
++    console.log('Creating event at: ', url);
+     const response = await fetch(url);
+     const event = await response.json();
+     return event;
+   } catch (error) {
+-    console.error("Error creating event: ", error);
++    console.error('Error creating event: ', error);
+     process.exit(1);
+   }
+ }
+ 
+ async function attest(attestorURL, uuid, outcome) {
+   try {
+-    const response = await fetch(
+-      `${attestorURL}/create-attestation/${uuid}/${outcome}`
+-    );
++    const response = await fetch(`${attestorURL}/create-attestation/${uuid}/${outcome}`);
+     const event = await response.json();
+     return event;
+   } catch (error) {
+-    console.error("Error attesting: ", error);
++    console.error('Error attesting: ', error);
+     process.exit(1);
+   }
+ }
+@@ -68,13 +61,13 @@ async function fetchOfferFromProtocolWallet() {
+ 
+   try {
+     const res = await fetch(`${protocolWalletURL}/offer`, {
+-      method: "post",
++      method: 'post',
+       body: JSON.stringify(body),
+-      headers: { "Content-Type": "application/json" },
++      headers: { 'Content-Type': 'application/json' },
+     });
+     return await res.json();
+   } catch (error) {
+-    console.error("Error fetching offer: ", error);
++    console.error('Error fetching offer: ', error);
+     process.exit(1);
+   }
+ }
+@@ -82,15 +75,15 @@ async function fetchOfferFromProtocolWallet() {
+ async function sendAcceptedOfferToProtocolWallet(accepted_offer) {
+   try {
+     const res = await fetch(`${protocolWalletURL}/offer/accept`, {
+-      method: "put",
++      method: 'put',
+       body: JSON.stringify({
+         acceptMessage: accepted_offer,
+       }),
+-      headers: { "Content-Type": "application/json" },
++      headers: { 'Content-Type': 'application/json' },
+     });
+     return await res.json();
+   } catch (error) {
+-    console.error("Error sending accepted offer: ", error);
++    console.error('Error sending accepted offer: ', error);
+     process.exit(1);
+   }
+ }
+@@ -98,12 +91,12 @@ async function sendAcceptedOfferToProtocolWallet(accepted_offer) {
+ async function unlockUTXOsInProtocolWallet() {
+   try {
+     const res = await fetch(`${protocolWalletURL}/unlockutxos`, {
+-      method: "put",
+-      headers: { "Content-Type": "application/json" },
++      method: 'put',
++      headers: { 'Content-Type': 'application/json' },
+     });
+     return await res.json();
+   } catch (error) {
+-    console.error("Error unlocking UTXOs: ", error);
++    console.error('Error unlocking UTXOs: ', error);
+     process.exit(1);
+   }
+ }
+@@ -112,36 +105,34 @@ async function waitForBalance(dlcManager) {
+   let balance = 0;
+   while (balance <= 0) {
+     balance = await dlcManager.get_wallet_balance();
+-    console.log("DLC Wasm Wallet Balance: " + balance);
++    console.log('DLC Wasm Wallet Balance: ' + balance);
+     await new Promise((resolve) => setTimeout(resolve, 5000));
+   }
+ }
+ 
+ async function main() {
+-  console.log("DLC Integration Test flow");
++  console.log('DLC Integration Test flow');
+ 
+   // TODO:
+   // - wait for protocol wallet to be ready
+   // - check& retry for protocol wallet balance
+ 
+   if (handleAttestors) {
+-    console.log("Creating Events");
+-    const events = await Promise.all(
+-      attestorList.map((attestorURL) => createEvent(attestorURL, testUUID))
+-    );
+-    console.log("Created Events: ", events);
++    console.log('Creating Events');
++    const events = await Promise.all(attestorList.map((attestorURL) => createEvent(attestorURL, testUUID)));
++    console.log('Created Events: ', events);
+   }
+ 
+   // console.log("Unlocking UTXOs in Protocol Wallet");
+   // await unlockUTXOsInProtocolWallet();
+ 
+-  console.log("Fetching Offer from Protocol Wallet");
++  console.log('Fetching Offer from Protocol Wallet');
+   const offerResponse = await fetchOfferFromProtocolWallet();
+   if (!offerResponse.temporaryContractId) {
+-    console.log("Error fetching offer from protocol wallet: ", offerResponse);
++    console.log('Error fetching offer from protocol wallet: ', offerResponse);
+     process.exit(1);
+   }
+-  console.log("Received Offer (JSON): ", offerResponse);
++  console.log('Received Offer (JSON): ', offerResponse);
+ 
+   // creates a new instance of the JsDLCInterface
+   const dlcManager = await JsDLCInterface.new(
+@@ -152,66 +143,56 @@ async function main() {
+     JSON.stringify(attestorList)
+   );
+ 
+-  console.log("DLC Manager Interface Options: ", dlcManager.get_options());
++  console.log('DLC Manager Interface Options: ', dlcManager.get_options());
+ 
+   async function fetchTxDetails(txId) {
+     try {
+       const res = await fetch(`https://devnet.dlc.link/electrs/tx/${txId}`, {
+-        method: "get",
+-        headers: { "Content-Type": "application/json" },
++        method: 'get',
++        headers: { 'Content-Type': 'application/json' },
+       });
+       return await res.json();
+     } catch (error) {
+-      console.error("Error fetching funding tx, maybe the broadcast failed?: ", error);
++      console.error('Error fetching funding tx, maybe the broadcast failed?: ', error);
+       process.exit(1);
+     }
+   }
+ 
+   await waitForBalance(dlcManager);
+ 
+-  const acceptedContract = await dlcManager.accept_offer(
+-    JSON.stringify(offerResponse)
+-  );
++  const acceptedContract = await dlcManager.accept_offer(JSON.stringify(offerResponse));
+   const pared_response = JSON.parse(acceptedContract);
+   if (!pared_response.protocolVersion) {
+-    console.log("Error accepting offer: ", pared_response);
++    console.log('Error accepting offer: ', pared_response);
+     process.exit(1);
+   }
+-  console.log("Contract accepted: ", pared_response);
++  console.log('Contract accepted: ', pared_response);
+ 
+-  const signedContract = await sendAcceptedOfferToProtocolWallet(
+-    acceptedContract
+-  );
+-  console.log("Contract signed: ", signedContract);
++  const signedContract = await sendAcceptedOfferToProtocolWallet(acceptedContract);
++  console.log('Contract signed: ', signedContract);
+ 
+-  const txID = await dlcManager.countersign_and_broadcast(
+-    JSON.stringify(signedContract)
+-  );
++  const txID = await dlcManager.countersign_and_broadcast(JSON.stringify(signedContract));
+   console.log(`Broadcast funding transaction with TX ID: ${txID}`);
+ 
+   // wait for 3 seconds for electrs to get it's act together
+-  console.log("Fetching tx details to make sure the broadcast was successful...");
++  console.log('Fetching tx details to make sure the broadcast was successful...');
+   await new Promise((resolve) => setTimeout(resolve, 3000));
+   // fetch the tx details from electrs to make sure it was broadcasted
+   const txDetails = await fetchTxDetails(txID);
+-  console.log("Funding TX Details: ", txDetails);
++  console.log('Funding TX Details: ', txDetails);
+ 
+   if (handleAttestors) {
+-    console.log("Attesting to Events");
++    console.log('Attesting to Events');
+     const attestations = await Promise.all(
+       attestorList.map((attestorURL, index) =>
+-        attest(
+-          attestorURL,
+-          testUUID,
+-          successfulAttesting ? 100 : index === 0 ? 0 : 100
+-        )
++        attest(attestorURL, testUUID, successfulAttesting ? 100 : index === 0 ? 0 : 100)
+       )
+     );
+-    console.log("Attestation received: ", attestations);
++    console.log('Attestation received: ', attestations);
+   }
+ 
+   const contracts = await dlcManager.get_contracts();
+-  console.log("Contracts: ", contracts);
++  console.log('Contracts: ', contracts);
+ }
+ 
+ main();
+diff --git a/wasm-wallet/src/lib.rs b/wasm-wallet/src/lib.rs
+index 373bd4a..293bfd4 100644
+--- a/wasm-wallet/src/lib.rs
++++ b/wasm-wallet/src/lib.rs
+@@ -159,10 +159,7 @@ impl JsDLCInterface {
+             address,
+         };
+ 
+-        let active_network: Network = options
+-            .network
+-            .parse::<Network>()
+-            .expect("Must use a valid bitcoin network");
++        let active_network: Network = options.network.parse::<Network>()?;
+ 
+         let blockchain: Arc<EsploraAsyncBlockchainProviderJsWallet> =
+             Arc::new(EsploraAsyncBlockchainProviderJsWallet::new(
+@@ -219,6 +216,7 @@ impl JsDLCInterface {
+                 log_to_console!("Error refreshing chain data: {}", e);
+             }
+         };
++        log_to_console!("options :{:?}", options);
+ 
+         Ok(JsDLCInterface {
+             options,
+@@ -261,6 +259,7 @@ impl JsDLCInterface {
+ 
+     // public async function for fetching all the contracts on the manager
+     pub async fn get_contracts(&self) -> Result<JsValue, JsError> {
++        log_to_console!("get_contracts");
+         // let mut errors: Vec<WalletError> = vec![];
+         let contracts: Vec<JsContract> = self
+             .manager
