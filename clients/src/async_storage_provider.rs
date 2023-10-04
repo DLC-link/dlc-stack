@@ -130,8 +130,10 @@ impl AsyncStorage for AsyncStorageApiProvider {
     async fn update_contract(&self, contract: &DlcContract) -> Result<(), Error> {
         match contract {
             a @ DlcContract::Accepted(_) | a @ DlcContract::Signed(_) => {
-                self.delete_contract(&a.get_temporary_id()).await?;
-                // This could be replaced with an UPSERT
+                match self.delete_contract(&a.get_temporary_id()).await {
+                    Ok(_) => {}
+                    Err(_) => {} // This happens when the temp contract was already deleted upon moving from Offered to Accepted
+                } // This could be replaced with an UPSERT
                 match self
                     .client
                     .update_contract(UpdateContract {
