@@ -50,7 +50,7 @@ impl AsyncStorageApiProvider {
         }
         for c in contents {
             let bytes = base64::decode(c.clone()).map_err(to_storage_error)?;
-            let contract = deserialize_contract(&bytes)?;
+            let contract = deserialize_contract(&bytes).map_err(to_storage_error)?;
             contracts.push(contract);
         }
         Ok(contracts)
@@ -68,8 +68,8 @@ impl AsyncStorage for AsyncStorageApiProvider {
             })
             .await;
         if let Some(res) = contract_res.map_err(to_storage_error)? {
-            let bytes = base64::decode(res.content).unwrap();
-            let contract = deserialize_contract(&bytes)?;
+            let bytes = base64::decode(res.content).map_err(to_storage_error)?;
+            let contract = deserialize_contract(&bytes).map_err(to_storage_error)?;
             Ok(Some(contract))
         } else {
             Ok(None)
@@ -92,8 +92,8 @@ impl AsyncStorage for AsyncStorageApiProvider {
             contents.push(c.content);
         }
         for c in contents {
-            let bytes = base64::decode(c.clone()).unwrap();
-            let contract = deserialize_contract(&bytes).unwrap();
+            let bytes = base64::decode(c.clone()).map_err(to_storage_error)?;
+            let contract = deserialize_contract(&bytes).map_err(to_storage_error)?;
             contracts.push(contract);
         }
         Ok(contracts)
@@ -108,34 +108,23 @@ impl AsyncStorage for AsyncStorageApiProvider {
             content: base64::encode(&data),
             key: self.key.clone(),
         };
-        let res = self.client.create_contract(req).await;
-        match res {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(err) => {
-                return Err(to_storage_error(err));
-            }
-        }
+        self.client
+            .create_contract(req)
+            .await
+            .map_err(to_storage_error)?;
+        Ok(())
     }
 
     async fn delete_contract(&self, id: &ContractId) -> Result<(), Error> {
         let cid = get_contract_id_string(*id);
-        let res = self
-            .client
+        self.client
             .delete_contract(ContractRequestParams {
                 key: self.key.clone(),
                 uuid: cid.clone(),
             })
-            .await;
-        match res {
-            Ok(r) => {
-                return Ok(r);
-            }
-            Err(err) => {
-                return Err(to_storage_error(err));
-            }
-        }
+            .await
+            .map_err(to_storage_error)?;
+        Ok(())
     }
 
     async fn update_contract(&self, contract: &DlcContract) -> Result<(), Error> {
@@ -144,14 +133,13 @@ impl AsyncStorage for AsyncStorageApiProvider {
                 match self.delete_contract(&a.get_temporary_id()).await {
                     Ok(_) => {}
                     Err(_) => {} // This happens when the temp contract was already deleted upon moving from Offered to Accepted
-                }
-                // This could be replaced with an UPSERT
+                } // This could be replaced with an UPSERT
                 match self
                     .client
                     .update_contract(UpdateContract {
                         uuid: get_contract_id_string(contract.get_id()),
                         state: Some(get_contract_state_str(contract)),
-                        content: Some(base64::encode(serialize_contract(contract).unwrap())),
+                        content: Some(base64::encode(serialize_contract(contract)?)),
                         key: self.key.clone(),
                     })
                     .await
@@ -162,7 +150,7 @@ impl AsyncStorage for AsyncStorageApiProvider {
                             .create_contract(NewContract {
                                 uuid: get_contract_id_string(contract.get_id()),
                                 state: get_contract_state_str(contract),
-                                content: base64::encode(serialize_contract(contract).unwrap()),
+                                content: base64::encode(serialize_contract(contract)?),
                                 key: self.key.clone(),
                             })
                             .await
@@ -176,7 +164,7 @@ impl AsyncStorage for AsyncStorageApiProvider {
                     .update_contract(UpdateContract {
                         uuid: get_contract_id_string(contract.get_id()),
                         state: Some(get_contract_state_str(contract)),
-                        content: Some(base64::encode(serialize_contract(contract).unwrap())),
+                        content: Some(base64::encode(serialize_contract(contract)?)),
                         key: self.key.clone(),
                     })
                     .await

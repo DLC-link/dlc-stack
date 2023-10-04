@@ -1,8 +1,9 @@
 #![feature(async_fn_in_trait)]
+#![warn(clippy::unwrap_used)]
 extern crate serde;
 
 use log::{info, warn};
-use reqwest::{Client, Error, Response, StatusCode, Url};
+use reqwest::{Client, Error, Response, StatusCode};
 use std::fmt::{Debug, Formatter};
 use std::time::Duration;
 use std::{error, fmt};
@@ -39,6 +40,19 @@ pub struct ApiResult {
 pub struct ApiError {
     pub message: String,
     pub status: u16,
+}
+
+// implement from reqwest error trait for ApiError
+impl From<reqwest::Error> for ApiError {
+    fn from(e: reqwest::Error) -> Self {
+        ApiError {
+            message: e.to_string(),
+            status: e
+                .status()
+                .unwrap_or_else(|| reqwest::StatusCode::BAD_REQUEST)
+                .into(),
+        }
+    }
 }
 
 impl fmt::Display for ApiError {
@@ -134,12 +148,6 @@ pub struct WalletBackendClient {
     host: String,
 }
 
-impl Default for WalletBackendClient {
-    fn default() -> Self {
-        Self::new("http://localhost:8085".to_string())
-    }
-}
-
 impl Debug for WalletBackendClient {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "({})", self.host)
@@ -147,25 +155,22 @@ impl Debug for WalletBackendClient {
 }
 
 impl WalletBackendClient {
-    pub fn new(host: String) -> Self {
+    pub fn new(host: String) -> Result<Self, Error> {
         let mut client_builder = Client::builder();
         #[cfg(not(target_arch = "wasm32"))]
         {
             client_builder = client_builder.timeout(REQWEST_TIMEOUT);
         }
-        Self {
-            client: client_builder.build().unwrap(),
-            host,
-        }
+        let client = client_builder.build()?;
+        Ok(Self { client, host })
     }
 
     pub async fn post_offer_and_accept(
         &self,
         offer_request: OfferRequest,
-    ) -> Result<ApiResult, Error> {
+    ) -> Result<ApiResult, ApiError> {
         let uri = format!("{}/offer", String::as_str(&self.host.clone()));
-        let url = Url::parse(uri.as_str()).unwrap();
-        let res = self.client.post(url).json(&offer_request).send().await?;
+        let res = self.client.post(uri).json(&offer_request).send().await?;
         let result = ApiResult {
             status: res.status().as_u16(),
             response: res,
@@ -173,10 +178,9 @@ impl WalletBackendClient {
         Ok(result)
     }
 
-    pub async fn put_accept(&self, accept_request: AcceptMessage) -> Result<ApiResult, Error> {
+    pub async fn put_accept(&self, accept_request: AcceptMessage) -> Result<ApiResult, ApiError> {
         let uri = format!("{}/offer/accept", String::as_str(&self.host.clone()));
-        let url = Url::parse(uri.as_str()).unwrap();
-        let res = self.client.put(url).json(&accept_request).send().await?;
+        let res = self.client.put(uri).json(&accept_request).send().await?;
         let result = ApiResult {
             status: res.status().as_u16(),
             response: res,
@@ -211,16 +215,18 @@ impl MemoryApiClient {
     }
 
     pub async fn get_event(&self, uuid: String) -> Result<Option<Event>, ApiError> {
-        let res = self.events.get(&uuid);
-        if res.is_none() {
-            return Ok(None);
+        match self.events.get(&uuid) {
+            Some(res) => Ok(Some(Event {
+                id: 1,
+                event_id: uuid,
+                content: res.to_string(),
+                key: "mykey".to_string(),
+            })),
+            None => Err(ApiError {
+                message: "Event not found".to_string(),
+                status: StatusCode::NOT_FOUND.as_u16(),
+            }),
         }
-        Ok(Some(Event {
-            id: 1,
-            event_id: uuid,
-            content: res.unwrap().to_string(),
-            key: "mykey".to_string(),
-        }))
     }
 
     pub async fn create_event(&mut self, event: NewEvent) -> Result<Event, ApiError> {
@@ -235,16 +241,17 @@ impl MemoryApiClient {
     }
 
     pub async fn update_event(&mut self, uuid: String, event: UpdateEvent) -> Result<(), ApiError> {
-        let res = self.events.get(&uuid);
-        if res.is_none() {
-            return Err(ApiError {
+        match self.events.get(&uuid) {
+            None => Err(ApiError {
                 message: "Event not found".to_string(),
                 status: 404,
-            });
+            }),
+            Some(_res) => {
+                self.events.remove(&uuid);
+                self.events.insert(uuid, event.content);
+                Ok(())
+            }
         }
-        self.events.remove(&uuid);
-        self.events.insert(uuid, event.content);
-        return Ok(());
     }
 
     pub async fn delete_event(&self, _uuid: String) -> Result<(), ApiError> {
@@ -292,17 +299,8 @@ impl StorageApiClient {
         contract: ContractsRequestParams,
     ) -> Result<Vec<Contract>, ApiError> {
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()),);
-        let url = Url::parse(uri.as_str()).unwrap();
 
-        let res = match self.client.get(url).query(&contract).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
+        let res = self.client.get(uri).query(&contract).send().await?;
 
         let status = res.status();
         match status.clone() {
@@ -332,7 +330,7 @@ impl StorageApiClient {
     ) -> Result<Option<Contract>, ApiError> {
         info!("getting contract with uuid: {}", contract.uuid);
 
-        let contracts = self
+        let contract = self
             .get_contracts(ContractsRequestParams {
                 uuid: Some(contract.uuid.clone()),
                 key: contract.key,
@@ -340,37 +338,12 @@ impl StorageApiClient {
             })
             .await?;
 
-        match contracts.len() {
-            0 => {
-                info!("Contract not found with id: {}", contract.uuid);
-                Ok(None)
-            }
-            1 => {
-                info!("Contract found with id: {}", contract.uuid);
-                Ok(Some(contracts.first().unwrap().clone()))
-            }
-            _ => {
-                warn!("More than one contract found with id: {}", contract.uuid);
-                Err(ApiError {
-                    message: "Duplicate contracts found".to_string(),
-                    status: 400,
-                })
-            }
-        }
+        Ok(contract.first().cloned())
     }
 
     pub async fn get_events(&self, event: EventsRequestParams) -> Result<Vec<Event>, ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()));
-        let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.get(url).query(&event).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
+        let res = self.client.get(uri).query(&event).send().await?;
 
         let status = res.status();
         match status.clone() {
@@ -404,37 +377,12 @@ impl StorageApiClient {
             })
             .await?;
 
-        match events.len() {
-            0 => {
-                info!("Event not found with id: {}", event.event_id);
-                Ok(None)
-            }
-            1 => {
-                info!("Event found with id: {}", event.event_id);
-                Ok(Some(events.first().unwrap().clone()))
-            }
-            _ => {
-                warn!("More than one contract found with id: {}", event.event_id);
-                Err(ApiError {
-                    message: "Duplicate events found".to_string(),
-                    status: 400,
-                })
-            }
-        }
+        Ok(events.first().cloned())
     }
 
     pub async fn create_contract(&self, contract: NewContract) -> Result<Contract, ApiError> {
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()));
-        let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.post(url).json(&contract).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
+        let res = self.client.post(uri).json(&contract).send().await?;
         let status = res.status();
         match status.clone() {
             StatusCode::OK => {
@@ -459,16 +407,7 @@ impl StorageApiClient {
 
     pub async fn create_event(&self, event: NewEvent) -> Result<Event, ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()));
-        let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.post(url).json(&event).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
+        let res = self.client.post(uri).json(&event).send().await?;
         let status = res.status();
         match status.clone() {
             StatusCode::OK => {
@@ -493,16 +432,7 @@ impl StorageApiClient {
 
     pub async fn update_event(&self, event: UpdateEvent) -> Result<(), ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()),);
-        let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.put(url).json(&event).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
+        let res = self.client.put(uri).json(&event).send().await?;
         let status = res.status();
         match status.clone() {
             StatusCode::OK => match res
@@ -539,19 +469,10 @@ impl StorageApiClient {
 
     pub async fn update_contract(&self, contract: UpdateContract) -> Result<(), ApiError> {
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()));
-        let url = Url::parse(uri.as_str()).unwrap();
 
-        info!("calling url: {:?}", url);
+        info!("calling url: {:?}", uri);
 
-        let res = match self.client.put(url).json(&contract).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
+        let res = self.client.put(uri).json(&contract).send().await?;
         let status = res.status();
         match status.clone() {
             StatusCode::OK => match res
@@ -589,19 +510,10 @@ impl StorageApiClient {
     // key for all these too
     pub async fn delete_event(&self, event: EventRequestParams) -> Result<(), ApiError> {
         let uri = format!("{}/event", String::as_str(&self.host.clone()));
-        let url = Url::parse(uri.as_str()).unwrap();
 
-        info!("calling delete on url: {:?}", url);
+        info!("calling delete on url: {:?}", uri);
 
-        let res = match self.client.delete(url).json(&event).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
+        let res = self.client.delete(uri).json(&event).send().await?;
         let status = res.status();
         match status.clone() {
             StatusCode::OK => match res
@@ -638,19 +550,10 @@ impl StorageApiClient {
 
     pub async fn delete_contract(&self, contract: ContractRequestParams) -> Result<(), ApiError> {
         let uri = format!("{}/contract", String::as_str(&self.host.clone()));
-        let url = Url::parse(uri.as_str()).unwrap();
 
-        info!("calling delete on url: {:?}", url);
+        info!("calling delete on url: {:?}", uri);
 
-        let res = match self.client.delete(url).json(&contract).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
+        let res = self.client.delete(uri).json(&contract).send().await?;
         let status = res.status();
         match status.clone() {
             StatusCode::OK => match res
@@ -701,16 +604,8 @@ impl StorageApiClient {
             path.as_str(),
             key.clone()
         );
-        let url = Url::parse(uri.as_str()).unwrap();
-        let res = match self.client.delete(url).send().await {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(ApiError {
-                    message: e.to_string(),
-                    status: 0,
-                })
-            }
-        };
+
+        let res = self.client.delete(uri).send().await?;
         let status = res.status();
         match status.clone() {
             StatusCode::OK => Ok(()),
