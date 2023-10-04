@@ -41,7 +41,7 @@ impl EventHandler {
         } else {
             Self {
                 storage_api: None,
-                memory_api: Some(MemoryApiConn::new(key)),
+                memory_api: Some(MemoryApiConn::default()),
             }
         }
     }
@@ -53,9 +53,15 @@ pub struct MemoryApiConn {
     key: String,
 }
 
+impl Default for MemoryApiConn {
+    fn default() -> Self {
+        Self::new("memory_key".to_string())
+    }
+}
+
 impl MemoryApiConn {
     pub fn new(key: String) -> Self {
-        let client = MemoryApiClient::new();
+        let client = MemoryApiClient::default();
         Self { client, key }
     }
 
@@ -78,9 +84,7 @@ impl MemoryApiConn {
                 .await;
             match res {
                 Ok(_) => Ok(Some(new_event.clone())),
-                Err(err) => {
-                    Err(OracleError::StorageApiError(err))
-                }
+                Err(err) => Err(OracleError::StorageApiError(err)),
             }
         } else {
             let event = NewEvent {
@@ -91,9 +95,7 @@ impl MemoryApiConn {
             let res = self.client.create_event(event).await;
             match res {
                 Ok(_) => Ok(Some(new_event.clone())),
-                Err(err) => {
-                    Err(OracleError::StorageApiError(err))
-                }
+                Err(err) => Err(OracleError::StorageApiError(err)),
             }
         }
     }
@@ -160,9 +162,7 @@ impl StorageApiConn {
             let res = self.client.update_event(update_event).await;
             match res {
                 Ok(_) => Ok(Some(new_event.clone())),
-                Err(err) => {
-                    Err(OracleError::StorageApiError(err))
-                }
+                Err(err) => Err(OracleError::StorageApiError(err)),
             }
         } else {
             let event = NewEvent {
@@ -173,9 +173,7 @@ impl StorageApiConn {
             let res = self.client.create_event(event).await;
             match res {
                 Ok(_) => Ok(Some(new_event.clone())),
-                Err(err) => {
-                    Err(OracleError::StorageApiError(err))
-                }
+                Err(err) => Err(OracleError::StorageApiError(err)),
             }
         }
     }

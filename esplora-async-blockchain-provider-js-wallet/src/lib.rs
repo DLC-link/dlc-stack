@@ -59,7 +59,7 @@ pub struct EsploraAsyncBlockchainProviderJsWallet {
 }
 
 pub struct TxRawWithConf {
-    pub raw_tx: Vec<u8>,
+    pub raw_tx: Transaction,
     pub confirmations: u32,
 }
 struct ChainCacheData {
@@ -112,8 +112,7 @@ impl EsploraAsyncBlockchainProviderJsWallet {
         T: serde::de::DeserializeOwned,
     {
         self.get(sub_url)
-            .await
-            .unwrap()
+            .await?
             .json::<T>()
             .await
             .map_err(|e| Error::BlockchainError(e.to_string()))
@@ -126,20 +125,6 @@ impl EsploraAsyncBlockchainProviderJsWallet {
             .into_iter()
             .collect::<Vec<_>>())
     }
-
-    // async fn get_text(&self, sub_url: &str) -> Result<String, Error> {
-    //     self.get(sub_url).await.unwrap().text().await.map_err(|x| {
-    //         dlc_manager::error::Error::IOError(std::io::Error::new(std::io::ErrorKind::Other, x))
-    //     })
-    // }
-
-    // async fn get_u64(&self, sub_url: &str) -> Result<u64, Error> {
-    //     self.get_text(sub_url)
-    //         .await
-    //         .unwrap()
-    //         .parse()
-    //         .map_err(|e: std::num::ParseIntError| Error::BlockchainError(e.to_string()))
-    // }
 
     // gets all the utxos and txs and height of chain, and returns the balance of the address
     pub async fn refresh_chain_data(&self, address: String) -> Result<(), Error> {
@@ -226,7 +211,9 @@ impl EsploraAsyncBlockchainProviderJsWallet {
         for utxo in chain_data.utxos.borrow().as_ref().unwrap() {
             let txid = utxo.outpoint.txid.to_string();
             trace!("fetching tx {}", txid);
-            let tx: Vec<u8> = self.get_bytes(&format!("tx/{}/raw", txid)).await?;
+            let raw_tx = self.get_bytes(&format!("tx/{}/raw", txid)).await?; // THis can be bad data, because we aren't checking that the get comes back with a 200. should check if it's is-error
+            let tx = Transaction::consensus_decode(&mut std::io::Cursor::new(&*raw_tx))
+                .map_err(|e| Error::BlockchainError(e.to_string()))?;
 
             let tx_status = self
                 .get_from_json::<TxStatus>(&format!("tx/{txid}/status"))
@@ -341,12 +328,10 @@ impl Blockchain for EsploraAsyncBlockchainProviderJsWallet {
         let chain_data = self.chain_data.lock().unwrap();
         let txs = chain_data.txs.borrow();
         let raw_txs = txs.as_ref().unwrap();
-        let raw_tx = match raw_txs.get(&tx_id.to_string()) {
-            Some(x) => x.raw_tx.clone(),
-            None => return Err(Error::BlockchainError(format!("tx not found {}", tx_id))),
-        };
-        Transaction::consensus_decode(&mut std::io::Cursor::new(&*raw_tx))
-            .map_err(|e| Error::BlockchainError(e.to_string()))
+        match raw_txs.get(&tx_id.to_string()) {
+            Some(x) => Ok(x.raw_tx.clone()),
+            None => Err(Error::BlockchainError(format!("tx not found {}", tx_id))),
+        }
     }
 
     fn get_transaction_confirmations(&self, _tx_id: &Txid) -> Result<u32, Error> {

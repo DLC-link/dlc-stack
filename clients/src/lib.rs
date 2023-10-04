@@ -1,8 +1,10 @@
 #![feature(async_fn_in_trait)]
-#![warn(clippy::unwrap_used)]
+#![deny(clippy::unwrap_used)]
+#![deny(unused_mut)]
+#![deny(dead_code)]
 extern crate serde;
 
-use log::{info, warn};
+use log::{debug, error};
 use reqwest::{Client, Error, Response, StatusCode};
 use std::fmt::{Debug, Formatter};
 use std::time::Duration;
@@ -49,7 +51,7 @@ impl From<reqwest::Error> for ApiError {
             message: e.to_string(),
             status: e
                 .status()
-                .unwrap_or_else(|| reqwest::StatusCode::BAD_REQUEST)
+                .unwrap_or(reqwest::StatusCode::BAD_REQUEST)
                 .into(),
         }
     }
@@ -113,7 +115,7 @@ pub struct NewEvent {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Event {
-    pub id: i32,
+    pub id: usize,
     pub event_id: String,
     pub content: String,
     pub key: String,
@@ -192,6 +194,12 @@ impl WalletBackendClient {
 #[derive(Clone)]
 pub struct MemoryApiClient {
     events: HashMap<String, String>,
+}
+
+impl Default for MemoryApiClient {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MemoryApiClient {
@@ -289,220 +297,159 @@ impl StorageApiClient {
             client_builder = client_builder.timeout(REQWEST_TIMEOUT);
         }
         Self {
-            client: client_builder.build().unwrap(),
+            client: client_builder
+                .build()
+                .expect("Storage API Client should be able to create a reqwest client"),
             host,
         }
     }
 
     pub async fn get_contracts(
         &self,
-        contract: ContractsRequestParams,
+        contract_req: ContractsRequestParams,
     ) -> Result<Vec<Contract>, ApiError> {
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()),);
-
-        let res = self.client.get(uri).query(&contract).send().await?;
-
-        let status = res.status();
-        match status.clone() {
-            StatusCode::OK => {
-                let contracts: Vec<Contract> = res.json().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Ok(contracts)
-            }
-            _ => {
-                let msg: String = res.text().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Err(ApiError {
-                    message: msg,
-                    status: status.clone().as_u16(),
-                })
-            }
-        }
+        debug!("getting contracts with request params: {:?}", contract_req);
+        let res = self.client.get(uri).query(&contract_req).send().await?;
+        let status = res.status().into();
+        let contracts = res.json::<Vec<Contract>>().await.map_err(|e| ApiError {
+            message: format!(
+                "get contracts failed, response from API not a list of contract objects, error: {}",
+                e.to_string()
+            ),
+            status,
+        })?;
+        Ok(contracts)
     }
 
     pub async fn get_contract(
         &self,
-        contract: ContractRequestParams,
+        contract_req: ContractRequestParams,
     ) -> Result<Option<Contract>, ApiError> {
-        info!("getting contract with uuid: {}", contract.uuid);
-
+        debug!("getting contract with uuid: {}", contract_req.uuid);
         let contract = self
             .get_contracts(ContractsRequestParams {
-                uuid: Some(contract.uuid.clone()),
-                key: contract.key,
+                uuid: Some(contract_req.uuid.clone()),
+                key: contract_req.key,
                 state: None,
             })
             .await?;
-
         Ok(contract.first().cloned())
     }
 
-    pub async fn get_events(&self, event: EventsRequestParams) -> Result<Vec<Event>, ApiError> {
+    pub async fn get_events(&self, event_req: EventsRequestParams) -> Result<Vec<Event>, ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()));
-        let res = self.client.get(uri).query(&event).send().await?;
-
-        let status = res.status();
-        match status.clone() {
-            StatusCode::OK => {
-                let events: Vec<Event> = res.json().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Ok(events)
-            }
-            _ => {
-                let msg: String = res.text().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Err(ApiError {
-                    message: msg,
-                    status: status.clone().as_u16(),
-                })
-            }
-        }
+        debug!("getting events with request params: {:?}", event_req);
+        let res = self.client.get(uri).query(&event_req).send().await?;
+        let status = res.status().into();
+        let events = res.json::<Vec<Event>>().await.map_err(|e| ApiError {
+            message: format!(
+                "get events failed, response from API not a list of event objects, error: {}",
+                e.to_string()
+            ),
+            status,
+        })?;
+        Ok(events)
     }
 
-    pub async fn get_event(&self, event: EventRequestParams) -> Result<Option<Event>, ApiError> {
-        info!("getting contract with uuid: {}", event.event_id);
-
+    pub async fn get_event(
+        &self,
+        event_req: EventRequestParams,
+    ) -> Result<Option<Event>, ApiError> {
+        debug!("getting event with uuid: {}", event_req.event_id);
         let events = self
             .get_events(EventsRequestParams {
-                key: event.key.clone(),
-                event_id: Some(event.event_id.clone()),
+                key: event_req.key.clone(),
+                event_id: Some(event_req.event_id.clone()),
             })
             .await?;
-
         Ok(events.first().cloned())
     }
 
     pub async fn create_contract(&self, contract: NewContract) -> Result<Contract, ApiError> {
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()));
+        debug!("calling contract create on url: {:?}", uri);
         let res = self.client.post(uri).json(&contract).send().await?;
-        let status = res.status();
-        match status.clone() {
-            StatusCode::OK => {
-                let contract: Contract = res.json().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Ok(contract)
-            }
-            _ => {
-                let msg: String = res.text().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Err(ApiError {
-                    message: msg,
-                    status: status.clone().as_u16(),
-                })
-            }
-        }
+        let status = res.status().into();
+        let contract = res.json::<Contract>().await.map_err(|e| ApiError {
+            message: format!(
+                "Create contract failed, response from API not an contract object, error: {}",
+                e.to_string()
+            ),
+            status,
+        })?;
+        Ok(contract)
     }
 
     pub async fn create_event(&self, event: NewEvent) -> Result<Event, ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()));
+        debug!("calling event create on url: {:?}", uri);
         let res = self.client.post(uri).json(&event).send().await?;
-        let status = res.status();
-        match status.clone() {
-            StatusCode::OK => {
-                let event: Event = res.json().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Ok(event)
-            }
-            _ => {
-                let msg: String = res.text().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Err(ApiError {
-                    message: msg,
-                    status: status.clone().as_u16(),
-                })
-            }
-        }
+        let status = res.status().into();
+        let event = res.json::<Event>().await.map_err(|e| ApiError {
+            message: format!(
+                "Create event failed, response from API not an event object, error: {}",
+                e.to_string()
+            ),
+            status,
+        })?;
+        Ok(event)
     }
 
     pub async fn update_event(&self, event: UpdateEvent) -> Result<(), ApiError> {
-        let uri = format!("{}/events", String::as_str(&self.host.clone()),);
+        let uri = format!("{}/events", String::as_str(&self.host.clone()));
+        debug!("calling event update on url: {:?}", uri);
         let res = self.client.put(uri).json(&event).send().await?;
-        let status = res.status();
-        match status.clone() {
-            StatusCode::OK => match res
-                .json::<EffectedNumResponse>()
-                .await
-                .map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?
-                .effected_num
-            {
-                0 => Err(ApiError {
-                    message: "No event updated".to_string(),
-                    status: status.clone().as_u16(),
-                }),
-                1 => Ok(()),
-                _ => {
-                    warn!("More than one event updated");
-                    Ok(())
-                }
-            },
+        let status = res.status().into();
+        match res
+            .json::<EffectedNumResponse>()
+            .await
+            .map_err(|e| ApiError {
+                message: format!(
+                    "Updating event failed, response from API not a number, error: {}",
+                    e.to_string()
+                ),
+                status,
+            })?
+            .effected_num
+        {
+            0 => Err(ApiError {
+                message: "No event updated".to_string(),
+                status,
+            }),
+            1 => Ok(()),
             _ => {
-                let msg: String = res.text().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Err(ApiError {
-                    message: msg,
-                    status: status.clone().as_u16(),
-                })
+                error!("More than one event updated");
+                Ok(())
             }
         }
     }
 
     pub async fn update_contract(&self, contract: UpdateContract) -> Result<(), ApiError> {
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()));
-
-        info!("calling url: {:?}", uri);
-
+        debug!("calling contract update on url: {:?}", uri);
         let res = self.client.put(uri).json(&contract).send().await?;
-        let status = res.status();
-        match status.clone() {
-            StatusCode::OK => match res
-                .json::<EffectedNumResponse>()
-                .await
-                .map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?
-                .effected_num
-            {
-                0 => Err(ApiError {
-                    message: "No contract updated".to_string(),
-                    status: status.clone().as_u16(),
-                }),
-                1 => Ok(()),
-                _ => {
-                    warn!("More than one contract updated");
-                    Ok(())
-                }
-            },
+        let status = res.status().into();
+        match res
+            .json::<EffectedNumResponse>()
+            .await
+            .map_err(|e| ApiError {
+                message: format!(
+                    "Updating contract failed, response from API not a number, error: {}",
+                    e.to_string()
+                ),
+                status,
+            })?
+            .effected_num
+        {
+            0 => Err(ApiError {
+                message: "No contract updated".to_string(),
+                status,
+            }),
+            1 => Ok(()),
             _ => {
-                let msg: String = res.text().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Err(ApiError {
-                    message: msg,
-                    status: status.clone().as_u16(),
-                })
+                error!("More than one contract updated");
+                Ok(())
             }
         }
     }
@@ -510,115 +457,94 @@ impl StorageApiClient {
     // key for all these too
     pub async fn delete_event(&self, event: EventRequestParams) -> Result<(), ApiError> {
         let uri = format!("{}/event", String::as_str(&self.host.clone()));
-
-        info!("calling delete on url: {:?}", uri);
-
+        debug!("calling event delete on url: {:?}", uri);
         let res = self.client.delete(uri).json(&event).send().await?;
-        let status = res.status();
-        match status.clone() {
-            StatusCode::OK => match res
-                .json::<EffectedNumResponse>()
-                .await
-                .map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?
-                .effected_num
-            {
-                0 => Err(ApiError {
-                    message: "No event deleted".to_string(),
-                    status: status.clone().as_u16(),
-                }),
-                1 => Ok(()),
-                _ => {
-                    warn!("More than one event deleted");
-                    Ok(())
-                }
-            },
+        let status = res.status().into();
+        match res
+            .json::<EffectedNumResponse>()
+            .await
+            .map_err(|e| ApiError {
+                message: format!(
+                    "Deleting event failed, response from API not a number, error: {}",
+                    e.to_string()
+                ),
+                status,
+            })?
+            .effected_num
+        {
+            0 => Err(ApiError {
+                message: "No event deleted".to_string(),
+                status,
+            }),
+            1 => Ok(()),
             _ => {
-                let msg: String = res.text().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Err(ApiError {
-                    message: msg,
-                    status: status.clone().as_u16(),
-                })
+                error!("More than one event deleted");
+                Ok(())
             }
         }
     }
 
     pub async fn delete_contract(&self, contract: ContractRequestParams) -> Result<(), ApiError> {
         let uri = format!("{}/contract", String::as_str(&self.host.clone()));
-
-        info!("calling delete on url: {:?}", uri);
-
+        debug!("calling contract delete on url: {:?}", uri);
         let res = self.client.delete(uri).json(&contract).send().await?;
-        let status = res.status();
-        match status.clone() {
-            StatusCode::OK => match res
-                .json::<EffectedNumResponse>()
-                .await
-                .map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?
-                .effected_num
-            {
-                0 => Err(ApiError {
-                    message: "No contract deleted".to_string(),
-                    status: status.clone().as_u16(),
-                }),
-                1 => Ok(()),
-                _ => {
-                    warn!("More than one contract deleted");
-                    Ok(())
-                }
-            },
+        let status = res.status().into();
+        match res
+            .json::<EffectedNumResponse>()
+            .await
+            .map_err(|e| ApiError {
+                message: format!(
+                    "Deleting contract failed, response from API not a number, error: {}",
+                    e.to_string()
+                ),
+                status,
+            })?
+            .effected_num
+        {
+            0 => Err(ApiError {
+                message: "No contract deleted".to_string(),
+                status,
+            }),
+            1 => Ok(()),
             _ => {
-                let msg: String = res.text().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Err(ApiError {
-                    message: msg,
-                    status: status.clone().as_u16(),
-                })
+                error!("More than one contract deleted");
+                Ok(())
             }
         }
     }
 
-    pub async fn delete_contracts(&self, key: String) -> Result<(), ApiError> {
-        self.delete_resources("contracts".to_string(), key).await
-    }
+    // For testing only, should be removed
+    // pub async fn delete_contracts(&self, key: String) -> Result<(), ApiError> {
+    //     self.delete_resources("contracts".to_string(), key).await
+    // }
 
-    pub async fn delete_events(&self, key: String) -> Result<(), ApiError> {
-        self.delete_resources("events".to_string(), key).await
-    }
+    // pub async fn delete_events(&self, key: String) -> Result<(), ApiError> {
+    //     self.delete_resources("events".to_string(), key).await
+    // }
 
-    // TODO: for testing only, should be removed
-    async fn delete_resources(&self, path: String, key: String) -> Result<(), ApiError> {
-        let uri = format!(
-            "{}/{}/{}",
-            String::as_str(&self.host.clone()),
-            path.as_str(),
-            key.clone()
-        );
+    // For testing only, should be removed
+    // async fn delete_resources(&self, path: String, key: String) -> Result<(), ApiError> {
+    //     let uri = format!(
+    //         "{}/{}/{}",
+    //         String::as_str(&self.host.clone()),
+    //         path.as_str(),
+    //         key.clone()
+    //     );
 
-        let res = self.client.delete(uri).send().await?;
-        let status = res.status();
-        match status.clone() {
-            StatusCode::OK => Ok(()),
-            _ => {
-                let msg: String = res.text().await.map_err(|e| ApiError {
-                    message: e.to_string(),
-                    status: status.clone().as_u16(),
-                })?;
-                Err(ApiError {
-                    message: msg,
-                    status: status.clone().as_u16(),
-                })
-            }
-        }
-    }
+    //     let res = self.client.delete(uri).send().await?;
+    //     let status = res.status();
+    //     match status.clone() {
+    //         StatusCode::OK => Ok(()),
+    //         _ => {
+    //             let msg: String = res.text().await.map_err(|e| ApiError {
+    //                 message: e.to_string(),
+    //                 status: status.clone().as_u16(),
+    //             })?;
+    //             Err(ApiError {
+    //                 message: msg,
+    //                 status: status.clone().as_u16(),
+    //             })
+    //         }
+    //     }
+    // }
 }
