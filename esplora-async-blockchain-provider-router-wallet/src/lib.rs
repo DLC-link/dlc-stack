@@ -1,4 +1,7 @@
 #![feature(async_fn_in_trait)]
+#![deny(clippy::unwrap_used)]
+#![deny(unused_mut)]
+#![deny(dead_code)]
 use bdk::esplora_client::TxStatus;
 use bdk::esplora_client::{AsyncClient, Builder};
 use bitcoin::consensus::Decodable;
@@ -52,7 +55,8 @@ pub struct EsploraAsyncBlockchainProviderRouterWallet {
 impl EsploraAsyncBlockchainProviderRouterWallet {
     pub fn new(host: String, network: Network) -> Self {
         let client_builder = Builder::new(&host).timeout(REQWEST_TIMEOUT);
-        let url_client = AsyncClient::from_builder(client_builder).unwrap();
+        let url_client = AsyncClient::from_builder(client_builder)
+            .expect("To be able to create a reqwest client");
         let blockchain = EsploraBlockchain::from_client(url_client, 20);
 
         Self {
@@ -88,15 +92,14 @@ impl EsploraAsyncBlockchainProviderRouterWallet {
         T: serde::de::DeserializeOwned,
     {
         self.get(sub_url)
-            .await
-            .unwrap()
+            .await?
             .json::<T>()
             .await
             .map_err(|e| Error::BlockchainError(e.to_string()))
     }
 
     async fn get_bytes(&self, sub_url: &str) -> Result<Vec<u8>, Error> {
-        let bytes = self.get(sub_url).await.unwrap().bytes().await;
+        let bytes = self.get(sub_url).await?.bytes().await;
         Ok(bytes
             .map_err(|e| Error::BlockchainError(e.to_string()))?
             .into_iter()
@@ -110,7 +113,11 @@ impl AsyncBlockchain for EsploraAsyncBlockchainProviderRouterWallet {
             .get_from_json::<TxStatus>(&format!("tx/{tx_id}/status"))
             .await?;
         if tx_status.confirmed {
-            let block_chain_height = self.blockchain.get_height().await.unwrap() as u64;
+            let block_chain_height =
+                self.blockchain
+                    .get_height()
+                    .await
+                    .map_err(|e| Error::BlockchainError(e.to_string()))? as u64;
             if let Some(block_height) = tx_status.block_height {
                 return Ok((block_chain_height - block_height as u64 + 1) as u32);
             }
@@ -123,7 +130,7 @@ impl AsyncBlockchain for EsploraAsyncBlockchainProviderRouterWallet {
         self.blockchain
             .broadcast(tx)
             .await
-            .map_err(|x| dlc_manager::error::Error::OracleError(x.to_string()))
+            .map_err(|x| Error::BlockchainError(x.to_string()))
     }
 
     async fn get_network_async(&self) -> Result<bitcoin::network::constants::Network, Error> {

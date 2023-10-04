@@ -1,5 +1,7 @@
-// #![deny(warnings)]
 #![feature(async_fn_in_trait)]
+#![deny(clippy::unwrap_used)]
+#![deny(unused_mut)]
+#![deny(dead_code)]
 
 use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey};
 use bytes::Buf;
@@ -132,8 +134,7 @@ fn build_success_response(message: String) -> Result<Response<Body>, GenericErro
         .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
         .header(header::ACCESS_CONTROL_ALLOW_METHODS, "*")
         .header(header::ACCESS_CONTROL_ALLOW_HEADERS, "*")
-        .body(Body::from(message.to_string()))
-        .unwrap())
+        .body(Body::from(message.to_string()))?)
 }
 
 fn build_error_response(message: String) -> Result<Response<Body>, GenericError> {
@@ -195,7 +196,13 @@ async fn process_request(
                     .await
                     .map_err(|e| WalletError(format!("Error aggregating body: {}", e)))?;
 
-                let req: OfferRequest = serde_json::from_reader(whole_body.reader()).unwrap();
+                let req: OfferRequest =
+                    serde_json::from_reader(whole_body.reader()).map_err(|e| {
+                        WalletError(format!(
+                            "Error parsing http input to create Offer endpoint: {}",
+                            e.to_string()
+                        ))
+                    })?;
 
                 let bitcoin_contract_attestor_urls: Vec<String> =
                     serde_json::from_str(&req.attestor_list.clone()).map_err(|e| {
@@ -236,8 +243,7 @@ async fn process_request(
                 struct AcceptOfferRequest {
                     accept_message: String,
                 }
-                let data: AcceptOfferRequest =
-                    serde_json::from_reader(whole_body.reader()).unwrap();
+                let data: AcceptOfferRequest = serde_json::from_reader(whole_body.reader())?;
                 let accept_dlc: AcceptDlc = serde_json::from_str(&data.accept_message)?;
                 accept_offer(accept_dlc, manager).await
             };
@@ -253,8 +259,7 @@ async fn process_request(
             // Return 404 not found response.
             Ok(Response::builder()
                 .status(StatusCode::NOT_FOUND)
-                .body(NOTFOUND.into())
-                .unwrap())
+                .body(NOTFOUND.into())?)
         }
     }
 }
@@ -351,16 +356,13 @@ async fn main() -> Result<(), GenericError> {
 
     // Set up time provider
     let time_provider = SystemTimeProvider {};
-    let manager = Arc::new(
-        Manager::new(
-            Arc::clone(&wallet),
-            Arc::clone(&blockchain),
-            dlc_store.clone(),
-            protocol_wallet_attestors.clone(),
-            Arc::new(time_provider),
-        )
-        .unwrap(),
-    );
+    let manager = Arc::new(Manager::new(
+        Arc::clone(&wallet),
+        Arc::clone(&blockchain),
+        dlc_store.clone(),
+        protocol_wallet_attestors.clone(),
+        Arc::new(time_provider),
+    )?);
 
     let new_service = make_service_fn(move |_| {
         // For each connection, clone the counter to use in our service...
@@ -431,7 +433,10 @@ fn setup_wallets(
 
     let x = signing_external_descriptor.0.clone();
 
-    let static_address = x.at_derivation_index(0).address(active_network).unwrap();
+    let static_address = x
+        .at_derivation_index(0)
+        .address(active_network)
+        .expect("Should be able to calculate the static address");
     let derived_ext_xpriv = xpriv
         .derive_priv(
             &secp,
@@ -440,7 +445,7 @@ fn setup_wallets(
                 ChildNumber::Normal { index: 0 },
             ]),
         )
-        .unwrap();
+        .expect("Should be able to derive the private key path during wallet setup");
     let seckey_ext = derived_ext_xpriv.private_key;
 
     let wallet: Arc<DlcWallet> = Arc::new(DlcWallet::new(static_address.clone(), seckey_ext));
@@ -458,7 +463,12 @@ async fn create_new_offer(
     offer_collateral: u64,
     total_outcomes: u64,
 ) -> Result<String, WalletError> {
-    let active_network = bitcoin::Network::from_str(&active_network).unwrap();
+    let active_network = bitcoin::Network::from_str(&active_network).map_err(|e| {
+        WalletError(format!(
+            "Unknown Network in offer creation: {}",
+            e.to_string()
+        ))
+    })?;
     let (_event_descriptor, descriptor) = get_numerical_contract_info(
         accept_collateral,
         offer_collateral,
@@ -501,7 +511,9 @@ async fn create_new_offer(
     let offer = man
         .send_offer(
             &contract_input,
-            STATIC_COUNTERPARTY_NODE_ID.parse().unwrap(),
+            STATIC_COUNTERPARTY_NODE_ID
+                .parse()
+                .expect("To be able to parse the static counterparty id to a pubkey"),
         )
         .await
         .map_err(|e| WalletError(e.to_string()))?;
@@ -515,7 +527,9 @@ async fn accept_offer(
     let dlc = manager
         .on_dlc_message(
             &Message::Accept(accept_dlc),
-            STATIC_COUNTERPARTY_NODE_ID.parse().unwrap(),
+            STATIC_COUNTERPARTY_NODE_ID
+                .parse()
+                .expect("To be able to parse the static counterparty id to a pubkey"),
         )
         .await?;
 

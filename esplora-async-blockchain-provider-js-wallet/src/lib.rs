@@ -1,4 +1,7 @@
 #![feature(async_fn_in_trait)]
+// #![deny(clippy::unwrap_used)]
+#![deny(unused_mut)]
+#![deny(dead_code)]
 use bdk::esplora_client::TxStatus;
 use bdk::esplora_client::{AsyncClient, Builder};
 use bitcoin::consensus::Decodable;
@@ -106,7 +109,7 @@ impl EsploraAsyncBlockchainProviderJsWallet {
             })
     }
 
-    // why using a local client here, but the blockchain client above??
+    // TODO: why using a local client here, but the blockchain client above??
     async fn get_from_json<T>(&self, sub_url: &str) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
