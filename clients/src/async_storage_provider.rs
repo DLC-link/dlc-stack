@@ -60,19 +60,21 @@ impl AsyncStorageApiProvider {
 impl AsyncStorage for AsyncStorageApiProvider {
     async fn get_contract(&self, id: &ContractId) -> Result<Option<DlcContract>, Error> {
         let cid = get_contract_id_string(*id);
-        let contract_res: Result<Option<Contract>, ApiError> = self
+        let contract_res = self
             .client
             .get_contract(ContractRequestParams {
                 key: self.key.clone(),
                 uuid: cid.clone(),
             })
-            .await;
-        if let Some(res) = contract_res.map_err(to_storage_error)? {
-            let bytes = base64::decode(res.content).map_err(to_storage_error)?;
-            let contract = deserialize_contract(&bytes).map_err(to_storage_error)?;
-            Ok(Some(contract))
-        } else {
-            Ok(None)
+            .await
+            .map_err(to_storage_error)?;
+        match contract_res {
+            Some(res) => {
+                let bytes = base64::decode(res.content).map_err(to_storage_error)?;
+                let contract = deserialize_contract(&bytes).map_err(to_storage_error)?;
+                Ok(Some(contract))
+            }
+            _ => Ok(None),
         }
     }
 
@@ -130,10 +132,7 @@ impl AsyncStorage for AsyncStorageApiProvider {
     async fn update_contract(&self, contract: &DlcContract) -> Result<(), Error> {
         match contract {
             a @ DlcContract::Accepted(_) | a @ DlcContract::Signed(_) => {
-                match self.delete_contract(&a.get_temporary_id()).await {
-                    Ok(_) => {}
-                    Err(_) => {} // This happens when the temp contract was already deleted upon moving from Offered to Accepted
-                } // This could be replaced with an UPSERT
+                let _ = self.delete_contract(&a.get_temporary_id()).await;
                 match self
                     .client
                     .update_contract(UpdateContract {
