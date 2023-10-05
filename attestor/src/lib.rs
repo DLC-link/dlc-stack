@@ -1,6 +1,7 @@
 extern crate core;
 extern crate log;
 use ::hex::ToHex;
+use serde_json::json;
 use wasm_bindgen::prelude::*;
 
 use lightning::util::ser::{Readable, Writeable};
@@ -69,6 +70,12 @@ impl Attestor {
         let oracle =
             Oracle::new(key_pair, secp, storage_api_enabled, storage_api_endpoint).unwrap();
         Attestor { oracle }
+    }
+
+    pub async fn get_health() -> Result<JsValue, JsValue> {
+        Ok(serde_wasm_bindgen::to_value(&json!({"data": [
+            {"status": "healthy", "message": ""}
+        ]}))?)
     }
 
     pub async fn create_event(&self, uuid: &str, maturation: &str) -> Result<(), JsValue> {
@@ -251,9 +258,7 @@ impl Attestor {
             .unwrap();
 
         match result {
-            Some(event) => {
-                serde_wasm_bindgen::to_value(&parse_database_entry(event)).unwrap()
-            }
+            Some(event) => serde_wasm_bindgen::to_value(&parse_database_entry(event)).unwrap(),
             None => JsValue::NULL,
         }
     }
