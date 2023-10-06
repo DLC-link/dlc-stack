@@ -20,7 +20,6 @@ const successfulAttesting = process.env.SUCCESSFUL_ATTESTING == 'true';
 
 function createMaturationDate() {
   const maturationDate = new Date();
-
   maturationDate.setMinutes(maturationDate.getMinutes() + 1);
   return maturationDate.toISOString();
 }
@@ -108,9 +107,44 @@ async function waitForBalance(dlcManager) {
     console.log('DLC Wasm Wallet Balance: ' + balance);
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
+  return balance;
+}
+
+async function checkBalance(dlcManager, action, timeout) {
+  let remainingTime = timeout;
+  while (remainingTime > 0) {
+    console.log(`Checking balance in ${remainingTime / 1000} seconds...`);
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    remainingTime -= 10000;
+  }
+  const balance = await dlcManager.get_wallet_balance();
+  console.log(`DLC Wasm Wallet Balance at ${action}: ` + balance);
+  return balance;
+}
+
+function checkBalanceAfterClosing(balanceAfterFunding, balanceAfterClosing, collateralAmount) {
+  if (balanceAfterFunding + collateralAmount !== balanceAfterClosing) {
+    console.log('Error: Balance after closing does not match the expected value');
+  } else {
+    console.log('Balance after closing matches the expected value');
+  }
+}
+
+async function fetchTxDetails(txId) {
+  try {
+    const res = await fetch(`https://devnet.dlc.link/electrs/tx/${txId}`, {
+      method: 'get',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return await res.json();
+  } catch (error) {
+    console.error('Error fetching funding tx, maybe the broadcast failed?: ', error);
+    process.exit(1);
+  }
 }
 
 async function main() {
+  let startingBalance;
   console.log('DLC Integration Test flow');
 
   // TODO:
@@ -123,11 +157,9 @@ async function main() {
     console.log('Created Events: ', events);
   }
 
-  // console.log("Unlocking UTXOs in Protocol Wallet");
-  // await unlockUTXOsInProtocolWallet();
-
   console.log('Fetching Offer from Protocol Wallet');
   const offerResponse = await fetchOfferFromProtocolWallet();
+
   if (!offerResponse.temporaryContractId) {
     console.log('Error fetching offer from protocol wallet: ', offerResponse);
     process.exit(1);
@@ -145,39 +177,28 @@ async function main() {
 
   console.log('DLC Manager Interface Options: ', dlcManager.get_options());
 
-  async function fetchTxDetails(txId) {
-    try {
-      const res = await fetch(`https://devnet.dlc.link/electrs/tx/${txId}`, {
-        method: 'get',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      return await res.json();
-    } catch (error) {
-      console.error('Error fetching funding tx, maybe the broadcast failed?: ', error);
-      process.exit(1);
-    }
-  }
-
-  await waitForBalance(dlcManager);
+  await checkBalance(dlcManager, '[STARTING]', 15000);
 
   const acceptedContract = await dlcManager.accept_offer(JSON.stringify(offerResponse));
-  const pared_response = JSON.parse(acceptedContract);
-  if (!pared_response.protocolVersion) {
-    console.log('Error accepting offer: ', pared_response);
+
+  const parsedResponse = JSON.parse(acceptedContract);
+
+  if (!parsedResponse.protocolVersion) {
+    console.log('Error accepting offer: ', parsedResponse);
     process.exit(1);
   }
-  console.log('Contract accepted: ', pared_response);
+
+  console.log('Accepted Contract: ', parsedResponse);
 
   const signedContract = await sendAcceptedOfferToProtocolWallet(acceptedContract);
-  console.log('Contract signed: ', signedContract);
+  console.log('Signed Contract: ', signedContract);
 
   const txID = await dlcManager.countersign_and_broadcast(JSON.stringify(signedContract));
   console.log(`Broadcast funding transaction with TX ID: ${txID}`);
 
-  // wait for 3 seconds for electrs to get it's act together
-  console.log('Fetching tx details to make sure the broadcast was successful...');
-  await new Promise((resolve) => setTimeout(resolve, 3000));
-  // fetch the tx details from electrs to make sure it was broadcasted
+  const balanceAfterFunding = await checkBalance(dlcManager, '[FUNDING]', 30000);
+
+  console.log('Fetching Funding TX Details');
   const txDetails = await fetchTxDetails(txID);
   console.log('Funding TX Details: ', txDetails);
 
@@ -190,6 +211,14 @@ async function main() {
     );
     console.log('Attestation received: ', attestations);
   }
+
+  const balanceAfterClosing = await checkBalance(dlcManager, '[CLOSING]', 180000);
+
+  checkBalanceAfterClosing(
+    Number(balanceAfterFunding),
+    Number(balanceAfterClosing),
+    Number(offerResponse.acceptCollateral)
+  );
 
   const contracts = await dlcManager.get_contracts();
   console.log('Contracts: ', contracts);

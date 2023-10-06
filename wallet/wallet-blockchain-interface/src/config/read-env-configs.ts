@@ -11,10 +11,15 @@ export function getEnv(key: string): string {
 
 export default (): ConfigSet => {
     let chain = process.env.CHAIN as Chain;
+    console.log(chain);
     let version = process.env.VERSION as string;
+    console.log(version)
     let privateKey = process.env.PRIVATE_KEY as string;
+    console.log(privateKey)
     let apiKey = process.env.API_KEY as string;
+    console.log(apiKey)
     let branch = (process.env.BRANCH as string) || 'master';
+    console.log(branch)
 
     // Throw an error if one of the set is missing
     if (!chain || !version || !privateKey || !apiKey)
