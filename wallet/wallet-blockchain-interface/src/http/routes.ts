@@ -43,6 +43,7 @@ router.post('/post-close-dlc', express.json(), async (req, res) => {
     }
     const { uuid, btcTxId } = req.body;
     console.log('POST /post-close-dlc with UUID:', uuid);
+    console.log('POST /post-close-dlc BTC TX ID:', btcTxId);
     const data = await blockchainWriter.postCloseDLC(uuid as string, btcTxId as string);
     res.status(200).send(data);
 });

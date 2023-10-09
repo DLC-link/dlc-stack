@@ -147,13 +147,14 @@ services:
       # - "ELECTRUM_API_URL=https://blockstream.info/testnet/api"
       # For Bitcoin Mainnet
       # ELECTRUM_API_URL="https://blockstream.info/api"
-      - 'BITCOIN_CHECK_INTERVAL_SECONDS=60'
+      - 'BITCOIN_CHECK_INTERVAL_SECONDS=15'
       - 'BITCOIN_NETWORK=regtest'
       - 'RUST_LOG=info,dlc_protocol_wallet=debug,dlc_clients=debug,bdk=debug,dlc_manager=debug,electrs_blockchain_provider=debug,dlc_bdk_wallet=debug,esplora_async_blockchain_provider=trace'
       - 'RUST_BACKTRACE=full'
       - 'STORAGE_API_ENABLED=true'
       - 'API_KEY=asd'
       - 'CONTRACT_CLEANUP_ENABLED=false'
+      - 'STORAGE_API_ENDPOINT=http://storageapi:8100'
       - 'BLOCKCHAIN_INTERFACE_URL=http://blockchain-interface:3000'
       - 'XPRIV=${XPRIV:-tprv8ZgxMBicQKsPf84Xd96WTXpNrc83cjkhcLsscPZkykkytiuTKdoKzspDnwQKtmtYAx86rFoDqXSxeY9Y6FRAJezYqb1pTzdGyVCr6hDhw9y}'
       - 'FINGERPRINT=${FINGERPRINT:-28ed60b3}'
