@@ -10,9 +10,9 @@ services:
       POSTGRES_PASSWORD: changeme
       PGDATA: /data/postgres
     ports:
-      - "5431:5432"
+      - '5431:5432'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -22,12 +22,12 @@ services:
     hostname: storageapi
     image: 903295530547.dkr.ecr.us-east-1.amazonaws.com/storage-api:${IMAGE_TAG}
     environment:
-      RUST_LOG: "debug"
-      DATABASE_URL: "postgresql://postgres:changeme@postgresdlc:5432/postgres"
-      MIGRATE: "true"
+      RUST_LOG: 'debug'
+      DATABASE_URL: 'postgresql://postgres:changeme@postgresdlc:5432/postgres'
+      MIGRATE: 'true'
     ports:
-      - "8100:8100"
-    entrypoint: "/app/storage-api"
+      - '8100:8100'
+    entrypoint: '/app/storage-api'
     depends_on:
       postgresdlc:
         condition: service_healthy
@@ -39,15 +39,15 @@ services:
     ports:
       - 8801:8801
     environment:
-      "BRANCH": "attestor-manager"
-      "PORT": "8801"
-      "DEV_ENDPOINTS_ENABLED": "true"
-      "PRIVATE_KEY": "575bdf41f62ba26af51bc1a3a8672e3b4e6d0401bbe8649936ef41a5257f2544"
-      "STORAGE_API_ENABLED": "true"
-      "STORAGE_API_ENDPOINT": "http://storageapi:8100"
-      "CHAIN_1": "${CHAIN_1:-STACKS_MOCKNET}"
-      "VERSION_1": "${VERSION_1:-1}"
-      "API_KEY_1": "${API_KEY_1:-abcdef1234567890}"
+      'BRANCH': 'attestor-manager'
+      'PORT': '8801'
+      'DEV_ENDPOINTS_ENABLED': 'true'
+      'PRIVATE_KEY': '575bdf41f62ba26af51bc1a3a8672e3b4e6d0401bbe8649936ef41a5257f2544'
+      'STORAGE_API_ENABLED': 'true'
+      'STORAGE_API_ENDPOINT': 'http://storageapi:8100'
+      'CHAIN_1': '${CHAIN_1:-STACKS_MOCKNET}'
+      'VERSION_1': '${VERSION_1:-1}'
+      'API_KEY_1': '${API_KEY_1:-abcdef1234567890}'
     restart: on-failure
     depends_on:
       - storageapi
@@ -59,15 +59,15 @@ services:
     ports:
       - 8802:8802
     environment:
-      "BRANCH": "attestor-manager"
-      "PORT": "8802"
-      "DEV_ENDPOINTS_ENABLED": "true"
-      "PRIVATE_KEY": "12cc65bd6db57f1a53ed501d146ac0c74bef695286371979a80280a20d25cf4f"
-      "STORAGE_API_ENABLED": "true"
-      "STORAGE_API_ENDPOINT": "http://storageapi:8100"
-      "CHAIN_1": "${CHAIN_1:-STACKS_MOCKNET}"
-      "VERSION_1": "${VERSION_1:-1}"
-      "API_KEY_1": "${API_KEY_1:-abcdef1234567890}"
+      'BRANCH': 'attestor-manager'
+      'PORT': '8802'
+      'DEV_ENDPOINTS_ENABLED': 'true'
+      'PRIVATE_KEY': '12cc65bd6db57f1a53ed501d146ac0c74bef695286371979a80280a20d25cf4f'
+      'STORAGE_API_ENABLED': 'true'
+      'STORAGE_API_ENDPOINT': 'http://storageapi:8100'
+      'CHAIN_1': '${CHAIN_1:-STACKS_MOCKNET}'
+      'VERSION_1': '${VERSION_1:-1}'
+      'API_KEY_1': '${API_KEY_1:-abcdef1234567890}'
     restart: on-failure
     depends_on:
       - storageapi
@@ -79,15 +79,15 @@ services:
     ports:
       - 8803:8803
     environment:
-      "BRANCH": "attestor-manager"
-      "PORT": "8803"
-      "DEV_ENDPOINTS_ENABLED": "true"
-      "PRIVATE_KEY": "4cbf3a503ccabe3de3e8dbaa449fcf84b1f6f42c085d86030510ae00281000d4"
-      "STORAGE_API_ENABLED": "true"
-      "STORAGE_API_ENDPOINT": "http://storageapi:8100"
-      "CHAIN_1": "${CHAIN_1:-STACKS_MOCKNET}"
-      "VERSION_1": "${VERSION_1:-1}"
-      "API_KEY_1": "${API_KEY_1:-abcdef1234567890}"
+      'BRANCH': 'attestor-manager'
+      'PORT': '8803'
+      'DEV_ENDPOINTS_ENABLED': 'true'
+      'PRIVATE_KEY': '4cbf3a503ccabe3de3e8dbaa449fcf84b1f6f42c085d86030510ae00281000d4'
+      'STORAGE_API_ENABLED': 'true'
+      'STORAGE_API_ENDPOINT': 'http://storageapi:8100'
+      'CHAIN_1': '${CHAIN_1:-STACKS_MOCKNET}'
+      'VERSION_1': '${VERSION_1:-1}'
+      'API_KEY_1': '${API_KEY_1:-abcdef1234567890}'
     restart: on-failure
     depends_on:
       - storageapi
@@ -99,8 +99,8 @@ services:
     ports:
       - 3000:3000
     environment:
-      - "PORT=3000"
-      - "TEST_MODE_ENABLED=true"
+      - 'PORT=3000'
+      - 'TEST_MODE_ENABLED=true'
     depends_on:
       - dlc-link-attestor-1
       - dlc-link-attestor-2
@@ -115,25 +115,25 @@ services:
       - 8085:8085
     environment:
       # For Internal DLC.Link Bitcoin Mocknet
-      - "ELECTRUM_API_URL=https://devnet.dlc.link/electrs"
+      - 'ELECTRUM_API_URL=https://devnet.dlc.link/electrs'
       # For Bitcoin Testnet
       # - "ELECTRUM_API_URL=https://blockstream.info/testnet/api"
       # For Bitcoin Mainnet
       # ELECTRUM_API_URL="https://blockstream.info/api"
-      - "BITCOIN_CHECK_INTERVAL_SECONDS=60"
-      - "BITCOIN_NETWORK=regtest"
-      - "RUST_LOG=warn,dlc_protocol_wallet=debug"
-      - "RUST_BACKTRACE=full"
-      - "STORAGE_API_ENABLED=true"
-      - "STORAGE_API_ENDPOINT=http://storageapi:8100"
-      - "CONTRACT_CLEANUP_ENABLED=false"
-      - "BLOCKCHAIN_INTERFACE_URL=http://blockchain-interface:3000"
-      - "XPRIV=${XPRIV}"
-      - "FINGERPRINT=${FINGERPRINT}"
+      - 'BITCOIN_CHECK_INTERVAL_SECONDS=15'
+      - 'BITCOIN_NETWORK=regtest'
+      - 'RUST_LOG=warn,dlc_protocol_wallet=debug'
+      - 'RUST_BACKTRACE=full'
+      - 'STORAGE_API_ENABLED=true'
+      - 'STORAGE_API_ENDPOINT=http://storageapi:8100'
+      - 'CONTRACT_CLEANUP_ENABLED=false'
+      - 'BLOCKCHAIN_INTERFACE_URL=http://blockchain-interface:3000'
+      - 'XPRIV=${XPRIV}'
+      - 'FINGERPRINT=${FINGERPRINT}'
     depends_on:
-        - postgresdlc
-        - storageapi
-        - blockchain-interface
+      - postgresdlc
+      - storageapi
+      - blockchain-interface
     restart: on-failure
     healthcheck:
       test: curl --fail http://localhost:8085/info || exit 1
