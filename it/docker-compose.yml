@@ -152,6 +152,7 @@ services:
       - ENV=docker
       - HANDLE_ATTESTORS=true
       - SUCCESSFUL_ATTESTING=true
+      - ELECTRUM_API_URL=https://devnet.dlc.link/electrs
     depends_on:
       router-wallet:
         condition: service_healthy

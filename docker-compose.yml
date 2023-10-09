@@ -182,6 +182,7 @@ services:
       - ENV=docker
       - 'HANDLE_ATTESTORS=${HANDLE_ATTESTORS:-true}'
       - 'SUCCESSFUL_ATTESTING=${SUCCESSFUL_ATTESTING:-true}'
+      - ELECTRUM_API_URL=https://devnet.dlc.link/electrs
     volumes:
       - ./it:/app/it
     depends_on:

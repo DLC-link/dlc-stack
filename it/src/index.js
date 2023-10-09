@@ -24,7 +24,6 @@ const acceptCollateral = 10000;
 async function createEvent(attestorURL, uuid) {
   try {
     const url = `${attestorURL}/create-announcement/${uuid}`;
-    console.log('Creating event at: ', url);
     const response = await fetch(url);
     const event = await response.json();
     return event;
@@ -89,21 +88,10 @@ async function checkBalance(dlcManager, action) {
   return balance;
 }
 
-function checkBalanceAfterClosing(balanceAfterFunding, balanceAfterClosing, collateralAmount) {
-  console.log('Balance after funding: ', balanceAfterFunding);
-  console.log('Balance after closing: ', balanceAfterClosing);
-  console.log('Collateral Amount: ', collateralAmount);
-  if (balanceAfterFunding + collateralAmount === balanceAfterClosing) {
-    console.log('Balance after closing matches the expected value');
-  } else {
-    console.error('Balance after closing does not match the expected value');
-    process.exit(1);
-  }
-}
-
 async function fetchTxDetails(txId) {
+  const url = `${process.env.ELECTRUM_API_URL}/tx/${txId}`;
   try {
-    const res = await fetch(`https://devnet.dlc.link/electrs/tx/${txId}`, {
+    const res = await fetch(url, {
       method: 'get',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -114,10 +102,29 @@ async function fetchTxDetails(txId) {
   }
 }
 
+async function retry(checkFunction, timeoutTime) {
+  let timeRemaining = timeoutTime;
+  while (timeRemaining) {
+    const result = await checkFunction();
+    if (result) return true;
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    timeRemaining -= 10000;
+  }
+  return false;
+}
+
+function assert(predicate, message) {
+  if (!predicate) {
+    console.error(message);
+    process.exit(1);
+  }
+}
+
 async function waitForConfirmations(blockchainHeightAtBroadcast, targetConfirmations) {
+  const url = `${process.env.ELECTRUM_API_URL}/blocks/tip/height`;
   let currentBlockchainHeight = blockchainHeightAtBroadcast;
   while (Number(currentBlockchainHeight) - Number(blockchainHeightAtBroadcast) < targetConfirmations) {
-    currentBlockchainHeight = await (await fetch('https://devnet.dlc.link/electrs/blocks/tip/height')).json();
+    currentBlockchainHeight = await (await fetch(url)).json();
     console.log(
       `Confirmations: ${Number(currentBlockchainHeight) - Number(blockchainHeightAtBroadcast)} / ${targetConfirmations}`
     );
@@ -126,21 +133,17 @@ async function waitForConfirmations(blockchainHeightAtBroadcast, targetConfirmat
   return true;
 }
 
-function checkIfContractIsInState(contractID, contracts, state) {
-  if (contracts[state].includes(contractID)) {
-    console.log(`Contract state is updated in the Router Wallet to ${state}`);
-  } else {
-    console.error(`Contract state is not updated in the Router Wallet to ${state}`);
-    process.exit(1);
+async function checkIfContractIsInState(contractID, state) {
+  const routerWalletInfo = await (await fetch(`${protocolWalletURL}/info`)).json();
+  if (routerWalletInfo.contracts[state].includes(contractID)) {
+    return true;
   }
 }
 
-async function waitForUpdate(remainingTime) {
-  while (remainingTime > 0) {
-    console.log(`Waiting for ${remainingTime / 1000} seconds...`);
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    remainingTime -= 10000;
-  }
+async function getBlockchainHeight() {
+  const url = `${process.env.ELECTRUM_API_URL}/blocks/tip/height`;
+  const currentBlockchainHeight = await (await fetch(url)).json();
+  return currentBlockchainHeight;
 }
 
 async function main() {
@@ -196,11 +199,13 @@ async function main() {
   const contractID = signedContract.contractId;
 
   //Check if the contract is in the Signed state
-  let routerWalletInfo = await (await fetch(`${protocolWalletURL}/info`)).json();
-  checkIfContractIsInState(contractID, routerWalletInfo.contracts, 'Signed');
+  assert(
+    retry(() => checkIfContractIsInState(contractID, 'Signed'), 15000),
+    `Contract state is not updated in the Router Wallet to Signed`
+  );
 
   const txID = await dlcManager.countersign_and_broadcast(JSON.stringify(signedContract));
-  let blockchainHeightAtBroadcast = await (await fetch('https://devnet.dlc.link/electrs/blocks/tip/height')).json();
+  let blockchainHeightAtBroadcast = await getBlockchainHeight();
   console.log(`Broadcast funding transaction with TX ID: ${txID}`);
 
   //Fetching Funding TX Details to check if the broadcast was successful
@@ -214,18 +219,17 @@ async function main() {
   }
 
   //Check if the contract is in the Confirmed state
-  await waitForUpdate(15000);
-  routerWalletInfo = await (await fetch(`${protocolWalletURL}/info`)).json();
-  checkIfContractIsInState(contractID, routerWalletInfo.contracts, 'Confirmed');
+  assert(
+    retry(() => checkIfContractIsInState(contractID, 'Confirmed'), 15000),
+    `Contract state is not updated in the Router Wallet to Confirmed`
+  );
 
   //Check if the balance decreased after broadcasting the funding transaction
   const balanceAfterFunding = await checkBalance(dlcManager, '[CONTRACT CONFIRMED]');
-  if (Number(balanceAfterFunding) < Number(startingBalance)) {
-    console.log('BTC Balance decreased after broadcasting Funding TX');
-  } else {
-    console.log('BTC Balance did not decrease after broadcasting Funding TX');
-    process.exit(1);
-  }
+  assert(
+    Number(balanceAfterFunding) < Number(startingBalance),
+    'BTC Balance did not decrease after broadcasting Funding TX'
+  );
 
   //Attesting to Events
   if (handleAttestors) {
@@ -247,25 +251,31 @@ async function main() {
   }
 
   //Check if the contract is in the PreClosed state
-  await waitForUpdate(15000);
-  routerWalletInfo = await (await fetch(`${protocolWalletURL}/info`)).json();
-  checkIfContractIsInState(contractID, routerWalletInfo.contracts, 'PreClosed');
+  assert(
+    retry(() => checkIfContractIsInState(contractID, 'PreClosed'), 15000),
+    `Contract state is not updated in the Router Wallet to PreClosed`
+  );
 
   //Waiting for funding transaction confirmations
-  blockchainHeightAtBroadcast = await (await fetch('https://devnet.dlc.link/electrs/blocks/tip/height')).json();
+  blockchainHeightAtBroadcast = await getBlockchainHeight();
   const confirmedClosingTransaction = await waitForConfirmations(blockchainHeightAtBroadcast, 6);
   if (confirmedClosingTransaction) {
     console.log('Closing transaction confirmed');
   }
 
   //Check if the contract is in the Closed state
-  routerWalletInfo = await (await fetch(`${protocolWalletURL}/info`)).json();
-  checkIfContractIsInState(contractID, routerWalletInfo.contracts, 'Closed');
+  assert(
+    retry(() => checkIfContractIsInState(contractID, 'Closed'), 15000),
+    `Contract state is not updated in the Router Wallet to Closed`
+  );
 
   //Check if the balance increased after closing the contract
-  checkBalance(dlcManager, '[CONTRACT CLOSED]').then((balanceAfterClosing) =>
-    checkBalanceAfterClosing(Number(balanceAfterFunding), Number(balanceAfterClosing), Number(acceptCollateral))
-  );
+  checkBalance(dlcManager, '[CONTRACT CLOSED]').then((balanceAfterClosing) => {
+    assert(
+      Number(balanceAfterFunding) + Number(acceptCollateral) === Number(balanceAfterClosing),
+      'Balance after closing does not match the expected value'
+    );
+  });
 }
 
 main();
