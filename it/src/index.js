@@ -107,8 +107,8 @@ async function retry(checkFunction, timeoutTime) {
   while (timeRemaining) {
     const result = await checkFunction();
     if (result) return true;
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    timeRemaining -= 10000;
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    timeRemaining -= 2000;
   }
   return false;
 }
@@ -135,9 +135,7 @@ async function waitForConfirmations(blockchainHeightAtBroadcast, targetConfirmat
 
 async function checkIfContractIsInState(contractID, state) {
   const routerWalletInfo = await (await fetch(`${protocolWalletURL}/info`)).json();
-  if (routerWalletInfo.contracts[state].includes(contractID)) {
-    return true;
-  }
+  return routerWalletInfo.contracts[state].includes(contractID);
 }
 
 async function getBlockchainHeight() {
