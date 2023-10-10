@@ -183,7 +183,6 @@ jobs:
             exit_code=$(echo $status | awk '{print $2}' | tr -d '()')
 
             echo "Debug: status = $status"
-            echo "Debug: exit_code = $exit_code"
 
             if [[ "$status" =~ "Exited" ]]; then
               if [[ "$exit_code" == "0" ]]; then

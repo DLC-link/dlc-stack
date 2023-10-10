@@ -198,7 +198,7 @@ async function main() {
 
   //Check if the contract is in the Signed state
   assert(
-    retry(() => checkIfContractIsInState(contractID, 'Signed'), 15000),
+    retry(async () => checkIfContractIsInState(contractID, 'Signed'), 15000),
     `Contract state is not updated in the Router Wallet to Signed`
   );
 
@@ -218,7 +218,7 @@ async function main() {
 
   //Check if the contract is in the Confirmed state
   assert(
-    retry(() => checkIfContractIsInState(contractID, 'Confirmed'), 15000),
+    retry(async () => checkIfContractIsInState(contractID, 'Confirmed'), 15000),
     `Contract state is not updated in the Router Wallet to Confirmed`
   );
 
@@ -250,7 +250,7 @@ async function main() {
 
   //Check if the contract is in the PreClosed state
   assert(
-    retry(() => checkIfContractIsInState(contractID, 'PreClosed'), 15000),
+    retry(async () => checkIfContractIsInState(contractID, 'PreClosed'), 15000),
     `Contract state is not updated in the Router Wallet to PreClosed`
   );
 
@@ -263,7 +263,7 @@ async function main() {
 
   //Check if the contract is in the Closed state
   assert(
-    retry(() => checkIfContractIsInState(contractID, 'Closed'), 15000),
+    retry(async () => checkIfContractIsInState(contractID, 'Closed'), 15000),
     `Contract state is not updated in the Router Wallet to Closed`
   );
 
@@ -274,6 +274,8 @@ async function main() {
       'Balance after closing does not match the expected value'
     );
   });
+
+  process.exit(0);
 }
 
 main();
