@@ -183,7 +183,7 @@ impl EsploraAsyncBlockchainProviderJsWallet {
         let address = Address::from_str(&address).map_err(|e| {
             Error::BlockchainError(format!("Invalid Address format: {}", e.to_string()))
         })?;
-        let mut new_utxos = fetched_utxos
+        let new_utxos = fetched_utxos
             .into_iter()
             .map(|x| match x.txid.parse::<bitcoin::Txid>() {
                 Ok(id) => Ok(Utxo {
@@ -245,14 +245,10 @@ impl EsploraAsyncBlockchainProviderJsWallet {
                 }
             };
             stored_utxos.clear();
-            stored_utxos.append(&mut new_utxos);
+            stored_utxos.extend(new_utxos.clone());
         };
-        //Here, perhaps I could close off all the borrow_muts of the ref_cells and unlock the mutex, and then only lock it again outside of the awaits
 
         debug!("fetching raw txs from chain");
-
-        // let mut outpoints_and_confirmations: Vec<(OutPoint, u32)> = vec![];
-        //here rather just loop over the utxos from the local var. so no need to lock the chain_data
         for utxo in new_utxos {
             let txid = utxo.outpoint.txid.to_string();
             trace!("fetching tx {}", txid);
