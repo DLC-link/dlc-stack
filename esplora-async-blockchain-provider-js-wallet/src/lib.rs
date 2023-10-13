@@ -77,10 +77,8 @@ impl PartialEq for ChainCacheData {
         let borrowed_utxos2 = other.utxos.borrow();
         let utxos2 = borrowed_utxos2
             .as_ref()
-            .expect("To be able to get the reference to the utxos in a comparison");
-        let check_1 = utxos1.len() == utxos2.len();
-        // utxos1.iter().all(|utxo| utxos2.contains(utxo)) // Could do this if dlc_manager from rust-dlc supported partial eq
-
+            .expect("To be able to get the reference to the utxos for a comparison");
+        let check_1 = utxos1.iter().all(|utxo| utxos2.contains(utxo));
         let check_2 = self.txs == other.txs;
         let check_3 = self.height == other.height;
         check_1 && check_2 && check_3
@@ -424,8 +422,6 @@ mod tests {
         let provider = get_esplora_provider_for_js_wallet();
         assert_eq!("esplora_url", provider.host);
         assert_eq!(bitcoin::Network::Regtest, provider.network);
-        // let thing = provider.chain_data.lock().unwrap();
-        // assert_eq!(thing.utxos, Vec<Ut
         let chain_data = provider
             .chain_data
             .lock()

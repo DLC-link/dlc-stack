@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 base64 = "0.13.1"
 dlc-link-manager = { path = "../dlc-link-manager" }
-dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", rev= "c066a99", features = ["use-serde"] }
+dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", rev= "bd71461", features = ["use-serde"] }
 log = "0.4.17"
 reqwest = { version = "0.11.13", features = ["blocking", "json"]}
 serde = {version = "*", features = ["derive"]}

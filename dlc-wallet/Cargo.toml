@@ -7,8 +7,8 @@ version = "0.1.0"
 
 [dependencies]
 bitcoin = "0.29"
-dlc = { git = "https://github.com/dlc-link/rust-dlc", rev= "c066a99", features = ["use-serde"] }
-dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", rev= "c066a99", features = ["use-serde"] }
+dlc = { git = "https://github.com/dlc-link/rust-dlc", rev= "bd71461", features = ["use-serde"] }
+dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", rev= "bd71461", features = ["use-serde"] }
 lightning = {version = "0.0.113"}
 log = "0.4.17"
 secp256k1-zkp = {version = "0.7.0"}
