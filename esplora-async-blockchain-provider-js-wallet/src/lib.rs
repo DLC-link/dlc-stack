@@ -61,16 +61,10 @@ pub struct EsploraAsyncBlockchainProviderJsWallet {
     network: Network,
 }
 
-#[derive(PartialEq, Debug)]
-pub struct TxRawWithConf {
-    pub raw_tx: Transaction,
-    pub confirmations: u32,
-}
-
 #[derive(Debug)]
 struct ChainCacheData {
     utxos: RefCell<Option<Vec<Utxo>>>,
-    txs: RefCell<Option<HashMap<String, TxRawWithConf>>>,
+    txs: RefCell<Option<HashMap<String, Transaction>>>,
     height: RefCell<Option<u64>>,
 }
 
@@ -262,27 +256,10 @@ impl EsploraAsyncBlockchainProviderJsWallet {
         for utxo in new_utxos {
             let txid = utxo.outpoint.txid.to_string();
             trace!("fetching tx {}", txid);
-            let raw_tx = self.get_bytes(&format!("tx/{}/raw", txid)).await?; // THis can be bad data, because we aren't checking that the get comes back with a 200. should check if it's is-error
+            let raw_tx = self.get_bytes(&format!("tx/{}/raw", txid)).await?;
             let tx = Transaction::consensus_decode(&mut std::io::Cursor::new(&*raw_tx))
                 .map_err(|e| Error::BlockchainError(e.to_string()))?;
 
-            let tx_status = self
-                .get_from_json::<TxStatus>(&format!("tx/{txid}/status"))
-                .await?;
-            //Well i guess we no longer need confimrations here if they're all fetched with the async function
-            let confirmations = match tx_status.confirmed {
-                true => {
-                    if let Some(block_height) = tx_status.block_height {
-                        (height - block_height as u64 + 1) as u32
-                    } else {
-                        warn!("tx {} has no block height", txid);
-                        0
-                    }
-                }
-                false => 0,
-            };
-
-            // outpoints_and_confirmations.push((utxo.outpoint, confirmations));
             let local_cdata = self.chain_data.lock().map_err(|e| {
                 Error::BlockchainError(format!(
                     "Error getting lock on mutex for chain_data: {}",
@@ -291,13 +268,7 @@ impl EsploraAsyncBlockchainProviderJsWallet {
             })?;
             match local_cdata.txs.borrow_mut().as_mut() {
                 Some(txs) => {
-                    txs.insert(
-                        txid,
-                        TxRawWithConf {
-                            raw_tx: tx.clone(),
-                            confirmations, // set this for real
-                        },
-                    );
+                    txs.insert(txid, tx.clone());
                 }
                 None => {
                     return Err(Error::BlockchainError(
@@ -405,7 +376,7 @@ impl Blockchain for EsploraAsyncBlockchainProviderJsWallet {
             )),
         };
         match raw_txs?.get(&tx_id.to_string()) {
-            Some(x) => Ok(x.raw_tx.clone()),
+            Some(x) => Ok(x.clone()),
             None => Err(Error::BlockchainError(format!("tx not found {}", tx_id))),
         }
     }
