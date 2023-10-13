@@ -198,7 +198,6 @@ impl JsDLCInterface {
         // Set up time provider
         let time_provider = SystemTimeProvider {};
 
-        // if manager is already a mutex, do the things inside blockchain also have to be? could i just remove the refcell's there?
         // Create the DLC Manager
         let manager = Arc::new(Mutex::new(Manager::new(
             Arc::clone(&wallet),
