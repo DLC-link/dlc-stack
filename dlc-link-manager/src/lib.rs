@@ -177,8 +177,8 @@ where
     }
 
     #[doc(hidden)]
-    pub fn get_mut_store(&mut self) -> &mut S {
-        &mut self.store
+    pub fn get_mut_store(&self) -> &S {
+        &self.store
     }
 
     /// Function called to pass a DlcMessage to the Manager.
@@ -267,7 +267,7 @@ where
 
     /// Function to call to accept a DLC for which an offer was received.
     pub async fn accept_contract_offer(
-        &mut self,
+        &self,
         contract_id: &ContractId,
     ) -> Result<(ContractId, PublicKey, AcceptDlc), Error> {
         let offered_contract =
