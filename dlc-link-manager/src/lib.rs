@@ -94,7 +94,7 @@ where
     O::Target: AsyncOracle,
     T::Target: Time,
 {
-    oracles: HashMap<XOnlyPublicKey, O>,
+    oracles: Option<HashMap<XOnlyPublicKey, O>>,
     wallet: W,
     blockchain: B,
     store: S,
@@ -158,7 +158,7 @@ where
         wallet: W,
         blockchain: B,
         store: S,
-        oracles: HashMap<XOnlyPublicKey, O>,
+        oracles: Option<HashMap<XOnlyPublicKey, O>>,
         time: T,
     ) -> Result<Self, Error> {
         Ok(Manager {
@@ -227,7 +227,8 @@ where
                     .iter()
                     .map(|pubkey| {
                         self.oracles
-                            .get(pubkey)
+                            .as_ref()
+                            .and_then(|oracles| oracles.get(pubkey))
                             .ok_or_else(|| {
                                 Error::InvalidParameters("Unknown oracle public key".to_string())
                             })
@@ -532,7 +533,12 @@ where
             if announcements.len() >= contract_info.threshold {
                 let attestations: Vec<_> = futures::future::join_all(announcements.iter().map(
                     |(i, announcement)| async move {
-                        let oracle = self.oracles.get(&announcement.oracle_public_key).unwrap();
+                        let oracle = self
+                            .oracles
+                            .as_ref()
+                            .and_then(|oracles| oracles.get(&announcement.oracle_public_key))
+                            .ok_or_else(|| Error::OracleError("Oracle not found".to_string()))
+                            .unwrap();
                         (
                             *i,
                             oracle

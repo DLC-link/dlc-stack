@@ -116,7 +116,6 @@ pub struct JsDLCInterface {
 // #[wasm_bindgen]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JsDLCInterfaceOptions {
-    attestor_urls: String,
     network: String,
     electrs_url: String,
     address: String,
@@ -126,7 +125,6 @@ impl Default for JsDLCInterfaceOptions {
     // Default values for Manager Options
     fn default() -> Self {
         Self {
-            attestor_urls: "https://devnet.dlc.link/oracle".to_string(),
             network: "regtest".to_string(),
             electrs_url: "https://devnet.dlc.link/electrs".to_string(),
             address: "".to_string(),
@@ -148,12 +146,10 @@ impl JsDLCInterface {
         address: String,
         network: String,
         electrs_url: String,
-        attestor_urls: String,
     ) -> Result<JsDLCInterface, JsError> {
         console_error_panic_hook::set_once();
 
         let options = JsDLCInterfaceOptions {
-            attestor_urls,
             network,
             electrs_url,
             address,
@@ -189,15 +185,6 @@ impl JsDLCInterface {
             PrivateKey::new(seckey, active_network),
         ));
 
-        // Set up Oracle Clients
-        let attestor_urls_vec: Vec<String> =
-            match serde_json::from_str(&options.attestor_urls.clone()) {
-                Ok(vec) => vec,
-                Err(e) => return Err(JsError::new(&format!("Error parsing attestor urls: {}", e))),
-            };
-
-        let attestors = generate_attestor_client(attestor_urls_vec).await?;
-
         // Set up time provider
         let time_provider = SystemTimeProvider {};
 
@@ -206,7 +193,7 @@ impl JsDLCInterface {
             Arc::clone(&wallet),
             Arc::clone(&blockchain),
             Box::new(dlc_store),
-            attestors,
+            None,
             Arc::new(time_provider),
         )?));
 

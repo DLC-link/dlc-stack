@@ -363,7 +363,7 @@ async fn main() -> Result<(), GenericError> {
         Arc::clone(&wallet),
         Arc::clone(&blockchain),
         dlc_store.clone(),
-        protocol_wallet_attestors.clone(),
+        Some(protocol_wallet_attestors),
         Arc::new(time_provider),
     )?);
 

@@ -169,8 +169,7 @@ async function main() {
     testWalletPrivateKey,
     testWalletAddress,
     bitcoinNetwork,
-    bitcoinNetworkURL,
-    JSON.stringify(attestorList)
+    bitcoinNetworkURL
   );
 
   //Checking Balance
