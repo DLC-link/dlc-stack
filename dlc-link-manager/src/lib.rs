@@ -19,10 +19,9 @@ use crate::dlc_manager::{Blockchain, Time, Wallet};
 use bitcoin::{Address, Transaction, Txid};
 
 use dlc_manager::ContractId;
-use dlc_messages::oracle_msgs::{self, OracleAnnouncement, OracleAttestation};
+use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
 use dlc_messages::{AcceptDlc, Message as DlcMessage, OfferDlc, SignDlc};
 
-use futures::StreamExt;
 use log::*;
 use secp256k1_zkp::XOnlyPublicKey;
 use secp256k1_zkp::{All, PublicKey, Secp256k1};
@@ -477,14 +476,10 @@ where
                         .contract_info
                         .get(0)
                         .and_then(|info| info.oracle_announcements.get(0))
-                        .map(|announcement| announcement.oracle_event.event_id.clone());
+                        .map(|announcement| announcement.oracle_event.event_id.clone())
+                        .ok_or(Error::InvalidState("Missing oracle event ID".to_string()))?;
 
-                    match oracle_event_id {
-                        Some(event_id) => contracts_to_confirm.push((contract_id, event_id)),
-                        None => {
-                            return Err(Error::InvalidState("Missing oracle event ID".to_string()))
-                        }
-                    }
+                    contracts_to_confirm.push((contract_id, oracle_event_id));
                 }
                 Ok(false) => (),
                 Err(e) => error!(
@@ -521,14 +516,10 @@ where
                         .contract_info
                         .get(0)
                         .and_then(|info| info.oracle_announcements.get(0))
-                        .map(|announcement| announcement.oracle_event.event_id.clone());
+                        .map(|announcement| announcement.oracle_event.event_id.clone())
+                        .ok_or(Error::InvalidState("Missing oracle event ID".to_string()))?;
 
-                    match oracle_event_id {
-                        Some(event_id) => contracts_to_close.push((contract_id, event_id)),
-                        None => {
-                            return Err(Error::InvalidState("Missing oracle event ID".to_string()))
-                        }
-                    }
+                    contracts_to_close.push((contract_id, oracle_event_id));
                 }
                 Ok(false) => (),
             }
@@ -650,14 +641,10 @@ where
                         .contract_info
                         .get(0)
                         .and_then(|info| info.oracle_announcements.get(0))
-                        .map(|announcement| announcement.oracle_event.event_id.clone());
+                        .map(|announcement| announcement.oracle_event.event_id.clone())
+                        .ok_or(Error::InvalidState("Missing oracle event ID".to_string()))?;
 
-                    match oracle_event_id {
-                        Some(event_id) => contracts_to_close.push((contract_id, event_id)),
-                        None => {
-                            return Err(Error::InvalidState("Missing oracle event ID".to_string()))
-                        }
-                    }
+                    contracts_to_close.push((contract_id, oracle_event_id));
                 }
                 Ok(false) => (),
                 Err(e) => error!(
