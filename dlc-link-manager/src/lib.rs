@@ -1,4 +1,7 @@
 #![feature(async_fn_in_trait)]
+#![deny(clippy::unwrap_used)]
+#![deny(unused_mut)]
+#![deny(dead_code)]
 //! #Manager a component to create and update DLCs.
 
 extern crate dlc_manager;
@@ -16,9 +19,10 @@ use crate::dlc_manager::{Blockchain, Time, Wallet};
 use bitcoin::{Address, Transaction, Txid};
 
 use dlc_manager::ContractId;
-use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
+use dlc_messages::oracle_msgs::{self, OracleAnnouncement, OracleAttestation};
 use dlc_messages::{AcceptDlc, Message as DlcMessage, OfferDlc, SignDlc};
 
+use futures::StreamExt;
 use log::*;
 use secp256k1_zkp::XOnlyPublicKey;
 use secp256k1_zkp::{All, PublicKey, Secp256k1};
@@ -208,6 +212,16 @@ where
         contract_input: &ContractInput,
         counter_party: PublicKey,
     ) -> Result<OfferDlc, Error> {
+        let manager_oracles = match &self.oracles {
+            // Oracles is now an optional field, so check here before continuing.
+            Some(oracles) => oracles,
+            None => {
+                return Err(Error::InvalidParameters(
+                    "Manager instantiated without oracles, send_offer function not supported"
+                        .to_string(),
+                ));
+            }
+        };
         contract_input.validate()?;
 
         // let contract_infos = &contract_input.contract_infos;
@@ -215,7 +229,9 @@ where
         let event_id = &contract_input
             .contract_infos
             .first()
-            .unwrap()
+            .ok_or(Error::InvalidParameters(
+                "Contract Input Info missing".to_string(),
+            ))?
             .oracles
             .event_id;
         let oracle_set: Vec<Vec<&O>> = contract_input
@@ -225,18 +241,15 @@ where
                 x.oracles
                     .public_keys
                     .iter()
-                    .map(|pubkey| {
-                        self.oracles
-                            .as_ref()
-                            .and_then(|oracles| oracles.get(pubkey))
-                            .ok_or_else(|| {
-                                Error::InvalidParameters("Unknown oracle public key".to_string())
-                            })
-                            .unwrap()
+                    .map(|pubkey| match manager_oracles.get(pubkey) {
+                        Some(x) => Ok(x),
+                        None => Err(Error::InvalidParameters(
+                            "Unknown oracle public key".to_string(),
+                        )),
                     })
-                    .collect::<Vec<&O>>()
+                    .collect::<Result<Vec<&O>, Error>>()
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<Vec<&O>>, Error>>()?;
 
         let mut oracle_announcements = Vec::new();
 
