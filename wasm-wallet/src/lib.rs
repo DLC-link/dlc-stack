@@ -19,7 +19,7 @@ use secp256k1_zkp::Secp256k1;
 
 use core::panic;
 use std::fmt;
-use std::{collections::HashMap, io::Cursor, str::FromStr, sync::Arc};
+use std::{io::Cursor, str::FromStr, sync::Arc};
 
 use dlc_manager::{contract::Contract, ContractId, SystemTimeProvider};
 
