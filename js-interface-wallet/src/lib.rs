@@ -1,4 +1,6 @@
-use std::{cell::RefCell, str::FromStr};
+#![deny(clippy::unwrap_used)]
+#![deny(unused_mut)]
+#![deny(dead_code)]
 
 use bdk::{
     database::{AnyDatabase, MemoryDatabase},
@@ -9,6 +11,7 @@ use bitcoin::{hashes::Hash, Address, PrivateKey, Script, Txid};
 use dlc_manager::{error::Error, Blockchain, Signer, Utxo, Wallet};
 use lightning::chain::chaininterface::FeeEstimator;
 use secp256k1_zkp::{All, PublicKey, Secp256k1, SecretKey};
+use std::{str::FromStr, sync::RwLock};
 type Result<T> = core::result::Result<T, Error>;
 
 /// Trait providing blockchain information to the wallet.
@@ -21,34 +24,26 @@ pub struct JSInterfaceWallet {
     address: Address,
     secp_ctx: Secp256k1<All>,
     seckey: SecretKey,
-    utxos: RefCell<Option<Vec<Utxo>>>,
+    utxos: RwLock<Vec<Utxo>>,
 }
 
 impl JSInterfaceWallet {
     pub fn new(address_str: String, privkey: PrivateKey) -> Self {
         Self {
-            address: Address::from_str(&address_str).unwrap(),
+            address: Address::from_str(&address_str).expect("A valid address for the DLC library"),
             secp_ctx: Secp256k1::new(),
             seckey: privkey.inner,
-            utxos: Some(vec![]).into(),
+            utxos: RwLock::new(vec![]),
         }
     }
 
     pub fn set_utxos(&self, mut utxos: Vec<Utxo>) -> Result<()> {
-        self.utxos.borrow_mut().as_mut().unwrap().clear();
-        self.utxos.borrow_mut().as_mut().unwrap().append(&mut utxos);
+        let mut utxos_ref = self.utxos.write().map_err(|_e| {
+            Error::WalletError("Unable to get write lock for DLC JSInterfaceWallet UTXOs".into())
+        })?;
+        utxos_ref.clear();
+        utxos_ref.append(&mut utxos);
         Ok(())
-    }
-
-    // Returns the sum of all UTXOs value.
-    pub fn get_balance(&self) -> u64 {
-        self.utxos
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|x| x.tx_out.value)
-            .sum()
     }
 }
 
@@ -94,10 +89,18 @@ impl Wallet for JSInterfaceWallet {
         let dummy_pubkey: PublicKey =
             "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
                 .parse()
-                .unwrap();
+                .expect("the static string to parse to a key");
         let dummy_drain =
             Script::new_v0_p2wpkh(&bitcoin::WPubkeyHash::hash(&dummy_pubkey.serialize()));
-        let org_utxos = self.utxos.borrow().as_ref().unwrap().clone();
+        let org_utxos = self
+            .utxos
+            .read()
+            .map_err(|_e| {
+                Error::WalletError(
+                    "Unable to get write lock for DLC JSInterfaceWallet UTXOs".into(),
+                )
+            })?
+            .clone();
         let utxos = org_utxos
             .iter()
             .filter(|x| !x.reserved)

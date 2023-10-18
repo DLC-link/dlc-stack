@@ -751,7 +751,7 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/dlc-link/rust-dlc?rev=c066a99#c066a997dd37d3b446576980c0d30272e7875d84"
+source = "git+https://github.com/dlc-link/rust-dlc?rev=bd71461#bd71461b137eb402a13d4f3affd555d0b79ae233"
 dependencies = [
  "bitcoin 0.29.2",
  "miniscript 9.0.2",
@@ -795,7 +795,7 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/dlc-link/rust-dlc?rev=c066a99#c066a997dd37d3b446576980c0d30272e7875d84"
+source = "git+https://github.com/dlc-link/rust-dlc?rev=bd71461#bd71461b137eb402a13d4f3affd555d0b79ae233"
 dependencies = [
  "async-trait",
  "bitcoin 0.29.2",
@@ -811,7 +811,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/dlc-link/rust-dlc?rev=c066a99#c066a997dd37d3b446576980c0d30272e7875d84"
+source = "git+https://github.com/dlc-link/rust-dlc?rev=bd71461#bd71461b137eb402a13d4f3affd555d0b79ae233"
 dependencies = [
  "bitcoin 0.29.2",
  "dlc",
@@ -925,6 +925,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "tokio",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -933,7 +934,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/dlc-link/rust-dlc?rev=c066a99#c066a997dd37d3b446576980c0d30272e7875d84"
+source = "git+https://github.com/dlc-link/rust-dlc?rev=bd71461#bd71461b137eb402a13d4f3affd555d0b79ae233"
 dependencies = [
  "bitcoin 0.29.2",
  "dlc",
