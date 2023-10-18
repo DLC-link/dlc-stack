@@ -1,10 +1,13 @@
 #![feature(async_fn_in_trait)]
 #![allow(unreachable_code)]
+#![deny(clippy::unwrap_used)]
+#![deny(unused_mut)]
+#![deny(dead_code)]
+
 extern crate console_error_panic_hook;
 extern crate log;
 
-use bitcoin::{Network, PrivateKey, XOnlyPublicKey};
-use dlc_link_manager::AsyncOracle;
+use bitcoin::{Network, PrivateKey};
 use dlc_messages::{Message, OfferDlc, SignDlc};
 use secp256k1_zkp::UpstreamError;
 use wasm_bindgen::prelude::*;
@@ -44,28 +47,6 @@ impl fmt::Display for WalletError {
     }
 }
 impl std::error::Error for WalletError {}
-
-async fn generate_attestor_client(
-    attestor_urls: Vec<String>,
-) -> Result<HashMap<XOnlyPublicKey, Arc<AttestorClient>>, JsError> {
-    let mut attestor_clients = HashMap::new();
-
-    for url in attestor_urls.iter() {
-        let p2p_client = match AttestorClient::new(url).await {
-            Ok(client) => client,
-            Err(e) => {
-                return Err(JsError::new(&format!(
-                    "Error creating attestor client: {}",
-                    e
-                )))
-            }
-        };
-        let attestor = Arc::new(p2p_client);
-        attestor_clients.insert(attestor.get_public_key().await, attestor.clone());
-    }
-
-    Ok(attestor_clients)
-}
 
 type DlcManager = Manager<
     Arc<JSInterfaceWallet>,
@@ -395,7 +376,7 @@ struct JsContract {
 // implement the from_contract method for JsContract
 impl JsContract {
     fn from_contract(contract: Contract) -> Result<JsContract, WalletError> {
-        let state = match contract.clone() {
+        let state = match contract {
             Contract::Offered(_) => "Offered",
             Contract::Accepted(_) => "Accepted",
             Contract::Signed(_) => "Signed",
