@@ -52,10 +52,9 @@ impl Attestor {
         secret_key: String,
     ) -> Attestor {
         clog!(
-            "[WASM-ATTESTOR]: Creating new attestor with storage_api_enabled: {}, storage_api_endpoint: {}, secret_key: {:?}",
+            "[WASM-ATTESTOR]: Creating new attestor with storage_api_enabled: {}, storage_api_endpoint: {}",
             storage_api_enabled,
-            storage_api_endpoint,
-            secret_key
+            storage_api_endpoint
         );
 
         let secp = Secp256k1::new();
