@@ -4,12 +4,9 @@ use dlc_clients::{
     EventRequestParams, EventsRequestParams, MemoryApiClient, NewEvent, StorageApiClient,
     UpdateEvent,
 };
-// use log::info;
 
 extern crate futures;
-// extern crate tokio;
 
-// A macro to provide `println!(..)`-style syntax for `console.log` logging.
 macro_rules! clog {
   ( $( $t:tt )* ) => {
       web_sys::console::log_1(&format!( $( $t )* ).into())

@@ -3,7 +3,7 @@ FROM rust:1.70 AS build
 COPY ./storage /app/storage-api/
 
 WORKDIR /app/storage-api/api/
-RUN rustup override set nightly-2023-03-31
+RUN rustup override set nightly-2023-10-23
 RUN cargo build --release --bin storage-api
 
 FROM debian:bullseye-slim AS dlc-link-stack

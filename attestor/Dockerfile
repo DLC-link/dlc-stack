@@ -20,7 +20,7 @@ COPY ./attestor/Cargo.toml /app/attestor/Cargo.toml
 
 WORKDIR /app/attestor
 
-RUN rustup override set nightly
+RUN rustup override set nightly-2023-10-23
 RUN sudo chown -R circleci:circleci /app/attestor
 RUN wasm-pack build --target bundler .
 

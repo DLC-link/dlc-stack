@@ -20,7 +20,7 @@ COPY ./it/ /app/it
 
 WORKDIR /app
 
-RUN rustup override set nightly
+RUN rustup override set nightly-2023-10-23
 RUN sudo chown -R circleci:circleci /app
 RUN wasm-pack build --target bundler /app/wasm-wallet
 
