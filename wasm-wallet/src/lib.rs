@@ -173,14 +173,6 @@ impl JsDLCInterface {
             Arc::new(time_provider),
         )?;
 
-        match blockchain.refresh_chain_data(options.address.clone()).await {
-            Ok(_) => (),
-            Err(e) => {
-                log_to_console!("Error refreshing chain data: {}", e);
-            }
-        };
-        log_to_console!("options :{:?}", options);
-
         Ok(JsDLCInterface {
             options,
             manager,
@@ -194,7 +186,6 @@ impl JsDLCInterface {
     }
 
     pub async fn get_wallet_balance(&self) -> Result<u64, JsError> {
-        log_to_console!("get_wallet_balance");
         match self
             .blockchain
             .refresh_chain_data(self.options.address.clone())

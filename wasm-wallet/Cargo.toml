@@ -3,7 +3,7 @@
 [package]
 edition = "2021"
 name = "dlc-tools"
-version = "1.0.2"
+version = "1.0.3"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
