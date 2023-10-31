@@ -186,29 +186,21 @@ impl JsDLCInterface {
     }
 
     pub async fn get_wallet_balance(&self) -> Result<u64, JsError> {
-        match self
-            .blockchain
+        self.blockchain
             .refresh_chain_data(self.options.address.clone())
             .await
-        {
-            Ok(_) => (),
-            Err(e) => {
-                log_to_console!("Error refreshing chain data: {}", e);
-            }
-        };
-        match self.wallet.set_utxos(self.blockchain.get_utxos()?) {
-            Ok(_) => (),
-            Err(e) => {
-                log_to_console!("Error setting utxos: {}", e);
-            }
-        };
-        match self.blockchain.get_balance().await {
-            Ok(balance) => Ok(balance),
-            Err(e) => {
-                log_to_console!("Error getting balance: {}", e);
-                Ok(0)
-            }
-        }
+            .map_err(|_e| JsError::new("Error refreshing chain data, please try again later!"))?;
+
+        self.wallet.set_utxos(
+            self.blockchain
+                .get_utxos()
+                .map_err(|_e| JsError::new("Error setting utxos, please try again later!"))?,
+        )?;
+
+        self.blockchain
+            .get_balance()
+            .await
+            .map_err(|_e| JsError::new("Error getting bitcoin balance, please try again later!"))
     }
 
     // public async function for fetching all the contracts on the manager
