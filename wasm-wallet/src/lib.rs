@@ -189,18 +189,21 @@ impl JsDLCInterface {
         self.blockchain
             .refresh_chain_data(self.options.address.clone())
             .await
-            .map_err(|_e| JsError::new("Error refreshing chain data, please try again later!"))?;
+            .map_err(|_e| {
+                JsError::new(
+                    "Failed to communicate with the Bitcoin blockchain. Please try again later!",
+                )
+            })?;
 
         self.wallet.set_utxos(
             self.blockchain
                 .get_utxos()
-                .map_err(|_e| JsError::new("Error setting utxos, please try again later!"))?,
+                .map_err(|_e| JsError::new("Failed to set UTXOs. Please try again later!"))?,
         )?;
 
-        self.blockchain
-            .get_balance()
-            .await
-            .map_err(|_e| JsError::new("Error getting bitcoin balance, please try again later!"))
+        self.blockchain.get_balance().await.map_err(|_e| {
+            JsError::new("Failed to retrieve the Bitcoin balance. Please try again later!")
+        })
     }
 
     // public async function for fetching all the contracts on the manager
