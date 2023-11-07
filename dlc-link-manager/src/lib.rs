@@ -282,7 +282,7 @@ where
     pub async fn accept_contract_offer(
         &self,
         contract_id: &ContractId,
-    ) -> Result<(ContractId, PublicKey, AcceptDlc), Error> {
+    ) -> Result<(ContractId, PublicKey, AcceptDlc, Transaction), Error> {
         let offered_contract =
             get_contract_in_state!(self, contract_id, Offered, None as Option<PublicKey>)?;
 
@@ -303,10 +303,15 @@ where
         let contract_id = accepted_contract.get_contract_id();
 
         self.store
-            .update_contract(&Contract::Accepted(accepted_contract))
+            .update_contract(&Contract::Accepted(accepted_contract.clone()))
             .await?;
 
-        Ok((contract_id, counter_party, accept_msg))
+        Ok((
+            contract_id,
+            counter_party,
+            accept_msg,
+            accepted_contract.dlc_transactions.fund,
+        ))
     }
 
     /// Function to call to check the state of the currently executing DLCs and

@@ -245,32 +245,29 @@ impl JsDLCInterface {
     pub async fn accept_offer(&self, offer_json: String) -> Result<String, JsError> {
         //could consider doing a refresh_chain_data here to have the newest utxos
 
-        let accept_msg_result = async {
-            let dlc_offer_message: OfferDlc =
-                serde_json::from_str(&offer_json).map_err(to_wallet_error)?;
-            let temporary_contract_id = dlc_offer_message.temporary_contract_id;
+        let dlc_offer_message: OfferDlc =
+            serde_json::from_str(&offer_json).map_err(to_wallet_error)?;
+        let temporary_contract_id = dlc_offer_message.temporary_contract_id;
 
-            let counterparty = STATIC_COUNTERPARTY_NODE_ID
-                .parse()
-                .map_err(|e: UpstreamError| WalletError(e.to_string()))?;
-            self.manager
-                .on_dlc_message(&Message::Offer(dlc_offer_message.clone()), counterparty)
-                .await
-                .map_err(to_wallet_error)?;
-            let (_contract_id, _public_key, accept_msg) = self
-                .manager
-                .accept_contract_offer(&temporary_contract_id)
-                .await
-                .map_err(to_wallet_error)?;
-            serde_json::to_string(&accept_msg).map_err(to_wallet_error)
-        };
-        match accept_msg_result.await {
-            Ok(accept_msg) => Ok(accept_msg),
-            Err(e) => {
-                log_to_console!("Error accepting offer: {}", e);
-                Err(JsError::new(&format!("Error accepting offer: {}", e)))
-            }
-        }
+        let counterparty = STATIC_COUNTERPARTY_NODE_ID
+            .parse()
+            .map_err(|e: UpstreamError| WalletError(e.to_string()))?;
+        self.manager
+            .on_dlc_message(&Message::Offer(dlc_offer_message.clone()), counterparty)
+            .await
+            .map_err(to_wallet_error)?;
+        let (_contract_id, _public_key, accept_msg, fund) = self
+            .manager
+            .accept_contract_offer(&temporary_contract_id)
+            .await
+            .map_err(to_wallet_error)?;
+
+        let response = serde_json::json!({
+            "acceptMessage": accept_msg,
+            "fundingTX": fund,
+        });
+
+        Ok(response.to_string())
     }
 
     pub async fn countersign_and_broadcast(

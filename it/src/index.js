@@ -144,6 +144,16 @@ async function getBlockchainHeight() {
   return currentBlockchainHeight;
 }
 
+async function sumInputValues(inputs) {
+  let inputAmount = 0;
+  for (const input of inputs) {
+    const [txId, outputIndex] = input.previous_output.split(':');
+    const txDetails = await fetchTxDetails(txId);
+    inputAmount += parseInt(txDetails.vout[parseInt(outputIndex)].value);
+  }
+  return inputAmount;
+}
+
 async function main() {
   console.log('Starting DLC Integration Test');
 
@@ -178,15 +188,25 @@ async function main() {
   //Accepting Offer
   const acceptedContract = await dlcManager.accept_offer(JSON.stringify(offerResponse));
   const parsedResponse = JSON.parse(acceptedContract);
+  console.log('Accepted Contract: ', parsedResponse);
+
+  const protocolVersion = parsedResponse.acceptMessage.protocolVersion;
+
+  const fundingTX = parsedResponse.fundingTX;
+
+  const inputAmount = await sumInputValues(fundingTX.input);
+  const outputAmount = parsedResponse.fundingTX.output.reduce((acc, output) => acc + output.value, 0);
+
+  const gasFee = inputAmount - outputAmount;
 
   //Check if the accepted contract is valid
-  if (!parsedResponse.protocolVersion) {
+  if (!protocolVersion) {
     console.log('Error accepting offer: ', parsedResponse);
     process.exit(1);
   }
 
   //Sending Accepted Offer to Protocol Wallet
-  const signedContract = await sendAcceptedOfferToProtocolWallet(acceptedContract);
+  const signedContract = await sendAcceptedOfferToProtocolWallet(JSON.stringify(parsedResponse.acceptMessage));
 
   //Check if the signed contract is valid
   if (!signedContract.contractId) {
@@ -207,7 +227,9 @@ async function main() {
 
   //Fetching Funding TX Details to check if the broadcast was successful
   console.log('Fetching Funding TX Details');
-  await fetchTxDetails(txID);
+  const txDetails = await fetchTxDetails(txID);
+
+  assert(gasFee === txDetails.fee, 'Gas Fee does not match the expected value');
 
   //Waiting for funding transaction confirmations
   const confirmedBroadcastTransaction = await waitForConfirmations(blockchainHeightAtBroadcast, 6);
