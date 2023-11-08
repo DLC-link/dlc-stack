@@ -764,11 +764,7 @@ dependencies = [
 name = "dlc-clients"
 version = "0.1.0"
 dependencies = [
- "actix-cors",
- "actix-http",
- "actix-web",
  "base64 0.13.1",
- "bitcoin 0.29.2",
  "dlc-link-manager",
  "dlc-manager",
  "log",

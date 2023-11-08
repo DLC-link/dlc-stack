@@ -1,4 +1,3 @@
-use bitcoin::util::bip32::ExtendedPrivKey;
 use dlc_link_manager::AsyncStorage;
 use dlc_manager::contract::offered_contract::OfferedContract;
 use dlc_manager::contract::signed_contract::SignedContract;
@@ -39,11 +38,14 @@ impl AsyncStorageApiProvider {
     pub async fn get_contracts_by_state(&self, state: String) -> Result<Vec<DlcContract>, Error> {
         let contracts_res = self
             .client
-            .get_contracts(ContractsRequestParams {
-                state: Some(state),
-                key: self.public_key.clone(),
-                uuid: None,
-            })
+            .get_contracts(
+                ContractsRequestParams {
+                    state: Some(state),
+                    key: self.public_key.clone(),
+                    uuid: None,
+                },
+                self.secret_key,
+            )
             .await
             .map_err(to_storage_error)?;
         let mut contents: Vec<String> = vec![];
@@ -66,10 +68,13 @@ impl AsyncStorage for AsyncStorageApiProvider {
         let cid = get_contract_id_string(*id);
         let contract_res = self
             .client
-            .get_contract(ContractRequestParams {
-                key: self.public_key.clone(),
-                uuid: cid.clone(),
-            })
+            .get_contract(
+                ContractRequestParams {
+                    key: self.public_key.clone(),
+                    uuid: cid.clone(),
+                },
+                self.secret_key,
+            )
             .await
             .map_err(to_storage_error)?;
         match contract_res {
@@ -85,11 +90,14 @@ impl AsyncStorage for AsyncStorageApiProvider {
     async fn get_contracts(&self) -> Result<Vec<DlcContract>, Error> {
         let contracts_res: Result<Vec<Contract>, ApiError> = self
             .client
-            .get_contracts(ContractsRequestParams {
-                key: self.public_key.clone(),
-                uuid: None,
-                state: None,
-            })
+            .get_contracts(
+                ContractsRequestParams {
+                    key: self.public_key.clone(),
+                    uuid: None,
+                    state: None,
+                },
+                self.secret_key,
+            )
             .await;
         let mut contents: Vec<String> = vec![];
         let mut contracts: Vec<DlcContract> = vec![];
@@ -109,7 +117,6 @@ impl AsyncStorage for AsyncStorageApiProvider {
         let data = serialize_contract(&DlcContract::Offered(contract.clone()))?;
         let uuid = get_contract_id_string(contract.id);
         let req = NewContract {
-            nonce: "".to_string(),
             uuid: uuid.clone(),
             state: "offered".to_string(),
             content: base64::encode(&data),
@@ -125,10 +132,13 @@ impl AsyncStorage for AsyncStorageApiProvider {
     async fn delete_contract(&self, id: &ContractId) -> Result<(), Error> {
         let cid = get_contract_id_string(*id);
         self.client
-            .delete_contract(ContractRequestParams {
-                key: self.public_key.clone(),
-                uuid: cid.clone(),
-            })
+            .delete_contract(
+                ContractRequestParams {
+                    key: self.public_key.clone(),
+                    uuid: cid.clone(),
+                },
+                self.secret_key,
+            )
             .await
             .map_err(to_storage_error)?;
         Ok(())
@@ -140,12 +150,15 @@ impl AsyncStorage for AsyncStorageApiProvider {
                 let _ = self.delete_contract(&a.get_temporary_id()).await;
                 match self
                     .client
-                    .update_contract(UpdateContract {
-                        uuid: get_contract_id_string(contract.get_id()),
-                        state: Some(get_contract_state_str(contract)),
-                        content: Some(base64::encode(serialize_contract(contract)?)),
-                        key: self.public_key.clone(),
-                    })
+                    .update_contract(
+                        UpdateContract {
+                            uuid: get_contract_id_string(contract.get_id()),
+                            state: Some(get_contract_state_str(contract)),
+                            content: Some(base64::encode(serialize_contract(contract)?)),
+                            key: self.public_key.clone(),
+                        },
+                        self.secret_key,
+                    )
                     .await
                 {
                     Ok(_) => {}
@@ -153,7 +166,6 @@ impl AsyncStorage for AsyncStorageApiProvider {
                         self.client
                             .create_contract(
                                 NewContract {
-                                    nonce: "".to_string(),
                                     uuid: get_contract_id_string(contract.get_id()),
                                     state: get_contract_state_str(contract),
                                     content: base64::encode(serialize_contract(contract)?),
@@ -169,12 +181,15 @@ impl AsyncStorage for AsyncStorageApiProvider {
             }
             _ => {
                 self.client
-                    .update_contract(UpdateContract {
-                        uuid: get_contract_id_string(contract.get_id()),
-                        state: Some(get_contract_state_str(contract)),
-                        content: Some(base64::encode(serialize_contract(contract)?)),
-                        key: self.public_key.clone(),
-                    })
+                    .update_contract(
+                        UpdateContract {
+                            uuid: get_contract_id_string(contract.get_id()),
+                            state: Some(get_contract_state_str(contract)),
+                            content: Some(base64::encode(serialize_contract(contract)?)),
+                            key: self.public_key.clone(),
+                        },
+                        self.secret_key,
+                    )
                     .await
                     .map_err(to_storage_error)?;
                 Ok(())
