@@ -2,12 +2,8 @@
 #![deny(clippy::unwrap_used)]
 extern crate serde;
 
-use bitcoin::util::bip32::ExtendedPrivKey;
-use bitcoin::{Network, PrivateKey};
-
 use log::{debug, error};
 use reqwest::{Client, Response, StatusCode};
-use secp256k1::Keypair;
 use secp256k1_zkp::hashes::{sha256, Hash};
 use secp256k1_zkp::{Message, Secp256k1, SecretKey};
 
@@ -270,8 +266,8 @@ impl StorageApiClient {
         let uri = format!("{}/request-nonce", String::as_str(&self.host.clone()));
         debug!("calling request nonce");
         let res = self.client.get(uri).send().await?;
-        let body = res.text().await?;
-        Ok(body)
+        let nonce = res.text().await?;
+        Ok(nonce)
     }
 
     pub async fn get_contracts(
@@ -357,7 +353,6 @@ impl StorageApiClient {
 
         let message_body = json!({
             "message": contract,
-            "nonce": nonce,
             "public_key": public_key.to_string(),
             "signature": sig.to_string(),
         });
@@ -365,7 +360,7 @@ impl StorageApiClient {
         let res = self
             .client
             .post(uri)
-            .header("nonce", nonce)
+            .header("authorization", nonce)
             .json(&message_body)
             .send()
             .await?;
