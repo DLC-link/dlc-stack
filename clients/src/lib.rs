@@ -2,8 +2,16 @@
 #![deny(clippy::unwrap_used)]
 extern crate serde;
 
+use bitcoin::util::bip32::ExtendedPrivKey;
+use bitcoin::{Network, PrivateKey};
+
 use log::{debug, error};
 use reqwest::{Client, Response, StatusCode};
+use secp256k1::Keypair;
+use secp256k1_zkp::hashes::{sha256, Hash};
+use secp256k1_zkp::{Message, Secp256k1, SecretKey};
+
+use serde_json::json;
 use std::fmt::{Debug, Formatter};
 use std::time::Duration;
 use std::{error, fmt};
@@ -77,6 +85,7 @@ pub struct Contract {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct NewContract {
+    pub nonce: String,
     pub uuid: String,
     pub state: String,
     pub content: String,
@@ -257,6 +266,14 @@ impl StorageApiClient {
         }
     }
 
+    pub async fn request_nonce(&self) -> Result<String, ApiError> {
+        let uri = format!("{}/request-nonce", String::as_str(&self.host.clone()));
+        debug!("calling request nonce");
+        let res = self.client.get(uri).send().await?;
+        let body = res.text().await?;
+        Ok(body)
+    }
+
     pub async fn get_contracts(
         &self,
         contract_req: ContractsRequestParams,
@@ -319,10 +336,40 @@ impl StorageApiClient {
         Ok(events.first().cloned())
     }
 
-    pub async fn create_contract(&self, contract: NewContract) -> Result<Contract, ApiError> {
-        let uri = format!("{}/contracts", String::as_str(&self.host.clone()));
+    pub async fn create_contract(
+        &self,
+        mut contract: NewContract,
+        secret_key: SecretKey,
+    ) -> Result<Contract, ApiError> {
+        let uri: String = format!("{}/contracts", String::as_str(&self.host.clone()));
         debug!("calling contract create on url: {:?}", uri);
-        let res = self.client.post(uri).json(&contract).send().await?;
+
+        let signer = Secp256k1::new();
+        let public_key = secret_key.public_key(&signer);
+
+        let nonce = self.request_nonce().await?;
+        contract.nonce = nonce.clone();
+
+        let json = json!(contract.clone());
+        let hash = sha256::Hash::hash(json.to_string().as_bytes());
+        let digest = Message::from(hash);
+        let sig = signer.sign_ecdsa(&digest, &secret_key);
+
+        let message_body = json!({
+            "message": contract,
+            "nonce": nonce,
+            "public_key": public_key.to_string(),
+            "signature": sig.to_string(),
+        });
+
+        let res = self
+            .client
+            .post(uri)
+            .header("nonce", nonce)
+            .json(&message_body)
+            .send()
+            .await?;
+
         let status = res.status().into();
         let contract = res.json::<Contract>().await.map_err(|e| ApiError {
             message: format!(
@@ -501,3 +548,29 @@ impl StorageApiClient {
     //     }
     // }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use crate::StorageApiClient;
+
+//     #[actix_web::test]
+//     async fn test_request_nonce() {
+//         let mut server = mockito::Server::new();
+
+//         let url = server.url();
+
+//         // Create a mock
+//         let _mock = server
+//             .mock("GET", "/request_nonce")
+//             .with_status(200)
+//             .with_header("content-type", "text/plain")
+//             .with_header("x-api-key", "1234")
+//             .with_body("test_nonce")
+//             .create();
+
+//         let client = StorageApiClient::new(url);
+//         let nonce = client.request_nonce().await.expect("nonce request failed");
+
+//         assert_eq!(nonce, "test_nonce");
+//     }
+// }
