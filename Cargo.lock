@@ -769,6 +769,7 @@ dependencies = [
  "dlc-manager",
  "log",
  "reqwest",
+ "secp256k1-zkp",
  "serde",
  "serde_json",
  "web-sys",

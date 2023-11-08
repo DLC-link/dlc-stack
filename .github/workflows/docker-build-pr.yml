@@ -19,8 +19,10 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v3
+      - name: setup toolchain
+        run: rustup override set nightly-2023-10-23
       - name: build
-        run: cargo build --verbose
+        run: cargo build
       - name: test
         run: cargo test --verbose
 

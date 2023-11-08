@@ -9,6 +9,7 @@ extern crate log;
 
 use bitcoin::{Network, PrivateKey};
 use dlc_messages::{Message, OfferDlc, SignDlc};
+use secp256k1_zkp::SecretKey;
 use secp256k1_zkp::UpstreamError;
 use wasm_bindgen::prelude::*;
 
@@ -152,7 +153,8 @@ impl JsDLCInterface {
         // Set up DLC store
         let dlc_store = AsyncStorageApiProvider::new(
             pubkey.to_string(),
-            "https://devnet.dlc.link/storage-api".to_string(),
+            seckey,
+            "https://devnet.dlc.link/storage".to_string(),
         );
 
         // Set up wallet
