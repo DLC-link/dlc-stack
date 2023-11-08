@@ -362,7 +362,7 @@ async fn main() -> Result<(), GenericError> {
         electrs_host.to_string(),
         active_network,
     ));
-    let (pubkey_ext, wallet) = setup_wallets(xpriv, active_network);
+    let (pubkey_ext, wallet, secret_key) = setup_wallets(xpriv, active_network);
 
     // Set up Attestor Clients
     let attestor_urls: Vec<String> = match retry!(
@@ -395,7 +395,7 @@ async fn main() -> Result<(), GenericError> {
     // Set up DLC store
     let dlc_store = Arc::new(AsyncStorageApiProvider::new(
         pubkey_ext.to_string(),
-        xpriv.private_key,
+        secret_key,
         storage_api_url,
     ));
 
@@ -466,7 +466,7 @@ where
 fn setup_wallets(
     xpriv: ExtendedPrivKey,
     active_network: bitcoin::Network,
-) -> (ExtendedPubKey, Arc<DlcWallet>) {
+) -> (ExtendedPubKey, Arc<DlcWallet>, SecretKey) {
     let secp = bitcoin::secp256k1::Secp256k1::new();
 
     let external_derivation_path =
@@ -498,7 +498,7 @@ fn setup_wallets(
     let wallet: Arc<DlcWallet> = Arc::new(DlcWallet::new(static_address.clone(), seckey_ext));
 
     let pubkey = ExtendedPubKey::from_priv(&secp, &derived_ext_xpriv);
-    (pubkey, wallet)
+    (pubkey, wallet, seckey_ext)
 }
 
 async fn create_new_offer(

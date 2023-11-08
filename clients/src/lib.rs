@@ -291,8 +291,10 @@ impl StorageApiClient {
 
     pub async fn request_nonce(&self) -> Result<String, ApiError> {
         let uri = format!("{}/request-nonce", String::as_str(&self.host.clone()));
-        debug!("calling request nonce");
+        debug!("calling request nonce {}", uri);
+
         let res = self.client.get(uri).send().await?;
+        debug!("request nonce response: {:?}", res);
         let nonce = res.text().await?;
         Ok(nonce)
     }

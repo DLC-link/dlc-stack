@@ -16,4 +16,3 @@ run-it:
   just run-storage &
   just run-attestor &
   just run-wallet && fg
-`
