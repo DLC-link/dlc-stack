@@ -1,0 +1,19 @@
+set dotenv-load := true
+
+default:
+  just --list
+
+run-wallet:
+  cd ../wallet && just run
+
+run-attestor:
+  cd ../attestor && just run
+
+run-storage:
+  cd ../storage && just run
+
+run-it:
+  just run-storage &
+  just run-attestor &
+  just run-wallet && fg
+`

@@ -16,4 +16,4 @@ build:
   cargo build --release --bin storage-api --target-dir .
 
 run: build
-  DATABASE_URL=postgresql://localhost:5432 ./release/storage-api
+  ./release/storage-api
