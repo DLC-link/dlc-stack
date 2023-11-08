@@ -21,7 +21,7 @@ COPY ./attestor/Cargo.toml /app/attestor/Cargo.toml
 WORKDIR /app/attestor
 
 RUN rustup override set nightly-2023-10-23
-RUN sudo chown -R circleci:circleci /app/attestor
+RUN sudo chown -R circleci:circleci /app
 RUN wasm-pack build --target bundler .
 
 RUN jq '. + {type: "module", main: "attestor.js"} | del(.module)' ./pkg/package.json > temp.json && \

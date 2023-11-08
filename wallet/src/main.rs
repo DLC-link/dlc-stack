@@ -343,7 +343,6 @@ async fn main() -> Result<(), GenericError> {
         return Err(GenericError::from("Fingerprint does not match xpriv fingerprint! Please make sure you have the correct xpriv and fingerprint set in your env variables\n\nExiting..."));
     }
 
-    let secret_key = SecretKey::from_str(&xpriv_str).expect("Unable to decode xpriv env variable");
     let storage_api_url = env::var("STORAGE_API_ENDPOINT")
         .expect("STORAGE_API_ENDPOINT environment variable not set");
     let electrs_host =
@@ -396,7 +395,7 @@ async fn main() -> Result<(), GenericError> {
     // Set up DLC store
     let dlc_store = Arc::new(AsyncStorageApiProvider::new(
         pubkey_ext.to_string(),
-        secret_key,
+        xpriv.private_key,
         storage_api_url,
     ));
 
