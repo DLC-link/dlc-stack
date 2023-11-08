@@ -8,6 +8,17 @@ on:
       - dev
 
 jobs:
+  cargo-test:
+    name: Cargo test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: build
+        run: cargo build --verbose
+      - name: test
+        run: cargo test --verbose
+
   build-storageapi:
     name: Build storage-api
     runs-on: ubuntu-latest
@@ -156,7 +167,15 @@ jobs:
   run-test:
     name: Run integration tests & push to ECR on success
     runs-on: ubuntu-latest
-    needs: [build-storageapi, build-attestor, build-BI, build-wallet, build-it]
+    needs:
+      [
+        cargo-test,
+        build-storageapi,
+        build-attestor,
+        build-BI,
+        build-wallet,
+        build-it,
+      ]
     steps:
       - name: Check out code
         uses: actions/checkout@v3

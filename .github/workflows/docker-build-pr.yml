@@ -1,6 +1,6 @@
-# Integration Test on PR to dev / master branch
+# Cargo and Integration Test on PR to dev / master branch
 
-name: ITest on PR
+name: Tests on PR
 
 on:
   pull_request:
@@ -13,6 +13,17 @@ on:
       - synchronize
 
 jobs:
+  cargo-test:
+    name: Cargo test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: build
+        run: cargo build --verbose
+      - name: test
+        run: cargo test --verbose
+
   build-storageapi:
     name: Build storage-api
     runs-on: ubuntu-latest
