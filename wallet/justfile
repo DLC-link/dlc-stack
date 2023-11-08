@@ -29,7 +29,7 @@ wbi: build-wbi
 # wallet
 
 build-wallet:
-  cargo build --release --bins --target-dir .
+  cargo build --release --bin dlc-protocol-wallet --target-dir .
 
 generate-key: build-wallet
   ./release/generate-key

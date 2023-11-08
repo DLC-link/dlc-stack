@@ -224,7 +224,9 @@ async fn process_request(
                     .iter()
                     .any(|url| !attestor_urls.contains(url))
                 {
-                    true => Err(WalletError(format!("Attestor not found in attestor list"))),
+                    true => Err(WalletError(
+                        "Attestor not found in attestor list".to_string(),
+                    )),
                     _ => Ok(()),
                 }?;
 
@@ -509,18 +511,15 @@ async fn create_new_offer(
     offer_collateral: u64,
     total_outcomes: u64,
 ) -> Result<String, WalletError> {
-    let active_network = bitcoin::Network::from_str(&active_network).map_err(|e| {
-        WalletError(format!(
-            "Unknown Network in offer creation: {}",
-            e.to_string()
-        ))
-    })?;
+    let active_network = bitcoin::Network::from_str(&active_network)
+        .map_err(|e| WalletError(format!("Unknown Network in offer creation: {}", e)))?;
     let (_event_descriptor, descriptor) = get_numerical_contract_info(
         accept_collateral,
         offer_collateral,
         total_outcomes,
         attestors.len(),
-    );
+    )
+    .map_err(|e| WalletError(e.to_string()))?;
     info!(
         "Creating new offer with event id: {}, accept collateral: {}, offer_collateral: {}",
         event_id.clone(),

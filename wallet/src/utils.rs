@@ -16,7 +16,7 @@ pub(crate) fn get_numerical_contract_info(
     offer_collateral: u64,
     total_outcomes: u64,
     nb_attestors: usize,
-) -> (EventDescriptor, ContractDescriptor) {
+) -> Result<(EventDescriptor, ContractDescriptor), dlc_manager::error::Error> {
     let event_descriptor =
         EventDescriptor::DigitDecompositionEvent(DigitDecompositionEventDescriptor {
             base: BASE as u16,
@@ -31,9 +31,9 @@ pub(crate) fn get_numerical_contract_info(
         offer_collateral,
         total_outcomes,
         nb_attestors,
-    );
+    )?;
 
-    (event_descriptor, descriptor)
+    Ok((event_descriptor, descriptor))
 }
 
 pub(crate) fn get_numerical_contract_descriptor(
@@ -41,14 +41,13 @@ pub(crate) fn get_numerical_contract_descriptor(
     offer_collateral: u64,
     total_outcomes: u64,
     nb_attestors: usize,
-) -> ContractDescriptor {
-    ContractDescriptor::Numerical(NumericalDescriptor {
+) -> Result<ContractDescriptor, dlc_manager::error::Error> {
+    Ok(ContractDescriptor::Numerical(NumericalDescriptor {
         payout_function: PayoutFunction::new(get_polynomial_payout_curve_pieces(
             accept_collateral,
             offer_collateral,
             total_outcomes,
-        ))
-        .unwrap(),
+        )?)?,
         rounding_intervals: RoundingIntervals {
             intervals: vec![RoundingInterval {
                 begin_interval: 0,
@@ -60,47 +59,41 @@ pub(crate) fn get_numerical_contract_descriptor(
             nb_digits: vec![NB_DIGITS; nb_attestors],
         },
         difference_params: None,
-    })
+    }))
 }
 
 pub(crate) fn get_polynomial_payout_curve_pieces(
     accept_collateral: u64,
     offer_collateral: u64,
     total_outcomes: u64,
-) -> Vec<PayoutFunctionPiece> {
+) -> Result<Vec<PayoutFunctionPiece>, dlc_manager::error::Error> {
     let total_collateral: u64 = accept_collateral + offer_collateral;
-    vec![
-        PayoutFunctionPiece::PolynomialPayoutCurvePiece(
-            PolynomialPayoutCurvePiece::new(vec![
-                PayoutPoint {
-                    event_outcome: 0,
-                    outcome_payout: 0,
-                    extra_precision: 0,
-                },
-                PayoutPoint {
-                    event_outcome: total_outcomes,
-                    outcome_payout: total_collateral,
-                    extra_precision: 0,
-                },
-            ])
-            .unwrap(),
-        ),
-        PayoutFunctionPiece::PolynomialPayoutCurvePiece(
-            PolynomialPayoutCurvePiece::new(vec![
-                PayoutPoint {
-                    event_outcome: total_outcomes,
-                    outcome_payout: total_collateral,
-                    extra_precision: 0,
-                },
-                PayoutPoint {
-                    event_outcome: max_value() as u64,
-                    outcome_payout: total_collateral,
-                    extra_precision: 0,
-                },
-            ])
-            .unwrap(),
-        ),
-    ]
+    Ok(vec![
+        PayoutFunctionPiece::PolynomialPayoutCurvePiece(PolynomialPayoutCurvePiece::new(vec![
+            PayoutPoint {
+                event_outcome: 0,
+                outcome_payout: 0,
+                extra_precision: 0,
+            },
+            PayoutPoint {
+                event_outcome: total_outcomes,
+                outcome_payout: total_collateral,
+                extra_precision: 0,
+            },
+        ])?),
+        PayoutFunctionPiece::PolynomialPayoutCurvePiece(PolynomialPayoutCurvePiece::new(vec![
+            PayoutPoint {
+                event_outcome: total_outcomes,
+                outcome_payout: total_collateral,
+                extra_precision: 0,
+            },
+            PayoutPoint {
+                event_outcome: max_value() as u64,
+                outcome_payout: total_collateral,
+                extra_precision: 0,
+            },
+        ])?),
+    ])
 }
 
 pub(crate) fn max_value() -> u32 {

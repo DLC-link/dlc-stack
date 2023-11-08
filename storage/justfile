@@ -1,0 +1,19 @@
+set dotenv-load := true
+
+default:
+  just --list
+
+##############################
+# utils
+
+clippy:
+  cargo clippy -- -Aclippy::drop_non_drop
+
+clippy-mac:
+  cd ./node-manager && AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang cargo clippy -- -Aclippy::drop_non_drop
+
+build:
+  cargo build --release --bin storage-api --target-dir .
+
+run: build
+  DATABASE_URL=postgresql://localhost:5432 ./release/storage-api

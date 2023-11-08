@@ -84,6 +84,7 @@ pub async fn delete_contract(
 #[delete("/contracts/{ckey}")]
 pub async fn delete_contracts(pool: Data<DbPool>, ckey: Path<String>) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
-    let num_deleted = dlc_storage_writer::delete_all_contracts(&mut conn, &ckey).unwrap();
+    let num_deleted = dlc_storage_writer::delete_all_contracts(&mut conn, &ckey)
+        .expect("couldn't delete contracts from db");
     HttpResponse::Ok().json(json!({ "effected_num": num_deleted }))
 }
