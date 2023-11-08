@@ -42,6 +42,16 @@ const local = {
   attestorList: ['http://localhost:8801', 'http://localhost:8802', 'http://localhost:8803'],
 };
 
+// Local services with just script, but regtest bitcoin
+const local_just = {
+  testWalletPrivateKey: 'b5984262748203b2043923dd34202d1a6e05601af0c00e232d3b1988ce9608f5',
+  testWalletAddress: 'bcrt1qpnuck30uakpc0ffcmd3nwdd59y547qlzsmf34l',
+  bitcoinNetwork: 'regtest',
+  bitcoinNetworkURL: 'https://devnet.dlc.link/electrs',
+  protocolWalletURL: 'http://127.0.0.1:8085',
+  attestorList: ['http://localhost:8801']//, 'http://localhost:8802', 'http://localhost:8803'],
+};
+
 const docker = {
   testWalletPrivateKey: 'b5984262748203b2043923dd34202d1a6e05601af0c00e232d3b1988ce9608f5',
   testWalletAddress: 'bcrt1qpnuck30uakpc0ffcmd3nwdd59y547qlzsmf34l',
@@ -64,6 +74,7 @@ const config = {
   devnet,
   testnet,
   local,
+  local_just,
   docker,
   custom,
 };
