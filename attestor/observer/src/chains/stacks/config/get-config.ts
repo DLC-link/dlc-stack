@@ -53,9 +53,9 @@ export function getConfig(config: ConfigSet): NetworkConfig {
       api_base_extended = 'https://api.testnet.hiro.so/extended/v1';
       break;
     case 'STACKS_MOCKNET':
-      socketEndpoint = `ws://stx-btc1.dlc.link:3999/`;
+      socketEndpoint = `ws://${getEnv('MOCKNET_ADDRESS')}:3999/`;
       deployer = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
-      api_base_extended = `http://stx-btc1.dlc.link:3999/extended/v1`;
+      api_base_extended = `http://${getEnv('MOCKNET_ADDRESS')}:3999/extended/v1`;
       break;
     case 'STACKS_LOCAL':
       socketEndpoint = 'ws://localhost:3999/';
