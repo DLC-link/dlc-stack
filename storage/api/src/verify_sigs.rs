@@ -13,7 +13,7 @@ use actix_web::{
 };
 
 use futures_util::future::LocalBoxFuture;
-use log::error;
+use log::{debug, error};
 use secp256k1::hashes::Hash;
 use secp256k1::Message;
 use secp256k1::{ecdsa::Signature, Secp256k1};
@@ -124,6 +124,7 @@ where
                 .extract::<web::Bytes>()
                 .await
                 .expect("unable to extract body");
+            debug!("body: {:?}", body);
 
             let body_json = match serde_json::from_slice::<AuthenticatedMessage>(&body) {
                 Ok(body_json) => body_json,

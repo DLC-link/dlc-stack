@@ -28,8 +28,7 @@ pub struct OfferRequest {
     pub total_outcomes: i32,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 struct SignedMessage {
     message: serde_json::Value,
     public_key: String,
@@ -274,28 +273,31 @@ impl StorageApiClient {
         secret_key: SecretKey,
         mut contract: Value,
     ) -> Result<(String, SignedMessage), ApiError> {
-        let signer = Secp256k1::new();
-        let public_key = secret_key.public_key(&signer);
         let nonce = self.request_nonce().await?;
         contract["nonce"] = nonce.clone().into();
-        let hash = sha256::Hash::hash(contract.to_string().as_bytes());
-        let digest = Message::from(hash);
-        let sig = signer.sign_ecdsa(&digest, &secret_key);
-        let message_body = SignedMessage {
-            message: contract,
-            public_key: public_key.to_string(),
-            signature: sig.to_string(),
-        };
+
+        let message_body = self.sign(secret_key, contract);
         Ok((nonce, message_body))
     }
 
-    pub async fn request_nonce(&self) -> Result<String, ApiError> {
-        let uri = format!("{}/request-nonce", String::as_str(&self.host.clone()));
-        debug!("calling request nonce {}", uri);
+    fn sign(&self, secret_key: SecretKey, contract: Value) -> SignedMessage {
+        let signer = Secp256k1::new();
+        let public_key = secret_key.public_key(&signer);
+        let digest = Message::from(sha256::Hash::hash(contract.to_string().as_bytes()));
+        let sig = signer.sign_ecdsa(&digest, &secret_key);
+        SignedMessage {
+            message: contract,
+            public_key: public_key.to_string(),
+            signature: sig.to_string(),
+        }
+    }
 
+    pub async fn request_nonce(&self) -> Result<String, ApiError> {
+        let uri = format!("{}/request_nonce", String::as_str(&self.host.clone()));
+        debug!("calling request nonce on url: {:?}", uri);
         let res = self.client.get(uri).send().await?;
-        debug!("request nonce response: {:?}", res);
         let nonce = res.text().await?;
+        debug!("nonce: {}", nonce);
         Ok(nonce)
     }
 
@@ -304,17 +306,20 @@ impl StorageApiClient {
         contract_req: ContractsRequestParams,
         secret_key: SecretKey,
     ) -> Result<Vec<Contract>, ApiError> {
+        debug!("sect key {:?}", secret_key);
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()),);
         debug!("getting contracts with request params: {:?}", contract_req);
         let (nonce, message_body) = self
             .build_signed_message(secret_key, json!(contract_req))
             .await?;
 
+        debug!("nonce: {}", nonce);
+        debug!("message_body: {:?}", message_body);
         let res = self
             .client
             .get(uri)
             .header("authorization", nonce)
-            .json(&message_body)
+            .query(&json!(message_body))
             .send()
             .await?;
         let status = res.status().into();
@@ -392,7 +397,7 @@ impl StorageApiClient {
             .client
             .post(uri)
             .header("authorization", nonce)
-            .json(&message_body)
+            .json(&json!(message_body))
             .send()
             .await?;
 
@@ -465,7 +470,7 @@ impl StorageApiClient {
             .client
             .put(uri)
             .header("authorization", nonce)
-            .json(&message_body)
+            .json(&json!(message_body))
             .send()
             .await?;
         let status = res.status().into();
@@ -537,7 +542,7 @@ impl StorageApiClient {
             .client
             .delete(uri)
             .header("authorization", nonce)
-            .json(&message_body)
+            .json(&json!(message_body))
             .send()
             .await?;
         let status = res.status().into();
@@ -601,28 +606,99 @@ impl StorageApiClient {
     // }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::StorageApiClient;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     #[actix_web::test]
-//     async fn test_request_nonce() {
-//         let mut server = mockito::Server::new();
+    use std::str::FromStr;
 
-//         let url = server.url();
+    use crate::StorageApiClient;
+    use bdk::keys::bip39::{Language, Mnemonic, WordCount};
+    use bdk::keys::{DerivableKey, ExtendedKey, GeneratableKey, GeneratedKey};
+    use bdk::miniscript::Segwitv0;
+    use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPubKey};
+    use secp256k1_zkp::ecdsa::Signature;
+    use serde_json::json;
 
-//         // Create a mock
-//         let _mock = server
-//             .mock("GET", "/request_nonce")
-//             .with_status(200)
-//             .with_header("content-type", "text/plain")
-//             .with_header("x-api-key", "1234")
-//             .with_body("test_nonce")
-//             .create();
+    #[actix_rt::test]
+    async fn test_build_signed_message() {
+        // Setup API Client
+        let mut server = mockito::Server::new();
+        let server_url = server.url();
 
-//         let client = StorageApiClient::new(url);
-//         let nonce = client.request_nonce().await.expect("nonce request failed");
+        server
+            .mock("GET", "/request_nonce")
+            .with_status(200)
+            .with_body("abcde")
+            .create_async()
+            .await;
 
-//         assert_eq!(nonce, "test_nonce");
-//     }
-// }
+        let client = StorageApiClient::new(server_url);
+
+        // Create ExtendedPrivateKey
+        let secp = bitcoin::secp256k1::Secp256k1::new();
+        let mnemonic: GeneratedKey<_, Segwitv0> =
+            Mnemonic::generate((WordCount::Words24, Language::English))
+                .expect("should be able to generate mnemonic");
+        let mnemonic = mnemonic.into_key();
+
+        let xkey: ExtendedKey = (mnemonic.clone(), None)
+            .into_extended_key()
+            .expect("should be able to generate extended key");
+        let xpriv = xkey
+            .into_xprv(bitcoin::Network::Testnet)
+            .expect("should be able to generate extended private key");
+
+        let external_derivation_path = DerivationPath::from_str("m/44h/0h/0h/0")
+            .expect("should be able to parse derivation path");
+
+        let derived_xpriv = xpriv
+            .derive_priv(
+                &secp,
+                &external_derivation_path.extend([
+                    ChildNumber::Normal { index: 0 },
+                    ChildNumber::Normal { index: 0 },
+                ]),
+            )
+            .expect("should be able to derive private key");
+
+        let secret_key = derived_xpriv.private_key;
+        let public_key = ExtendedPubKey::from_priv(&secp, &derived_xpriv);
+
+        // Create contract without nonce
+        let expected_nonce: String = "abcde".to_string();
+
+        let contract_wo_nonce = json!({
+            "uuid": "123".to_string(),
+            "state": "123".to_string(),
+            "content": "123".to_string(),
+            "key": public_key.to_string(),
+        });
+
+        // Create contract with nonce
+        let mut contract_w_nonce = contract_wo_nonce.clone();
+        contract_w_nonce["nonce"] = expected_nonce.clone().into();
+
+        // Build signed message
+        let (nonce, signed_message) = client
+            .build_signed_message(secret_key, contract_wo_nonce)
+            .await
+            .expect("should be able to build signed message");
+
+        // Assert signed message
+        assert_eq!(signed_message.message, contract_w_nonce);
+
+        // Verify nonce and signature
+        assert_eq!(nonce, expected_nonce);
+        let digest = Message::from(sha256::Hash::hash(contract_w_nonce.to_string().as_bytes()));
+
+        assert!(secp
+            .verify_ecdsa(
+                &digest,
+                &Signature::from_str(&signed_message.signature)
+                    .expect("can make signature from string"),
+                &public_key.public_key
+            )
+            .is_ok());
+    }
+}

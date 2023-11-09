@@ -8,6 +8,7 @@ mod verify_sigs;
 use actix_cors::Cors;
 use contracts::*;
 use events::*;
+use log::debug;
 use rand::distributions::{Alphanumeric, DistString};
 use secp256k1::rand;
 extern crate log;
@@ -34,12 +35,16 @@ pub async fn get_health() -> impl Responder {
 
 #[get("/request_nonce")]
 pub async fn request_nonce(server_nonces: Data<Mutex<ServerNonce>>) -> impl Responder {
+    debug!("Requesting nonce");
     let mut server_nonce_vec = server_nonces.lock().expect("Failed to lock nonce vec");
+    debug!("Nonce vec: {:?}", server_nonce_vec);
     while server_nonce_vec.nonces.len() >= NONCE_VEC_LENGTH {
         server_nonce_vec.nonces.remove(0); // remove the oldest
     }
     let random_nonce = Alphanumeric.sample_string(&mut rand::thread_rng(), 20);
+    debug!("Random nonce: {}", random_nonce);
     server_nonce_vec.nonces.push(random_nonce.to_string());
+    debug!("Nonce vec: {:?}", server_nonce_vec);
     HttpResponse::Ok().body(random_nonce.to_string())
 }
 
