@@ -48,8 +48,8 @@ const local_just = {
   testWalletAddress: 'bcrt1qpnuck30uakpc0ffcmd3nwdd59y547qlzsmf34l',
   bitcoinNetwork: 'regtest',
   bitcoinNetworkURL: 'https://devnet.dlc.link/electrs',
-  protocolWalletURL: 'http://127.0.0.1:8085',
-  attestorList: ['http://localhost:8801']//, 'http://localhost:8802', 'http://localhost:8803'],
+  protocolWalletURL: 'http://127.0.0.1:3003',
+  attestorList: ['http://localhost:8801', 'http://localhost:8802', 'http://localhost:8803'],
 };
 
 const docker = {

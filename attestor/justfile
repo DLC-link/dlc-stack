@@ -8,3 +8,8 @@ build:
 
 run:
   cd observer && ./start_attestor.sh
+
+run-multiple:
+  cd observer && npm run run:1 &
+  cd observer && npm run run:2 &
+  cd observer && npm run run:3 && fg

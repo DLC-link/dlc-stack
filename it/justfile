@@ -6,13 +6,24 @@ default:
 run-wallet:
   cd ../wallet && just run
 
-run-attestor:
-  cd ../attestor && just run
+run-attestors:
+  cd ../attestor && just run-multiple
 
 run-storage:
   cd ../storage && just run
 
 run-it:
   just run-storage &
-  just run-attestor &
-  just run-wallet && fg
+  just run-attestors &
+  just run-wallet &
+  while ! nc -z localhost 8085; do sleep 1; done
+  ENV=local_just HANDLE_ATTESTORS=true npm start && fg
+
+die:
+  lsof -t -i:3000 2>/dev/null | xargs -r kill
+  lsof -t -i:3001 2>/dev/null | xargs -r kill
+  lsof -t -i:8801 2>/dev/null | xargs -r kill
+  lsof -t -i:8802 2>/dev/null | xargs -r kill
+  lsof -t -i:8803 2>/dev/null | xargs -r kill
+  lsof -t -i:8100 2>/dev/null | xargs -r kill
+  lsof -t -i:8085 2>/dev/null | xargs -r kill
