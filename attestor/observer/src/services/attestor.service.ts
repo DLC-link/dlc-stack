@@ -63,7 +63,12 @@ export default class AttestorService {
 
     let _maturation = maturation ? new Date(maturation).toISOString() : createMaturationDate();
 
-    await attestor.create_event(uuid, _maturation);
+    try {
+      await attestor.create_event(uuid, _maturation);
+    } catch (error) {
+      console.error(error);
+      return error;
+    }
     return { uuid: uuid, maturation: _maturation };
   }
 

@@ -5,7 +5,7 @@ extern crate serde;
 use log::{debug, error};
 use reqwest::{Client, Response, StatusCode};
 use secp256k1_zkp::hashes::{sha256, Hash};
-use secp256k1_zkp::{Message, Secp256k1, SecretKey};
+use secp256k1_zkp::{ecdsa, Message, Secp256k1, SecretKey};
 
 use serde_json::{json, Value};
 use std::fmt::{Debug, Formatter};
@@ -113,6 +113,16 @@ pub struct ContractsRequestParams {
     pub key: String,
     pub uuid: Option<String>,
     pub state: Option<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct SignedContractsRequestParams {
+    key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    uuid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<String>,
+    signature: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -276,28 +286,30 @@ impl StorageApiClient {
         let nonce = self.request_nonce().await?;
         contract["nonce"] = nonce.clone().into();
 
-        let message_body = self.sign(secret_key, contract);
+        let (sig, pub_key) = self.sign(secret_key, contract.to_string());
+        let message_body = SignedMessage {
+            message: contract,
+            public_key: pub_key.to_string(),
+            signature: sig.to_string(),
+        };
         Ok((nonce, message_body))
     }
 
-    fn sign(&self, secret_key: SecretKey, contract: Value) -> SignedMessage {
+    fn sign(
+        &self,
+        secret_key: SecretKey,
+        message: String,
+    ) -> (ecdsa::Signature, secp256k1_zkp::PublicKey) {
         let signer = Secp256k1::new();
         let public_key = secret_key.public_key(&signer);
-        let digest = Message::from(sha256::Hash::hash(contract.to_string().as_bytes()));
-        let sig = signer.sign_ecdsa(&digest, &secret_key);
-        SignedMessage {
-            message: contract,
-            public_key: public_key.to_string(),
-            signature: sig.to_string(),
-        }
+        let digest = Message::from(sha256::Hash::hash(message.as_bytes()));
+        (signer.sign_ecdsa(&digest, &secret_key), public_key)
     }
 
     pub async fn request_nonce(&self) -> Result<String, ApiError> {
         let uri = format!("{}/request_nonce", String::as_str(&self.host.clone()));
-        debug!("calling request nonce on url: {:?}", uri);
         let res = self.client.get(uri).send().await?;
         let nonce = res.text().await?;
-        debug!("nonce: {}", nonce);
         Ok(nonce)
     }
 
@@ -306,20 +318,23 @@ impl StorageApiClient {
         contract_req: ContractsRequestParams,
         secret_key: SecretKey,
     ) -> Result<Vec<Contract>, ApiError> {
-        debug!("sect key {:?}", secret_key);
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()),);
-        debug!("getting contracts with request params: {:?}", contract_req);
-        let (nonce, message_body) = self
-            .build_signed_message(secret_key, json!(contract_req))
-            .await?;
 
-        debug!("nonce: {}", nonce);
-        debug!("message_body: {:?}", message_body);
+        let nonce = self.request_nonce().await?;
+
+        let (sig, _pubkey) = self.sign(secret_key, nonce.clone());
+        let signed_request_params = SignedContractsRequestParams {
+            key: contract_req.key.clone(),
+            uuid: contract_req.uuid.clone(),
+            state: contract_req.state.clone(),
+            signature: sig.to_string(),
+        };
+
         let res = self
             .client
             .get(uri)
             .header("authorization", nonce)
-            .query(&json!(message_body))
+            .query(&json!(signed_request_params))
             .send()
             .await?;
         let status = res.status().into();

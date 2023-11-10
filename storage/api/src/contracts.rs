@@ -3,22 +3,17 @@ use crate::DbPool;
 use actix_web::web;
 use actix_web::web::{Data, Json, Path};
 use actix_web::{delete, get, post, put, HttpResponse, Responder};
-use dlc_storage_common::models::{
-    ContractRequestParams, DeleteContract, NewContract, UpdateContract,
-};
+use dlc_storage_common::models::ContractRequestParams;
 use log::{debug, warn};
 use serde_json::json;
 
 #[get("/contracts")]
 pub async fn get_contracts(
     pool: Data<DbPool>,
-    contract_params: web::Query<AuthenticatedMessage>,
+    contract_params: web::Query<ContractRequestParams>,
 ) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
-    match dlc_storage_reader::get_contracts(
-        &mut conn,
-        serde_json::from_str(&contract_params.into_inner().message.to_string()).expect("asdf"),
-    ) {
+    match dlc_storage_reader::get_contracts(&mut conn, contract_params.into_inner()) {
         Ok(contracts) => HttpResponse::Ok().json(contracts),
         Err(e) => {
             warn!("Error getting contracts: {:?}", e);
@@ -38,7 +33,7 @@ pub async fn create_contract(
         serde_json::from_str(&contract_params.into_inner().message.to_string()).expect("asdf"),
     ) {
         Ok(contract) => {
-            debug!("Created contract: {:?}", contract);
+            debug!("Created contract: {:?}", contract.uuid);
             HttpResponse::Ok().json(contract)
         }
         Err(e) => {

@@ -21,15 +21,9 @@ pub struct EventHandler {
 
 impl EventHandler {
     pub fn new(storage_api_enabled: bool, storage_api_endpoint: String, key: String) -> Self {
-        clog!(
-            "[EVENT_HANDLER] Storage api enabled: {}",
-            storage_api_enabled
-        );
-
         if storage_api_enabled && !storage_api_endpoint.is_empty() {
             let storage_api_client = StorageApiClient::new(storage_api_endpoint);
             let storage_api_conn = Some(StorageApiConn::new(storage_api_client, key));
-            clog!("[EVENT_HANDLER] Storage api conn: {:?}", storage_api_conn);
 
             Self {
                 storage_api: storage_api_conn,

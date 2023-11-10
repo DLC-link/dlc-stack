@@ -9,7 +9,6 @@ extern crate log;
 
 use bitcoin::{Network, PrivateKey};
 use dlc_messages::{Message, OfferDlc, SignDlc};
-use secp256k1_zkp::SecretKey;
 use secp256k1_zkp::UpstreamError;
 use wasm_bindgen::prelude::*;
 
@@ -123,6 +122,7 @@ impl JsDLCInterface {
         address: String,
         network: String,
         electrs_url: String,
+        storage_api_url: String,
     ) -> Result<JsDLCInterface, JsError> {
         console_error_panic_hook::set_once();
 
@@ -151,11 +151,7 @@ impl JsDLCInterface {
             bitcoin::PublicKey::from_private_key(&secp, &PrivateKey::new(seckey, active_network));
 
         // Set up DLC store
-        let dlc_store = AsyncStorageApiProvider::new(
-            pubkey.to_string(),
-            seckey,
-            "https://devnet.dlc.link/storage".to_string(),
-        );
+        let dlc_store = AsyncStorageApiProvider::new(pubkey.to_string(), seckey, storage_api_url);
 
         // Set up wallet
         let wallet = Arc::new(JSInterfaceWallet::new(

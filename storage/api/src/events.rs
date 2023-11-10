@@ -14,13 +14,12 @@ pub async fn get_events(
     let mut conn = pool.get().expect("couldn't get db connection from pool");
     let events = dlc_storage_reader::get_events(&mut conn, event_params.into_inner())
         .expect("couldn't get events from db");
-    debug!("GET: /events : {:?}", events);
     HttpResponse::Ok().json(events)
 }
 
 #[post("/events")]
 pub async fn create_event(pool: Data<DbPool>, event: Json<NewEvent>) -> impl Responder {
-    debug!("POST: /events : {:?}", event);
+    debug!("POST: /events : {:?}", event.event_id);
     let mut conn = pool.get().expect("couldn't get db connection from pool");
     match dlc_storage_writer::create_event(&mut conn, event.into_inner()) {
         Ok(event) => HttpResponse::Ok().json(event),

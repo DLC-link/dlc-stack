@@ -159,7 +159,6 @@ impl Attestor {
             }
         };
         event = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).unwrap();
-        clog!("[WASM-ATTESTOR] Got event from StorageAPI: {:?}", event);
 
         let outstanding_sk_nonces = event.clone().0.unwrap();
 

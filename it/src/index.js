@@ -7,7 +7,7 @@ import setupPolyfills from './polyfills.js';
 
 setupPolyfills();
 
-const { testWalletPrivateKey, testWalletAddress, bitcoinNetwork, bitcoinNetworkURL, protocolWalletURL, attestorList } =
+const { testWalletPrivateKey, testWalletAddress, bitcoinNetwork, bitcoinNetworkURL, protocolWalletURL, attestorList, storageApiUrl } =
   config;
 
 const handleAttestors = process.env.HANDLE_ATTESTORS == 'true';
@@ -151,7 +151,6 @@ async function main() {
   if (handleAttestors) {
     console.log('Creating Events');
     const events = await Promise.all(attestorList.map((attestorURL) => createEvent(attestorURL, testUUID)));
-    console.log('Created Events: ', events);
   }
 
   //Fetching Offer
@@ -169,7 +168,8 @@ async function main() {
     testWalletPrivateKey,
     testWalletAddress,
     bitcoinNetwork,
-    bitcoinNetworkURL
+    bitcoinNetworkURL,
+    storageApiUrl,
   );
 
   //Checking Balance
@@ -239,8 +239,8 @@ async function main() {
           successfulAttesting
             ? acceptorGetsAllOutcome
             : index === offererGetsAllOutcome
-            ? offererGetsAllOutcome
-            : acceptorGetsAllOutcome
+              ? offererGetsAllOutcome
+              : acceptorGetsAllOutcome
         )
       )
     );

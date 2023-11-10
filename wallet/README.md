@@ -52,7 +52,7 @@ The following environment variables must be passed into this application, whethe
 * BLOCKCHAIN_INTERFACE_URL: "localhost:3003" # URL to a companion service called the Wallet Blockchain Interface. Learn more here: https://github.com/DLC-link/dlc-stack/tree/dev/wallet-blockchain-interface
 * CELECTRUM_API_URL: "https://blockstream.info/testnet/api/" # URL to an Esplora bitcoin API
 * FINGERPRINT: "3a64ca13" # The key fingerprint generated when running the Generate Key binary. See [here](#generate-a-key)
-* RUST_LOG: "info,dlc_protocol_wallet=debug,dlc_clients=debug,bdk=debug,dlc_manager=debug,electrs_blockchain_provider=debug,dlc_bdk_wallet=debug,esplora_async_blockchain_provider=trace" # Different logging levels for each package is supported.
+* RUST_LOG: "info,dlc_protocol_wallet=debug,dlc_clients=debug,bdk=debug,dlc_manager=debug,electrs_blockchain_provider=debug,esplora_async_blockchain_provider=trace" # Different logging levels for each package is supported.
 * RUST_BACKTRACE: "full" # Show a full backtrace in case of panic.
 * SLED_WALLET_PATH": "wallet_db" # Directory name for storing a local cache of the bitcoin wallet's data.
 * STORAGE_API_ENABLED: "true" # Use the cloud database for the DLCs managed by DLC.Link. Recommended.

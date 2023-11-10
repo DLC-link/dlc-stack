@@ -12,12 +12,22 @@ run-attestors:
 run-storage:
   cd ../storage && just run
 
-run-it:
+build-wasm:
+  npm run build
+
+alias it := run
+alias run-it := run
+alias doit := run
+alias do-it := run
+
+run:
+  just build-wasm && wait
   just run-storage &
   just run-attestors &
   just run-wallet &
   while ! nc -z localhost 8085; do sleep 1; done
-  ENV=local_just HANDLE_ATTESTORS=true npm start && fg
+  ENV=local_just HANDLE_ATTESTORS=true npm start && wait
+  just die
 
 die:
   lsof -t -i:3000 2>/dev/null | xargs -r kill

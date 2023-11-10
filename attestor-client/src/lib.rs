@@ -22,7 +22,7 @@ use chrono::{DateTime, Utc};
 use dlc_link_manager::AsyncOracle;
 use dlc_manager::error::Error as DlcManagerError;
 use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
-use log::info;
+use log::{debug, info};
 use secp256k1_zkp::{schnorr::Signature, XOnlyPublicKey};
 use serde_json::Value;
 
@@ -192,9 +192,9 @@ impl AsyncOracle for AttestorClient {
         &self,
         event_id: &str,
     ) -> Result<OracleAnnouncement, DlcManagerError> {
-        info!("Getting announcement for event_id {event_id}");
+        debug!("Getting announcement for event_id {event_id}");
         let path = announcement_path(&self.host, event_id);
-        info!("Getting announcement at URL {path}");
+        debug!("Getting announcement at URL {path}");
         let v = match self.get_json(&path).await {
             Ok(v) => v,
             Err(e) => {
@@ -256,7 +256,6 @@ impl AsyncOracle for AttestorClient {
             )
             .unwrap();
 
-        info!("GOT ATTESTATION as OBJECT! {:?}", decoded_attestation);
         Ok(decoded_attestation)
     }
 }

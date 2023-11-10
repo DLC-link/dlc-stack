@@ -394,7 +394,7 @@ async fn main() -> Result<(), GenericError> {
 
     // Set up DLC store
     let dlc_store = Arc::new(AsyncStorageApiProvider::new(
-        pubkey_ext.to_string(),
+        pubkey_ext.to_pub().to_string(),
         secret_key,
         storage_api_url,
     ));

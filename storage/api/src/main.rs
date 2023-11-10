@@ -8,7 +8,6 @@ mod verify_sigs;
 use actix_cors::Cors;
 use contracts::*;
 use events::*;
-use log::debug;
 use rand::distributions::{Alphanumeric, DistString};
 use secp256k1::rand;
 extern crate log;
@@ -35,16 +34,12 @@ pub async fn get_health() -> impl Responder {
 
 #[get("/request_nonce")]
 pub async fn request_nonce(server_nonces: Data<Mutex<ServerNonce>>) -> impl Responder {
-    debug!("Requesting nonce");
     let mut server_nonce_vec = server_nonces.lock().expect("Failed to lock nonce vec");
-    debug!("Nonce vec: {:?}", server_nonce_vec);
     while server_nonce_vec.nonces.len() >= NONCE_VEC_LENGTH {
         server_nonce_vec.nonces.remove(0); // remove the oldest
     }
     let random_nonce = Alphanumeric.sample_string(&mut rand::thread_rng(), 20);
-    debug!("Random nonce: {}", random_nonce);
     server_nonce_vec.nonces.push(random_nonce.to_string());
-    debug!("Nonce vec: {:?}", server_nonce_vec);
     HttpResponse::Ok().body(random_nonce.to_string())
 }
 
@@ -78,7 +73,12 @@ async fn main() -> std::io::Result<()> {
     }
     let nonces = Data::new(Mutex::new(ServerNonce { nonces: vec![] }));
     let unprotected_paths = Data::new(UnprotectedPaths {
-        paths: vec!["/health".to_string(), "/request_nonce".to_string()],
+        paths: vec![
+            "/health".to_string(),
+            "/request_nonce".to_string(),
+            "/events".to_string(),
+            "/event".to_string(),
+        ],
     });
 
     //TODO: change allow_any_origin / allow_any_header / allow_any_method to something more restrictive
@@ -152,6 +152,8 @@ mod tests {
 
     use serde_json::Value;
 
+    use crate::verify_sigs::AuthenticatedQueryParams;
+
     use super::*;
 
     trait BodyTest {
@@ -182,6 +184,145 @@ mod tests {
 
         Ok(())
     }
+
+    // GET REQUESTS WITH QUERY PARAMS
+    #[actix_web::test]
+    async fn test_get_with_good_auth() -> Result<(), Error> {
+        let secp = Secp256k1::new();
+        let (secret_key, public_key) = secp.generate_keypair(&mut OsRng);
+        let nonces = Data::new(Mutex::new(ServerNonce { nonces: vec![] }));
+        let unprotected_paths = Data::new(UnprotectedPaths {
+            paths: vec!["/health".to_string(), "/request_nonce".to_string()],
+        });
+        let app = init_service(
+            App::new()
+                .app_data(nonces.clone())
+                .app_data(unprotected_paths.clone())
+                .wrap_fn(|req, srv| {
+                    let header_nonce = req.headers().get("authorization");
+                    if let Some(header_nonce) = header_nonce {
+                        req.app_data::<Data<Mutex<ServerNonce>>>()
+                            .expect("Failed to get nonces from app data")
+                            .lock()
+                            .expect("Failed to unlock nonce vec")
+                            .nonces
+                            .retain(|x| x != header_nonce);
+                    }
+                    srv.call(req)
+                })
+                .wrap(verify_sigs::Verifier)
+                .service(request_nonce)
+                .service(get_contracts),
+        )
+        .await;
+
+        let nonce_request = TestRequest::default()
+            .method(Method::GET)
+            .uri("/request_nonce")
+            .to_request();
+
+        let res = test::call_service(&app, nonce_request).await;
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = to_bytes(res.into_body()).await.expect("Failed to get body");
+        let nonce = body.as_str();
+
+        let digest = Message::from(sha256::Hash::hash(nonce.to_string().as_bytes()));
+        let sig = secp.sign_ecdsa(&digest, &secret_key);
+        assert!(secp.verify_ecdsa(&digest, &sig, &public_key).is_ok());
+
+        let fetch_contract = AuthenticatedQueryParams {
+            uuid: Some("123".to_string()),
+            state: Some("123".to_string()),
+            signature: sig.to_string(),
+            key: public_key.to_string(),
+        };
+
+        let request_query = serde_urlencoded::to_string(&fetch_contract).expect("to go!");
+
+        let req = TestRequest::default()
+            .method(Method::GET)
+            .insert_header((header::AUTHORIZATION, nonce))
+            .uri(&format!("/contracts?{}", request_query))
+            .to_request();
+
+        let res = test::call_service(&app, req).await;
+
+        // It's not great to expect a 500 in a test, but in this case
+        // it means it got to the function and attempted to interact with the DB
+        assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR); // this means it worked
+
+        Ok(())
+    }
+
+    #[actix_web::test]
+    async fn test_get_with_bad_sig() -> Result<(), Error> {
+        let secp = Secp256k1::new();
+        let (secret_key, public_key) = secp.generate_keypair(&mut OsRng);
+        let nonces = Data::new(Mutex::new(ServerNonce { nonces: vec![] }));
+        let unprotected_paths = Data::new(UnprotectedPaths {
+            paths: vec!["/health".to_string(), "/request_nonce".to_string()],
+        });
+        let app = init_service(
+            App::new()
+                .app_data(nonces.clone())
+                .app_data(unprotected_paths.clone())
+                .wrap_fn(|req, srv| {
+                    let header_nonce = req.headers().get("authorization");
+                    if let Some(header_nonce) = header_nonce {
+                        req.app_data::<Data<Mutex<ServerNonce>>>()
+                            .expect("Failed to get nonces from app data")
+                            .lock()
+                            .expect("Failed to unlock nonce vec")
+                            .nonces
+                            .retain(|x| x != header_nonce);
+                    }
+                    srv.call(req)
+                })
+                .wrap(verify_sigs::Verifier)
+                .service(request_nonce)
+                .service(get_contracts),
+        )
+        .await;
+
+        let nonce_request = TestRequest::default()
+            .method(Method::GET)
+            .uri("/request_nonce")
+            .to_request();
+
+        let res = test::call_service(&app, nonce_request).await;
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = to_bytes(res.into_body()).await.expect("Failed to get body");
+        let nonce = body.as_str();
+
+        let digest = Message::from(sha256::Hash::hash("nonce".to_string().as_bytes()));
+        let sig = secp.sign_ecdsa(&digest, &secret_key);
+        assert!(secp.verify_ecdsa(&digest, &sig, &public_key).is_ok());
+
+        let fetch_contract = AuthenticatedQueryParams {
+            uuid: Some("123".to_string()),
+            state: Some("123".to_string()),
+            signature: sig.to_string(),
+            key: public_key.to_string(),
+        };
+
+        let request_query = serde_urlencoded::to_string(&fetch_contract).expect("to go!");
+
+        let req = TestRequest::default()
+            .method(Method::GET)
+            .insert_header((header::AUTHORIZATION, nonce))
+            .uri(&format!("/contracts?{}", request_query))
+            .to_request();
+
+        let res = test::call_service(&app, req).await;
+
+        // It's not great to expect a 500 in a test, but in this case
+        // it means it got to the function and attempted to interact with the DB
+        assert_eq!(res.status(), StatusCode::FORBIDDEN); // this means it worked
+
+        Ok(())
+    }
+
+    // POST REQUESTS WITH JSON BODY
 
     #[actix_web::test]
     async fn test_with_good_auth() -> Result<(), Error> {
