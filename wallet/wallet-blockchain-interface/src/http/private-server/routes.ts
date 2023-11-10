@@ -4,11 +4,17 @@ import { localhostOrDockerOnly } from '../middlewares.js';
 
 const blockchainWriter = await BlockchainWriterService.getBlockchainWriter();
 const router = express.Router();
+const TESTMODE: boolean = process.env.TEST_MODE_ENABLED === 'true';
+const JUSTMODE: boolean = process.env.JUST_MODE === 'true';
 
 router.post('/set-status-funded', express.json(), localhostOrDockerOnly, async (req, res) => {
     console.log('POST /set-status-funded with UUID:', req.body.uuid);
     if (!req.body.uuid) {
         res.status(400).send('Missing UUID');
+        return;
+    }
+    if (TESTMODE || JUSTMODE) {
+        res.status(200).send('set-status-funded called in test mode.');
         return;
     }
     const data = await blockchainWriter.setStatusFunded(req.body.uuid as string);
@@ -18,9 +24,9 @@ router.post('/set-status-funded', express.json(), localhostOrDockerOnly, async (
 router.get('/get-all-attestors', express.json(), localhostOrDockerOnly, async (req, res) => {
     console.log('GET /get-all-attestors');
     let data;
-    if (process.env.TEST_MODE_ENABLED === 'true') {
+    if (TESTMODE) {
         data = ['http://172.20.128.5:8801', 'http://172.20.128.6:8802', 'http://172.20.128.7:8803'];
-    } else if (process.env.JUST_MODE === 'true') {
+    } else if (JUSTMODE) {
         data = ['http://localhost:8801', 'http://localhost:8802', 'http://localhost:8803'];
     } else {
         data = await blockchainWriter.getAllAttestors();
@@ -39,6 +45,11 @@ router.post('/post-close-dlc', express.json(), localhostOrDockerOnly, async (req
     }
     const { uuid, btcTxId } = req.body;
     console.log('POST /post-close-dlc with UUID, BTC TX ID:', uuid, btcTxId);
+
+    if (TESTMODE || JUSTMODE) {
+        res.status(200).send('post-close-dlc called in test mode.');
+        return;
+    }
     const data = await blockchainWriter.postCloseDLC(uuid as string, btcTxId as string);
     res.status(200).send(data);
 });
