@@ -1,4 +1,5 @@
-use secp256k1_zkp::{All, KeyPair, Secp256k1, SecretKey, XOnlyPublicKey as SchnorrPublicKey};
+use secp256k1_zkp::PublicKey;
+use secp256k1_zkp::{All, KeyPair, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
 
 mod error;
@@ -27,13 +28,11 @@ impl Oracle {
     pub fn new(
         key_pair: KeyPair,
         secp: Secp256k1<All>,
-        storage_api_enabled: bool,
         storage_api_endpoint: String,
     ) -> Result<Oracle> {
         let event_handler = EventHandler::new(
-            storage_api_enabled,
             storage_api_endpoint,
-            SchnorrPublicKey::from_keypair(&key_pair).0.to_string(),
+            PublicKey::from_keypair(&key_pair).to_string(),
         );
 
         Ok(Oracle {
@@ -50,7 +49,3 @@ impl Oracle {
         &self.secp
     }
 }
-
-// pub mod oracle_queryable;
-pub mod secret_key;
-pub mod vault;

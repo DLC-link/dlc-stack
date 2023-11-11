@@ -73,12 +73,7 @@ async fn main() -> std::io::Result<()> {
     }
     let nonces = Data::new(Mutex::new(ServerNonce { nonces: vec![] }));
     let unprotected_paths = Data::new(UnprotectedPaths {
-        paths: vec![
-            "/health".to_string(),
-            "/request_nonce".to_string(),
-            "/events".to_string(),
-            "/event".to_string(),
-        ],
+        paths: vec!["/health".to_string(), "/request_nonce".to_string()],
     });
 
     //TODO: change allow_any_origin / allow_any_header / allow_any_method to something more restrictive
@@ -152,7 +147,7 @@ mod tests {
 
     use serde_json::Value;
 
-    use crate::verify_sigs::AuthenticatedQueryParams;
+    use crate::verify_sigs::AuthenticatedContractQueryParams;
 
     use super::*;
 
@@ -230,7 +225,7 @@ mod tests {
         let sig = secp.sign_ecdsa(&digest, &secret_key);
         assert!(secp.verify_ecdsa(&digest, &sig, &public_key).is_ok());
 
-        let fetch_contract = AuthenticatedQueryParams {
+        let fetch_contract = AuthenticatedContractQueryParams {
             uuid: Some("123".to_string()),
             state: Some("123".to_string()),
             signature: sig.to_string(),
@@ -298,7 +293,7 @@ mod tests {
         let sig = secp.sign_ecdsa(&digest, &secret_key);
         assert!(secp.verify_ecdsa(&digest, &sig, &public_key).is_ok());
 
-        let fetch_contract = AuthenticatedQueryParams {
+        let fetch_contract = AuthenticatedContractQueryParams {
             uuid: Some("123".to_string()),
             state: Some("123".to_string()),
             signature: sig.to_string(),

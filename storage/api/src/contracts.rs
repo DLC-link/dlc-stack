@@ -3,7 +3,9 @@ use crate::DbPool;
 use actix_web::web;
 use actix_web::web::{Data, Json, Path};
 use actix_web::{delete, get, post, put, HttpResponse, Responder};
-use dlc_storage_common::models::ContractRequestParams;
+use dlc_storage_common::models::{
+    ContractRequestParams, DeleteContract, NewContract, UpdateContract,
+};
 use log::{debug, warn};
 use serde_json::json;
 
@@ -30,7 +32,8 @@ pub async fn create_contract(
     let mut conn = pool.get().expect("couldn't get db connection from pool");
     match dlc_storage_writer::create_contract(
         &mut conn,
-        serde_json::from_str(&contract_params.into_inner().message.to_string()).expect("asdf"),
+        serde_json::from_str::<NewContract>(&contract_params.into_inner().message.to_string())
+            .expect("Unable to get message from body"),
     ) {
         Ok(contract) => {
             debug!("Created contract: {:?}", contract.uuid);
@@ -51,7 +54,8 @@ pub async fn update_contract(
     let mut conn = pool.get().expect("couldn't get db connection from pool");
     let num_updated = match dlc_storage_writer::update_contract(
         &mut conn,
-        serde_json::from_str(&contract_params.into_inner().message.to_string()).expect("asdf"),
+        serde_json::from_str::<UpdateContract>(&contract_params.into_inner().message.to_string())
+            .expect("Unable to get message from body"),
     ) {
         Ok(num_updated) => num_updated,
         Err(e) => {
@@ -73,7 +77,8 @@ pub async fn delete_contract(
     let mut conn = pool.get().expect("couldn't get db connection from pool");
     let num_deleted = match dlc_storage_writer::delete_contract(
         &mut conn,
-        serde_json::from_str(&contract_params.into_inner().message.to_string()).expect("asdf"),
+        serde_json::from_str::<DeleteContract>(&contract_params.into_inner().message.to_string())
+            .expect("Unable to get message from body"),
     ) {
         Ok(num_deleted) => num_deleted,
         Err(e) => {

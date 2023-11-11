@@ -37,13 +37,12 @@ services:
       - "BITCOIN_CHECK_INTERVAL_SECONDS=60"
       - "RUST_LOG=warn,dlc_protocol_wallet=debug"
       - "RUST_BACKTRACE=full"
-      - "STORAGE_API_ENABLED=true"
       - "CONTRACT_CLEANUP_ENABLED=${CONTRACT_CLEANUP_ENABLED:-false}"
       - "BLOCKCHAIN_INTERFACE_URL=http://wallet-blockchain-interface:3000"
       - "XPRIV=${XPRIV}"
       - "FINGERPRINT=${FINGERPRINT}"
     depends_on:
-        - wallet-blockchain-interface
+      - wallet-blockchain-interface
     restart: on-failure
     healthcheck:
       test: curl --fail http://localhost:8085/info || exit 1

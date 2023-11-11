@@ -1,9 +1,9 @@
 extern crate base64;
 use crate::oracle::OracleError;
 use dlc_clients::{
-    EventRequestParams, EventsRequestParams, MemoryApiClient, NewEvent, StorageApiClient,
-    UpdateEvent,
+    EventRequestParams, EventsRequestParams, NewEvent, StorageApiClient, UpdateEvent,
 };
+use secp256k1_zkp::SecretKey;
 
 extern crate futures;
 
@@ -15,111 +15,29 @@ macro_rules! clog {
 
 #[derive(Clone)]
 pub struct EventHandler {
-    pub storage_api: Option<StorageApiConn>,
-    pub memory_api: Option<MemoryApiConn>,
+    pub storage_api: StorageApiConn,
 }
 
 impl EventHandler {
-    pub fn new(storage_api_enabled: bool, storage_api_endpoint: String, key: String) -> Self {
-        if storage_api_enabled && !storage_api_endpoint.is_empty() {
-            let storage_api_client = StorageApiClient::new(storage_api_endpoint);
-            let storage_api_conn = Some(StorageApiConn::new(storage_api_client, key));
+    pub fn new(storage_api_endpoint: String, public_key: String) -> Self {
+        let storage_api_client = StorageApiClient::new(storage_api_endpoint);
+        let storage_api_conn = StorageApiConn::new(storage_api_client, public_key);
 
-            Self {
-                storage_api: storage_api_conn,
-                memory_api: None,
-            }
-        } else {
-            Self {
-                storage_api: None,
-                memory_api: Some(MemoryApiConn::default()),
-            }
+        Self {
+            storage_api: storage_api_conn,
         }
-    }
-}
-
-#[derive(Clone)]
-pub struct MemoryApiConn {
-    pub client: MemoryApiClient,
-    key: String,
-}
-
-impl Default for MemoryApiConn {
-    fn default() -> Self {
-        Self::new("memory_key".to_string())
-    }
-}
-
-impl MemoryApiConn {
-    pub fn new(key: String) -> Self {
-        let client = MemoryApiClient::default();
-        Self { client, key }
-    }
-
-    pub async fn insert(
-        &mut self,
-        event_id: String,
-        new_event: Vec<u8>,
-    ) -> Result<Option<Vec<u8>>, OracleError> {
-        let new_content = base64::encode(new_event.clone());
-        let event = self.client.get_event(event_id.clone()).await?;
-        if event.is_some() {
-            let update_event = UpdateEvent {
-                content: new_content.clone(),
-                event_id: event_id.clone(),
-                key: self.key.clone(),
-            };
-            let res = self
-                .client
-                .update_event(event_id.clone(), update_event)
-                .await;
-            match res {
-                Ok(_) => Ok(Some(new_event.clone())),
-                Err(err) => Err(OracleError::StorageApiError(err)),
-            }
-        } else {
-            let event = NewEvent {
-                event_id: event_id.clone(),
-                content: new_content.clone(),
-                key: self.key.clone(),
-            };
-            let res = self.client.create_event(event).await;
-            match res {
-                Ok(_) => Ok(Some(new_event.clone())),
-                Err(err) => Err(OracleError::StorageApiError(err)),
-            }
-        }
-    }
-
-    pub async fn get(&self, event_id: String) -> Result<Option<Vec<u8>>, OracleError> {
-        let event = self.client.get_event(event_id.clone()).await?;
-        if event.is_some() {
-            let res = base64::decode(event.unwrap().content).unwrap();
-            Ok(Some(res))
-        } else {
-            Ok(None)
-        }
-    }
-
-    pub async fn get_all(&self) -> Result<Option<Vec<(String, Vec<u8>)>>, OracleError> {
-        let res_events = self.client.get_events().await.unwrap();
-        let mut result: Vec<(String, Vec<u8>)> = vec![];
-        for event in res_events {
-            let content = base64::decode(event.content).unwrap();
-            result.push((event.event_id, content));
-        }
-        Ok(Some(result))
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct StorageApiConn {
     pub client: StorageApiClient,
-    key: String,
+    public_key: String,
 }
+
 impl StorageApiConn {
-    pub fn new(client: StorageApiClient, key: String) -> Self {
-        Self { client, key }
+    pub fn new(client: StorageApiClient, public_key: String) -> Self {
+        Self { client, public_key }
     }
 
     // Todo: Remove upsert functionality for simplicity
@@ -127,14 +45,18 @@ impl StorageApiConn {
         &self,
         event_id: String,
         new_event: Vec<u8>,
+        secret_key: SecretKey,
     ) -> Result<Option<Vec<u8>>, OracleError> {
         let new_content = base64::encode(new_event.clone());
         let event = match self
             .client
-            .get_event(EventRequestParams {
-                key: self.key.clone(),
-                event_id: event_id.clone(),
-            })
+            .get_event(
+                EventRequestParams {
+                    key: self.public_key.clone(),
+                    event_id: event_id.clone(),
+                },
+                secret_key,
+            )
             .await
         {
             Ok(event) => event,
@@ -148,9 +70,9 @@ impl StorageApiConn {
             let update_event = UpdateEvent {
                 content: new_content.clone(),
                 event_id: event_id.clone(),
-                key: self.key.clone(),
+                key: self.public_key.clone(),
             };
-            let res = self.client.update_event(update_event).await;
+            let res = self.client.update_event(update_event, secret_key).await;
             match res {
                 Ok(_) => Ok(Some(new_event.clone())),
                 Err(err) => Err(OracleError::StorageApiError(err)),
@@ -159,9 +81,9 @@ impl StorageApiConn {
             let event = NewEvent {
                 event_id: event_id.clone(),
                 content: new_content.clone(),
-                key: self.key.clone(),
+                key: self.public_key.clone(),
             };
-            let res = self.client.create_event(event).await;
+            let res = self.client.create_event(event, secret_key).await;
             match res {
                 Ok(_) => Ok(Some(new_event.clone())),
                 Err(err) => Err(OracleError::StorageApiError(err)),
@@ -169,13 +91,20 @@ impl StorageApiConn {
         }
     }
 
-    pub async fn get(&self, event_id: String) -> Result<Option<Vec<u8>>, OracleError> {
+    pub async fn get(
+        &self,
+        event_id: String,
+        secret_key: SecretKey,
+    ) -> Result<Option<Vec<u8>>, OracleError> {
         let event = self
             .client
-            .get_event(EventRequestParams {
-                key: self.key.clone(),
-                event_id: event_id.clone(),
-            })
+            .get_event(
+                EventRequestParams {
+                    key: self.public_key.clone(),
+                    event_id: event_id.clone(),
+                },
+                secret_key,
+            )
             .await?;
 
         match event {
@@ -187,13 +116,19 @@ impl StorageApiConn {
         }
     }
 
-    pub async fn get_all(&self) -> Result<Option<Vec<(String, Vec<u8>)>>, OracleError> {
+    pub async fn get_all(
+        &self,
+        secret_key: SecretKey,
+    ) -> Result<Option<Vec<(String, Vec<u8>)>>, OracleError> {
         let events = self
             .client
-            .get_events(EventsRequestParams {
-                key: self.key.clone(),
-                event_id: None,
-            })
+            .get_events(
+                EventsRequestParams {
+                    key: self.public_key.clone(),
+                    event_id: None,
+                },
+                secret_key,
+            )
             .await
             .unwrap();
         let mut result: Vec<(String, Vec<u8>)> = vec![];

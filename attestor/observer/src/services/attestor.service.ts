@@ -1,17 +1,22 @@
 import { Attestor } from 'attestor';
 import { getEnv } from '../config/read-env-configs.js';
-import { createECDH } from 'crypto';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
+import { BIP32Factory } from 'bip32';
+import * as ecc from 'tiny-secp256k1';
 
 function getOrGenerateSecretFromConfig(): string {
   let secretKey: string;
   try {
-    secretKey = getEnv('PRIVATE_KEY');
+    secretKey = getEnv('XPRIV');
   } catch (error) {
-    console.warn('No PRIVATE_KEY env var found, generating secret key');
-    const ecdh = createECDH('secp256k1');
-    ecdh.generateKeys();
-    secretKey = ecdh.getPrivateKey('hex');
+    console.warn('No PRIVATE_KEY env var found, generating xpriv key');
+    const mnemonic = generateMnemonic();
+    const seed = mnemonicToSeedSync(mnemonic);
+    const bip32 = BIP32Factory(ecc);
+    const node = bip32.fromSeed(seed);
+    secretKey = node.toBase58();
+
+    console.log(mnemonic);
   }
   return secretKey;
 }
@@ -30,7 +35,6 @@ export default class AttestorService {
   public static async getAttestor(): Promise<Attestor> {
     if (!this.attestor) {
       this.attestor = await Attestor.new(
-        getEnv('STORAGE_API_ENABLED') === 'true',
         getEnv('STORAGE_API_ENDPOINT'),
         getOrGenerateSecretFromConfig()
       );

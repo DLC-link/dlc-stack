@@ -148,6 +148,14 @@ pub struct UpdateEvent {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+struct SignedEventsRequestParams {
+    key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    event_id: Option<String>,
+    signature: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct EventRequestParams {
     pub key: String,
     pub event_id: String,
@@ -281,14 +289,14 @@ impl StorageApiClient {
     async fn build_signed_message(
         &self,
         secret_key: SecretKey,
-        mut contract: Value,
+        mut message: Value,
     ) -> Result<(String, SignedMessage), ApiError> {
         let nonce = self.request_nonce().await?;
-        contract["nonce"] = nonce.clone().into();
+        message["nonce"] = nonce.clone().into();
 
-        let (sig, pub_key) = self.sign(secret_key, contract.to_string());
+        let (sig, pub_key) = self.sign(secret_key, message.to_string());
         let message_body = SignedMessage {
-            message: contract,
+            message,
             public_key: pub_key.to_string(),
             signature: sig.to_string(),
         };
@@ -321,7 +329,6 @@ impl StorageApiClient {
         let uri = format!("{}/contracts", String::as_str(&self.host.clone()),);
 
         let nonce = self.request_nonce().await?;
-
         let (sig, _pubkey) = self.sign(secret_key, nonce.clone());
         let signed_request_params = SignedContractsRequestParams {
             key: contract_req.key.clone(),
@@ -367,10 +374,29 @@ impl StorageApiClient {
         Ok(contract.first().cloned())
     }
 
-    pub async fn get_events(&self, event_req: EventsRequestParams) -> Result<Vec<Event>, ApiError> {
+    pub async fn get_events(
+        &self,
+        event_req: EventsRequestParams,
+        secret_key: SecretKey,
+    ) -> Result<Vec<Event>, ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()));
         debug!("getting events with request params: {:?}", event_req);
-        let res = self.client.get(uri).query(&event_req).send().await?;
+
+        let nonce = self.request_nonce().await?;
+        let (sig, _pubkey) = self.sign(secret_key, nonce.clone());
+        let signed_request_params = SignedEventsRequestParams {
+            key: event_req.key.clone(),
+            event_id: event_req.event_id.clone(),
+            signature: sig.to_string(),
+        };
+
+        let res = self
+            .client
+            .get(uri)
+            .header("authorization", nonce)
+            .query(&signed_request_params)
+            .send()
+            .await?;
         let status = res.status().into();
         let events = res.json::<Vec<Event>>().await.map_err(|e| ApiError {
             message: format!(
@@ -385,13 +411,17 @@ impl StorageApiClient {
     pub async fn get_event(
         &self,
         event_req: EventRequestParams,
+        secret_key: SecretKey,
     ) -> Result<Option<Event>, ApiError> {
         debug!("getting event with uuid: {}", event_req.event_id);
         let events = self
-            .get_events(EventsRequestParams {
-                key: event_req.key.clone(),
-                event_id: Some(event_req.event_id.clone()),
-            })
+            .get_events(
+                EventsRequestParams {
+                    key: event_req.key.clone(),
+                    event_id: Some(event_req.event_id.clone()),
+                },
+                secret_key,
+            )
             .await?;
         Ok(events.first().cloned())
     }
@@ -427,10 +457,23 @@ impl StorageApiClient {
         Ok(contract)
     }
 
-    pub async fn create_event(&self, event: NewEvent) -> Result<Event, ApiError> {
+    pub async fn create_event(
+        &self,
+        event: NewEvent,
+        secret_key: SecretKey,
+    ) -> Result<Event, ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()));
         debug!("calling event create on url: {:?}", uri);
-        let res = self.client.post(uri).json(&event).send().await?;
+
+        let (nonce, message_body) = self.build_signed_message(secret_key, json!(event)).await?;
+
+        let res = self
+            .client
+            .post(uri)
+            .header("authorization", nonce)
+            .json(&message_body)
+            .send()
+            .await?;
         let status = res.status().into();
         let event = res.json::<Event>().await.map_err(|e| ApiError {
             message: format!(
@@ -442,10 +485,23 @@ impl StorageApiClient {
         Ok(event)
     }
 
-    pub async fn update_event(&self, event: UpdateEvent) -> Result<(), ApiError> {
+    pub async fn update_event(
+        &self,
+        event: UpdateEvent,
+        secret_key: SecretKey,
+    ) -> Result<(), ApiError> {
         let uri = format!("{}/events", String::as_str(&self.host.clone()));
         debug!("calling event update on url: {:?}", uri);
-        let res = self.client.put(uri).json(&event).send().await?;
+
+        let (nonce, message_body) = self.build_signed_message(secret_key, json!(event)).await?;
+
+        let res = self
+            .client
+            .put(uri)
+            .header("authorization", nonce)
+            .json(&message_body)
+            .send()
+            .await?;
         let status = res.status().into();
         match res
             .json::<EffectedNumResponse>()
@@ -513,11 +569,23 @@ impl StorageApiClient {
         }
     }
 
-    // key for all these too
-    pub async fn delete_event(&self, event: EventRequestParams) -> Result<(), ApiError> {
+    pub async fn delete_event(
+        &self,
+        event: EventRequestParams,
+        secret_key: SecretKey,
+    ) -> Result<(), ApiError> {
         let uri = format!("{}/event", String::as_str(&self.host.clone()));
         debug!("calling event delete on url: {:?}", uri);
-        let res = self.client.delete(uri).json(&event).send().await?;
+
+        let (nonce, message_body) = self.build_signed_message(secret_key, json!(event)).await?;
+
+        let res = self
+            .client
+            .delete(uri)
+            .header("authorization", nonce)
+            .json(&message_body)
+            .send()
+            .await?;
         let status = res.status().into();
         match res
             .json::<EffectedNumResponse>()

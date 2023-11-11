@@ -55,7 +55,6 @@ The following environment variables must be passed into this application, whethe
 * RUST_LOG: "info,dlc_protocol_wallet=debug,dlc_clients=debug,bdk=debug,dlc_manager=debug,electrs_blockchain_provider=debug,esplora_async_blockchain_provider=trace" # Different logging levels for each package is supported.
 * RUST_BACKTRACE: "full" # Show a full backtrace in case of panic.
 * SLED_WALLET_PATH": "wallet_db" # Directory name for storing a local cache of the bitcoin wallet's data.
-* STORAGE_API_ENABLED: "true" # Use the cloud database for the DLCs managed by DLC.Link. Recommended.
 * STORAGE_API_ENDPOINT: "https://devnet.dlc.link/storage-api" # URL for the cloud database.
 * XPRIVATE_KEY: "tprv8Z..." # The private key generated when running the Generate Key binary. See [here](#generate-a-key)
 

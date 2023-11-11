@@ -8,7 +8,7 @@ use std::{
 use actix_http::{h1, StatusCode};
 use actix_web::{
     dev::{self, Service, ServiceRequest, ServiceResponse, Transform},
-    web::{self, Data, Query},
+    web::{self, Data},
     Error,
 };
 
@@ -33,10 +33,17 @@ pub struct AuthenticatedMessage {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-pub struct AuthenticatedQueryParams {
+pub struct AuthenticatedContractQueryParams {
     pub key: String, // the public key
     pub uuid: Option<String>,
     pub state: Option<String>,
+    pub signature: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct AuthenticatedEventQueryParams {
+    pub key: String, // the public key
+    pub event_id: Option<String>,
     pub signature: String,
 }
 
@@ -121,85 +128,115 @@ where
                     return Ok(res);
                 }
             };
-
-            if req.method() == actix_web::http::Method::GET {
-                let query_params = req
-                    .extract::<web::Query<AuthenticatedQueryParams>>()
-                    .await
-                    .expect("unable to extract query params");
-                let mut res = svc.call(req).await?;
-
-                if verify_query_params(query_params, auth_header_nonce).is_err()
-                    || !nonces.contains(&auth_header_nonce.to_string())
-                {
-                    error!("Failed to verify signature or nonce");
-                    *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
-                }
-                Ok(res)
-            } else {
-                let body = req
-                    .extract::<web::Bytes>()
-                    .await
-                    .expect("unable to extract body");
-
-                let body_json = match serde_json::from_slice::<AuthenticatedMessage>(&body) {
-                    Ok(body) => body,
-                    Err(_) => {
-                        error!("unable to parse body");
-                        let mut res = svc.call(req).await?;
-                        *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
-                        return Ok(res);
-                    }
-                };
-
-                let message_nonce = &body_json.clone().message["nonce"];
-                let message_nonce = match message_nonce.as_str() {
-                    Some(nonce) => nonce,
-                    None => {
-                        error!("unable to parse nonce from body");
-                        let mut res = svc.call(req).await?;
-                        *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
-                        return Ok(res);
-                    }
-                };
-
-                if verify_body(body_json).is_err()
-                    || !nonces.contains(&auth_header_nonce.to_string())
-                    || auth_header_nonce != message_nonce
-                {
-                    error!("Failed to verify signature or nonce");
+            match (req.method(), req.path()) {
+                (&actix_web::http::Method::GET, p) if p.contains("/event") => {
+                    let query_params = req
+                        .extract::<web::Query<AuthenticatedEventQueryParams>>()
+                        .await
+                        .expect("unable to extract query params");
                     let mut res = svc.call(req).await?;
-                    *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
-                    return Ok(res);
+
+                    if verify_query_params(
+                        query_params.signature.clone(),
+                        query_params.key.clone(),
+                        auth_header_nonce,
+                    )
+                    .is_err()
+                        || !nonces.contains(&auth_header_nonce.to_string())
+                    {
+                        error!("Failed to verify signature or nonce");
+                        *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
+                    }
+                    Ok(res)
                 }
-                req.set_payload(bytes_to_payload(body));
-                let res = svc.call(req).await?;
-                Ok(res)
+                (&actix_web::http::Method::GET, p) if p.contains("/contract") => {
+                    let query_params = req
+                        .extract::<web::Query<AuthenticatedContractQueryParams>>()
+                        .await
+                        .expect("unable to extract query params");
+                    let mut res = svc.call(req).await?;
+
+                    if verify_query_params(
+                        query_params.signature.clone(),
+                        query_params.key.clone(),
+                        auth_header_nonce,
+                    )
+                    .is_err()
+                        || !nonces.contains(&auth_header_nonce.to_string())
+                    {
+                        error!("Failed to verify signature or nonce");
+                        *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
+                    }
+                    Ok(res)
+                }
+                _ => {
+                    // POST / PUT / DELETE requests to the /event or /contract endpoints
+                    let body = req
+                        .extract::<web::Bytes>()
+                        .await
+                        .expect("unable to extract body");
+
+                    let body_json = match serde_json::from_slice::<AuthenticatedMessage>(&body) {
+                        Ok(body) => body,
+                        Err(_) => {
+                            error!("unable to parse body");
+                            let mut res = svc.call(req).await?;
+                            *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
+                            return Ok(res);
+                        }
+                    };
+
+                    let message_nonce = &body_json.clone().message["nonce"];
+                    let message_nonce = match message_nonce.as_str() {
+                        Some(nonce) => nonce,
+                        None => {
+                            error!("unable to parse nonce from body");
+                            let mut res = svc.call(req).await?;
+                            *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
+                            return Ok(res);
+                        }
+                    };
+
+                    if verify_body(body_json).is_err()
+                        || !nonces.contains(&auth_header_nonce.to_string())
+                        || auth_header_nonce != message_nonce
+                    {
+                        error!("Failed to verify signature or nonce");
+                        let mut res = svc.call(req).await?;
+                        *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
+                        return Ok(res);
+                    }
+                    req.set_payload(bytes_to_payload(body));
+                    let res = svc.call(req).await?;
+                    Ok(res)
+                }
             }
         })
     }
 }
 
 fn verify_query_params(
-    query_string: Query<AuthenticatedQueryParams>,
+    sig: String,
+    key: String,
     message: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let sig: Signature = Signature::from_str(&query_string.signature)?;
-    let message = Message::from(sha256::Hash::hash(message.as_bytes()));
-    let pub_key = PublicKey::from_str(&query_string.key)?;
+    let sig: Signature = Signature::from_str(&sig)?;
+    let hashed_message = Message::from(sha256::Hash::hash(message.as_bytes()));
+    let pub_key = PublicKey::from_str(&key)?;
 
     let secp = Secp256k1::new();
-    Ok(secp.verify_ecdsa(&message, &sig, &pub_key)?)
+    Ok(secp.verify_ecdsa(&hashed_message, &sig, &pub_key)?)
 }
 
 fn verify_body(body_json: AuthenticatedMessage) -> Result<(), Box<dyn std::error::Error>> {
     let sig: Signature = Signature::from_str(&body_json.signature)?;
 
-    let message = Message::from(sha256::Hash::hash(body_json.message.to_string().as_bytes()));
+    let hashed_message =
+        Message::from(sha256::Hash::hash(body_json.message.to_string().as_bytes()));
     let pub_key = PublicKey::from_str(&body_json.public_key)?;
 
     let secp = Secp256k1::new();
-    Ok(secp.verify_ecdsa(&message, &sig, &pub_key)?)
+    Ok(secp.verify_ecdsa(&hashed_message, &sig, &pub_key)?)
 }
 
 fn bytes_to_payload(buf: web::Bytes) -> dev::Payload {

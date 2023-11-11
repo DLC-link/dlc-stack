@@ -19,7 +19,7 @@ use std::net::Ipv4Addr;
 use std::time::Duration;
 use std::{collections::HashMap, env, str::FromStr, sync::Arc};
 
-use bitcoin::XOnlyPublicKey;
+use bitcoin::{PublicKey, XOnlyPublicKey};
 use dlc_link_manager::{AsyncOracle, AsyncStorage, Manager};
 use dlc_manager::{
     contract::{
@@ -362,7 +362,7 @@ async fn main() -> Result<(), GenericError> {
         electrs_host.to_string(),
         active_network,
     ));
-    let (pubkey_ext, wallet, secret_key) = setup_wallets(xpriv, active_network);
+    let (pubkey, wallet, secret_key) = setup_wallets(xpriv, active_network);
 
     // Set up Attestor Clients
     let attestor_urls: Vec<String> = match retry!(
@@ -394,7 +394,7 @@ async fn main() -> Result<(), GenericError> {
 
     // Set up DLC store
     let dlc_store = Arc::new(AsyncStorageApiProvider::new(
-        pubkey_ext.to_pub().to_string(),
+        pubkey.to_string(),
         secret_key,
         storage_api_url,
     ));
@@ -466,7 +466,7 @@ where
 fn setup_wallets(
     xpriv: ExtendedPrivKey,
     active_network: bitcoin::Network,
-) -> (ExtendedPubKey, Arc<DlcWallet>, SecretKey) {
+) -> (PublicKey, Arc<DlcWallet>, SecretKey) {
     let secp = bitcoin::secp256k1::Secp256k1::new();
 
     let external_derivation_path =
@@ -497,7 +497,7 @@ fn setup_wallets(
 
     let wallet: Arc<DlcWallet> = Arc::new(DlcWallet::new(static_address.clone(), seckey_ext));
 
-    let pubkey = ExtendedPubKey::from_priv(&secp, &derived_ext_xpriv);
+    let pubkey = ExtendedPubKey::from_priv(&secp, &derived_ext_xpriv).to_pub();
     (pubkey, wallet, seckey_ext)
 }
 

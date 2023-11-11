@@ -13,7 +13,6 @@ services:
       "VERSION_1": "1"
       # This is the API key for the chain (Infura key for ETH, N/A for Stacks):
       "API_KEY_1": ${INFURA_API_KEY}
-      "STORAGE_API_ENABLED": "true"
       "STORAGE_API_ENDPOINT": "https://devnet.dlc.link/storage-api"
       # Optional BRANCH: the branch in dlc-solidity repo to fetch deployment info from
       # Default: master
