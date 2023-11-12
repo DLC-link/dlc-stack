@@ -108,10 +108,6 @@ impl Attestor {
 
         let new_event = serde_json::to_string(&db_value).unwrap().into_bytes();
 
-        clog!(
-            "[WASM-ATTESTOR] Inserting *** event into StorageAPI with uuid: {}",
-            uuid
-        );
         match &self
             .oracle
             .event_handler

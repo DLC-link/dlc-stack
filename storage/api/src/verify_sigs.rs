@@ -106,10 +106,9 @@ where
         let temp_headers = req.headers().clone();
         let auth_header_nonce = temp_headers.get("authorization");
         if auth_header_nonce.is_none() {
-            warn!("did not find auth header in request");
+            warn!("did not find auth header in request. Assuming this is a v1 request. Deprecate this over time");
             return Box::pin(async move {
-                let mut res = svc.call(req).await?;
-                *res.response_mut().status_mut() = actix_web::http::StatusCode::FORBIDDEN;
+                let res = svc.call(req).await?;
                 Ok(res)
             });
         };
@@ -197,7 +196,7 @@ where
                         }
                     };
 
-                    if verify_body(body_json).is_err()
+                    if verify_body(body_json.clone()).is_err()
                         || !nonces.contains(&auth_header_nonce.to_string())
                         || auth_header_nonce != message_nonce
                     {
@@ -206,7 +205,8 @@ where
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                         return Ok(res);
                     }
-                    req.set_payload(bytes_to_payload(body));
+                    let message = body_json.clone().message;
+                    req.set_payload(bytes_to_payload(message.to_string().into()));
                     let res = svc.call(req).await?;
                     Ok(res)
                 }

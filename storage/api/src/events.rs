@@ -1,4 +1,3 @@
-use crate::verify_sigs::AuthenticatedMessage;
 use crate::DbPool;
 use actix_web::web;
 use actix_web::web::{Data, Json, Path};
@@ -19,26 +18,18 @@ pub async fn get_events(
 }
 
 #[post("/events")]
-pub async fn create_event(pool: Data<DbPool>, event: Json<AuthenticatedMessage>) -> impl Responder {
+pub async fn create_event(pool: Data<DbPool>, event: Json<NewEvent>) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
-    match dlc_storage_writer::create_event(
-        &mut conn,
-        serde_json::from_str::<NewEvent>(&event.into_inner().message.to_string())
-            .expect("Unable to get message from body"),
-    ) {
+    match dlc_storage_writer::create_event(&mut conn, event.into_inner()) {
         Ok(event) => HttpResponse::Ok().json(event),
         Err(e) => HttpResponse::BadRequest().body(e.to_string()),
     }
 }
 
 #[put("/events")]
-pub async fn update_event(pool: Data<DbPool>, event: Json<AuthenticatedMessage>) -> impl Responder {
+pub async fn update_event(pool: Data<DbPool>, event: Json<UpdateEvent>) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
-    let num_updated = match dlc_storage_writer::update_event(
-        &mut conn,
-        serde_json::from_str::<UpdateEvent>(&event.into_inner().message.to_string())
-            .expect("Unable to get message from body"),
-    ) {
+    let num_updated = match dlc_storage_writer::update_event(&mut conn, event.into_inner()) {
         Ok(num_updated) => num_updated,
         Err(e) => {
             warn!("Error updating event: {:?}", e);
@@ -52,13 +43,9 @@ pub async fn update_event(pool: Data<DbPool>, event: Json<AuthenticatedMessage>)
 }
 
 #[delete("/event")]
-pub async fn delete_event(pool: Data<DbPool>, event: Json<AuthenticatedMessage>) -> impl Responder {
+pub async fn delete_event(pool: Data<DbPool>, event: Json<DeleteEvent>) -> impl Responder {
     let mut conn = pool.get().expect("couldn't get db connection from pool");
-    let num_deleted = match dlc_storage_writer::delete_event(
-        &mut conn,
-        serde_json::from_str::<DeleteEvent>(&event.into_inner().message.to_string())
-            .expect("Unable to get message from body"),
-    ) {
+    let num_deleted = match dlc_storage_writer::delete_event(&mut conn, event.into_inner()) {
         Ok(num_deleted) => num_deleted,
         Err(e) => {
             warn!("Error deleting event: {:?}", e);
