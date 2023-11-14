@@ -35,11 +35,11 @@ Note the environment variables set in this file. It is preset to a default confi
 > When using Ethereum, you must provide an API key for Infura as an environment variable.
 > (Option for listening to other providers/own nodes to be added later).
 
-> You can provide your own PRIVATE_KEY too, but if omitted, the attestor will generate one for you. Take good care of this key.
+> You can provide your own ATTESTOR_XPRIV extended private key too, but if omitted, the attestor will generate one for you. Take good care of this key.
 
 You can set the environment variables and start the service in one go using the following format:
 ```sh
-$ INFURA_API_KEY=[your-infura-api-key] PRIVATE_KEY=[your-private-key] docker compose up
+$ INFURA_API_KEY=[your-infura-api-key] ATTESTOR_XPRIV=[your-extended-private-key] docker compose up
 ```
 
 ### Option 2. Build and run locally

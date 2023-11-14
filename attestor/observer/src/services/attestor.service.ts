@@ -9,7 +9,7 @@ function getOrGenerateSecretFromConfig(): string {
   try {
     secretKey = getEnv('ATTESTOR_XPRIV');
   } catch (error) {
-    console.warn('No PRIVATE_KEY env var found, generating xpriv key');
+    console.warn('No ATTESTOR_XPRIV extended key env var found, generating xpriv key');
     const mnemonic = generateMnemonic();
     const seed = mnemonicToSeedSync(mnemonic);
     const bip32 = BIP32Factory(ecc);
