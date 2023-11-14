@@ -256,8 +256,9 @@ impl Attestor {
     }
 
     pub async fn get_pubkey(&self) -> String {
-        let pubkey = SchnorrPublicKey::from_keypair(&self.oracle.key_pair).0;
-        pubkey.to_string()
+        SchnorrPublicKey::from_keypair(&self.oracle.key_pair)
+            .0
+            .to_string()
     }
 }
 

@@ -31,15 +31,16 @@ wbi: build-wbi
 build-wallet:
   cargo build --release --bin dlc-protocol-wallet --target-dir .
 
-generate-key: build-wallet
+generate-key:
+  cargo build --release --bin generate-key --target-dir .
   ./release/generate-key
+
+generate-address-from-key:
+  cargo build --release --bin generate-address-from-key --target-dir .
+  ./release/generate-address-from-key
 
 wallet: build-wallet
   ./release/dlc-protocol-wallet
-
-generate-address-from-key: build-wallet
-  ./release/generate-address-from-key
-
 
 ##############################
 # both
