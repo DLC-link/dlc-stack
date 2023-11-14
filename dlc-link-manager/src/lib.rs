@@ -233,12 +233,27 @@ where
             ))?
             .oracles
             .event_id;
-        debug!("manager_oracles keys {:?}", manager_oracles.keys());
+        debug!(
+            "manager_oracles keys {:?}",
+            manager_oracles
+                .keys()
+                .map(|k| k.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        );
         let oracle_set: Vec<Vec<&O>> = contract_input
             .contract_infos
             .iter()
             .map(|x| {
-                debug!("contract public keys: {:?}", x.oracles.public_keys);
+                debug!(
+                    "contract public keys: {}",
+                    x.oracles
+                        .public_keys
+                        .iter()
+                        .map(|k| k.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                );
                 x.oracles
                     .public_keys
                     .iter()
