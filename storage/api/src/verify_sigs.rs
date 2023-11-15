@@ -106,9 +106,10 @@ where
         let temp_headers = req.headers().clone();
         let auth_header_nonce = temp_headers.get("authorization");
         if auth_header_nonce.is_none() {
-            warn!("did not find auth header in request. Assuming this is a v1 request. Deprecate this over time");
+            warn!("did not find auth header in request. Returning forbidden");
             return Box::pin(async move {
-                let res = svc.call(req).await?;
+                let mut res = svc.call(req).await?;
+                *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                 Ok(res)
             });
         };
