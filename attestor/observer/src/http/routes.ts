@@ -16,34 +16,35 @@ router.get('/event/:uuid', async (req, res) => {
     return;
   }
   res.setHeader('Access-Control-Allow-Origin', '*');
-  console.log('GET /event with UUID:', req.params.uuid);
   const data = await AttestorService.getEvent(req.params.uuid as string);
   res.status(200).send(data);
 });
 
 router.get('/events', async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  console.log('GET /events');
   const data = await AttestorService.getAllEvents();
   res.status(200).send(data);
 });
 
 router.get('/publickey', async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  console.log('GET /publickey');
   const data = await AttestorService.getPublicKey();
   res.status(200).send(data);
 });
 
 if (process.env.DEV_ENDPOINTS_ENABLED === 'true') {
   router.get('/create-announcement/:uuid', async (req, res) => {
+    console.log('GET /create-announcement with url, params and query: ', req.url, req.params, req.query);
+    let time;
+    if (req.query.time) {
+      time = req.query.time;
+    }
     if (!req.params.uuid) {
       res.status(400).send('Missing UUID');
       return;
     }
     res.setHeader('Access-Control-Allow-Origin', '*');
-    console.log('GET /create-announcement with UUID:', req.params.uuid);
-    const data = await AttestorService.createAnnouncement(req.params.uuid as string);
+    const data = await AttestorService.createAnnouncement(req.params.uuid, time as string);
     res.status(200).send(data);
   });
 

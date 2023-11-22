@@ -144,7 +144,7 @@ impl Attestor {
                     "[WASM-ATTESTOR] Error retrieving event from StorageAPI: {:?}",
                     e
                 );
-                panic!();
+                panic!(); // TODO: remove panic
             }
         };
         let event_vec = match res {
@@ -154,7 +154,7 @@ impl Attestor {
                     "[WASM-ATTESTOR] Event missing in StorageAPI with uuid: {}",
                     uuid
                 );
-                panic!();
+                panic!(); // TODO: remove panic
             }
         };
         event = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).unwrap();

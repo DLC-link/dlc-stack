@@ -2,6 +2,7 @@
 #![deny(clippy::unwrap_used)]
 #![deny(unused_mut)]
 #![deny(dead_code)]
+#![allow(clippy::too_many_arguments)]
 
 use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey};
 use bytes::Buf;
@@ -20,7 +21,7 @@ use std::time::Duration;
 use std::{collections::HashMap, env, str::FromStr, sync::Arc};
 
 use bitcoin::{PublicKey, XOnlyPublicKey};
-use dlc_link_manager::{AsyncOracle, AsyncStorage, Manager};
+use dlc_link_manager::{AsyncOracle, AsyncStorage, Manager, TEN_YEARS};
 use dlc_manager::{
     contract::{
         contract_input::{ContractInput, ContractInputInfo, OracleInput},
@@ -201,6 +202,7 @@ async fn process_request(
                 offer_collateral: u64,
                 total_outcomes: u64,
                 attestor_list: String,
+                refund_delay: u32,
             }
             let result = async {
                 let whole_body = hyper::body::aggregate(req)
@@ -241,6 +243,7 @@ async fn process_request(
                     req.accept_collateral,
                     req.offer_collateral,
                     req.total_outcomes,
+                    req.refund_delay,
                 )
                 .await
             };
@@ -509,6 +512,7 @@ async fn create_new_offer(
     accept_collateral: u64,
     offer_collateral: u64,
     total_outcomes: u64,
+    refund_delay: u32,
 ) -> Result<String, WalletError> {
     let active_network = bitcoin::Network::from_str(&active_network)
         .map_err(|e| WalletError(format!("Unknown Network in offer creation: {}", e)))?;
@@ -549,6 +553,11 @@ async fn create_new_offer(
         contract_infos: vec![contract_info],
     };
 
+    let adjusted_refund_delay = match refund_delay {
+        0 => TEN_YEARS,
+        _ => refund_delay,
+    };
+
     //had to make this mutable because of the borrow, not sure why
     let man = manager;
 
@@ -558,6 +567,7 @@ async fn create_new_offer(
             STATIC_COUNTERPARTY_NODE_ID
                 .parse()
                 .expect("To be able to parse the static counterparty id to a pubkey"),
+            adjusted_refund_delay,
         )
         .await
         .map_err(|e| WalletError(e.to_string()))?;
@@ -655,8 +665,6 @@ async fn periodic_check(
     let funded_url = format!("{}/set-status-funded", blockchain_interface_url);
     let closed_url = format!("{}/post-close-dlc", blockchain_interface_url);
 
-    debug!("Running periodic_check");
-
     let updated_contracts = match manager.periodic_check().await {
         Ok(updated_contracts) => updated_contracts,
         Err(e) => {
@@ -691,6 +699,9 @@ async fn periodic_check(
                     "Contract is being set to the Closed or Signed state: {}",
                     uuid
                 );
+            }
+            Contract::Refunded(_) => {
+                debug!("Contract is being set to the Refunded state: {}", uuid);
             }
             _ => error!(
                 "Error retrieving contract in periodic_check: {}, skipping",

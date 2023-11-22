@@ -11,7 +11,7 @@ services:
     ports:
       - '5431:5432'
     healthcheck:
-      test: [ 'CMD-SHELL', 'pg_isready -U postgres' ]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -170,7 +170,7 @@ services:
       # ELECTRUM_API_URL="https://blockstream.info/api"
       - 'BITCOIN_CHECK_INTERVAL_SECONDS=15'
       - 'BITCOIN_NETWORK=regtest'
-      - 'RUST_LOG=info,dlc_protocol_wallet=debug,dlc_clients=debug,bdk=debug,dlc_manager=debug,electrs_blockchain_provider=debug,esplora_async_blockchain_provider=trace,storage_api=debug'
+      - 'RUST_LOG=info,dlc_protocol_wallet=debug,dlc_clients=info,dlc_manager=debug,electrs_blockchain_provider=debug,storage_api=debug'
       - 'RUST_BACKTRACE=full'
       - 'API_KEY=asd'
       - 'CONTRACT_CLEANUP_ENABLED=false'

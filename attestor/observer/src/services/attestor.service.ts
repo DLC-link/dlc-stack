@@ -21,24 +21,20 @@ function getOrGenerateSecretFromConfig(): string {
 
 function createMaturationDate() {
   const maturationDate = new Date();
-  maturationDate.setMonth(maturationDate.getMonth() + 3);
+  maturationDate.setDate(maturationDate.getDate() + 1);
   return maturationDate.toISOString();
 }
 
 export default class AttestorService {
   private static attestor: Attestor;
 
-  private constructor() { }
+  private constructor() {}
 
   public static async getAttestor(): Promise<Attestor> {
     if (!this.attestor) {
-      this.attestor = await Attestor.new(
-        getEnv('STORAGE_API_ENDPOINT'),
-        getOrGenerateSecretFromConfig()
-      );
+      this.attestor = await Attestor.new(getEnv('STORAGE_API_ENDPOINT'), getOrGenerateSecretFromConfig());
       console.log('Attestor created');
     }
-    console.log('Attestor public key:', await this.attestor.get_pubkey());
     return this.attestor;
   }
 
@@ -53,7 +49,7 @@ export default class AttestorService {
       health.get('data').forEach((element: Iterable<readonly [PropertyKey, any]>) => {
         health_response.push(Object.fromEntries(element));
       });
-      return JSON.stringify({ 'data': health_response });
+      return JSON.stringify({ data: health_response });
     } catch (error) {
       console.error(error);
       return error;
@@ -63,7 +59,9 @@ export default class AttestorService {
   public static async createAnnouncement(uuid: string, maturation?: string) {
     const attestor = await this.getAttestor();
 
-    let _maturation = maturation ? new Date(maturation).toISOString() : createMaturationDate();
+    console.log('createAnnouncement with UUID:', uuid, 'and maturation:', maturation);
+
+    let _maturation = maturation ? new Date(Number(maturation)).toISOString() : createMaturationDate();
 
     try {
       await attestor.create_event(uuid, _maturation);
