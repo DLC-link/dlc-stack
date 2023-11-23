@@ -143,7 +143,7 @@ where
                     .is_err()
                         || !nonces.contains(&auth_header_nonce.to_string())
                     {
-                        error!("Failed to verify signature or nonce");
+                        error!("Failed to verify signature or nonce on events endpoint");
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                     }
                     Ok(res)
@@ -163,7 +163,7 @@ where
                     .is_err()
                         || !nonces.contains(&auth_header_nonce.to_string())
                     {
-                        error!("Failed to verify signature or nonce");
+                        error!("Failed to verify signature or nonce on contract endpoint");
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                     }
                     Ok(res)
@@ -200,7 +200,7 @@ where
                         || !nonces.contains(&auth_header_nonce.to_string())
                         || auth_header_nonce != message_nonce
                     {
-                        error!("Failed to verify signature or nonce");
+                        error!("Failed to verify signature or nonce for body");
                         let mut res = svc.call(req).await?;
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                         return Ok(res);
