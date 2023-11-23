@@ -144,6 +144,7 @@ where
                         || !nonces.contains(&auth_header_nonce.to_string())
                     {
                         error!("Failed to verify signature or nonce on events endpoint");
+                        error!("query params: {:?}", query_params);
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                     }
                     Ok(res)
@@ -164,6 +165,7 @@ where
                         || !nonces.contains(&auth_header_nonce.to_string())
                     {
                         error!("Failed to verify signature or nonce on contract endpoint");
+                        error!("query params: {:?}", query_params);
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                     }
                     Ok(res)
@@ -201,6 +203,7 @@ where
                         || auth_header_nonce != message_nonce
                     {
                         error!("Failed to verify signature or nonce for body");
+                        error!("body_json: {:?}", body_json);
                         let mut res = svc.call(req).await?;
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                         return Ok(res);
