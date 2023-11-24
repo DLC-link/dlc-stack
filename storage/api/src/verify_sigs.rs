@@ -144,6 +144,7 @@ where
                         || !nonces.contains(&auth_header_nonce.to_string())
                     {
                         error!("Failed to verify signature or nonce on events endpoint");
+                        error!("checking for {} in nonces: {:?}", auth_header_nonce, nonces);
                         error!("query params: {:?}", query_params);
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                     }
@@ -165,6 +166,7 @@ where
                         || !nonces.contains(&auth_header_nonce.to_string())
                     {
                         error!("Failed to verify signature or nonce on contract endpoint");
+                        error!("checking for {} in nonces: {:?}", auth_header_nonce, nonces);
                         error!("query params: {:?}", query_params);
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                     }
