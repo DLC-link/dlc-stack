@@ -1,7 +1,7 @@
 version: '3.9'
 services:
   dlc-link-attestor:
-    image: public.ecr.aws/dlc-link/dlc-attestor:latest
+    image: attestor:new
     ports:
       - ${ATTESTOR_PORT:-8801}:8801
     environment:

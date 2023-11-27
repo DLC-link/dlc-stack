@@ -7,7 +7,7 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "NodeNext",
     "outDir": "./dist",
-    "rootDir": ".",
+    "rootDir": "./observer",
     "skipLibCheck": true // Skip type checking all .d.ts files.
   }
 }

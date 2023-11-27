@@ -4,13 +4,13 @@ default:
   just --list
 
 build:
-  cd observer && ./build_all.sh
+  ./build_all.sh
 
-run:
-  cd observer && ./start_attestor.sh
+run: build
+  npm run run
 
 run-multiple:
   just build && wait
-  cd observer && npm run run:1 &
-  cd observer && npm run run:2 &
-  cd observer && npm run run:3 && fg
+  npm run run:1 &
+  npm run run:2 &
+  npm run run:3 && fg

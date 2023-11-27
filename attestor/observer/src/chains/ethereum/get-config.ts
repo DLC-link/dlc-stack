@@ -55,7 +55,11 @@ export default async (
     case 'ETH_LOCAL':
       return {
         provider: new ethers.providers.JsonRpcProvider(`http://127.0.0.1:8545`),
-        deploymentInfo: await getLocalDeploymentInfo('./deploymentFiles/localhost', 'DlcManager', config.version), // TODO:
+        deploymentInfo: await getLocalDeploymentInfo(
+          './observer/deploymentFiles/localhost',
+          'DlcManager',
+          config.version
+        ), // TODO:
       };
     case 'OKX_TESTNET':
       return {

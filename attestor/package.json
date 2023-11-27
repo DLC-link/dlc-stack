@@ -10,7 +10,7 @@
   "scripts": {
     "build": "./build_all.sh",
     "build:ts": "tsc -p .",
-    "build:wasm": "AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang wasm-pack build --target bundler ..",
+    "build:wasm": "AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang wasm-pack build --target bundler .",
     "run": "NODE_OPTIONS=--experimental-wasm-modules node dist/src/index.js",
     "run:1": "PORT=8801 npm run run",
     "run:2": "PORT=8802 npm run run",
@@ -31,7 +31,7 @@
     "@stacks/network": "^6.5.5",
     "@stacks/transactions": "^6.7.0",
     "@types/node": "^20.5.0",
-    "attestor": "file:../pkg",
+    "attestor": "file:pkg",
     "bip32": "^4.0.0",
     "bip39": "^3.1.0",
     "cross-fetch": "^3.1.8",
