@@ -32,7 +32,7 @@ use std::string::ToString;
 /// The number of confirmations required before moving the the confirmed state.
 pub const NB_CONFIRMATIONS: u32 = 6;
 /// The upper bound for the delay refund verification check, 10 years.
-pub const TEN_YEARS: u32 = 86400 * 365 * 10;
+pub const FIFTY_YEARS: u32 = 86400 * 365 * 50;
 /// The nSequence value used for CETs in DLC channels
 pub const CET_NSEQUENCE: u32 = 288;
 /// Timeout in seconds when waiting for a peer's reply, after which a DLC channel
@@ -343,7 +343,7 @@ where
         offered_message: &OfferDlc,
         counter_party: PublicKey,
     ) -> Result<(), Error> {
-        offered_message.validate(&self.secp, 0, TEN_YEARS)?;
+        offered_message.validate(&self.secp, 0, FIFTY_YEARS)?;
         let contract: OfferedContract =
             OfferedContract::try_from_offer_dlc(offered_message, counter_party)?;
         contract.validate()?;

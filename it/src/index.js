@@ -23,8 +23,9 @@ const successfulAttesting = process.env.SUCCESSFUL_ATTESTING == 'true';
 const acceptorGetsAllOutcome = 0;
 const offererGetsAllOutcome = 100;
 
-const totalOutcomes = 100;
-
+// NOTE: we no longer send this amount in the offer, but it is hardcoded in the WBI testmode as well.
+// ../wallet/wallet-blockchain-interface/src/http/public-server/routes.ts
+// If you change it, you need to change it in both places.
 const acceptCollateral = 10000;
 
 async function createEvent(attestorURL, uuid, time = '') {
@@ -58,9 +59,6 @@ async function fetchOfferFromProtocolWallet(uuid, overrides = {}) {
   let body = {
     uuid,
     acceptCollateral,
-    offerCollateral: 0,
-    totalOutcomes,
-    attestorList: JSON.stringify(attestorList),
     refundDelay: 86400 * 7,
   };
 
@@ -99,7 +97,7 @@ async function sendAcceptedOfferToProtocolWallet(accepted_offer) {
 
 async function checkBalance(dlcManager, action) {
   const balance = await dlcManager.get_wallet_balance();
-  console.log(`DLC Wasm Wallet Balance at ${action}: ` + balance);
+  console.log(`[IT] DLC Wasm Wallet Balance at ${action}: ` + balance);
   return balance;
 }
 
@@ -141,7 +139,9 @@ async function waitForConfirmations(blockchainHeightAtBroadcast, targetConfirmat
   while (Number(currentBlockchainHeight) - Number(blockchainHeightAtBroadcast) < targetConfirmations) {
     currentBlockchainHeight = await (await fetch(url)).json();
     console.log(
-      `Confirmations: ${Number(currentBlockchainHeight) - Number(blockchainHeightAtBroadcast)} / ${targetConfirmations}`
+      `[IT] Confirmations: ${
+        Number(currentBlockchainHeight) - Number(blockchainHeightAtBroadcast)
+      } / ${targetConfirmations}`
     );
     await new Promise((resolve) => setTimeout(resolve, 15000));
   }
@@ -151,7 +151,7 @@ async function waitForConfirmations(blockchainHeightAtBroadcast, targetConfirmat
 async function checkIfContractIsInState(contractID, state) {
   const routerWalletInfo = await (await fetch(`${protocolWalletURL}/info`)).json();
   let result = routerWalletInfo.contracts[state].includes(contractID);
-  console.log('Is contract ID: ', contractID, ' in state: ', state, '? ', result);
+  console.log('[IT] Is contract ID: ', contractID, ' in state: ', state, '? ', result);
   return result;
 }
 
@@ -166,7 +166,7 @@ async function setupDLC(dlcManager, uuid, time, overrides = {}) {
 
   //Creating Events
   console.log('Creating Event');
-  await Promise.all(attestorList.map((attestorURL) => createEvent(attestorURL, uuid, time)));
+  const events = await Promise.all(attestorList.map((attestorURL) => createEvent(attestorURL, uuid, time)));
 
   //Fetching Offer
   console.log('Fetching Offer from Protocol Wallet');
@@ -174,7 +174,7 @@ async function setupDLC(dlcManager, uuid, time, overrides = {}) {
 
   //Check if the offer is valid
   if (!offerResponse.temporaryContractId) {
-    console.error('Error fetching offer from protocol wallet: ', offerResponse);
+    console.error('[IT] Error fetching offer from protocol wallet: ', offerResponse);
     process.exit(1);
   }
 
@@ -184,7 +184,7 @@ async function setupDLC(dlcManager, uuid, time, overrides = {}) {
 
   //Check if the accepted contract is valid
   if (!parsedResponse.protocolVersion) {
-    console.log('Error accepting offer: ', parsedResponse);
+    console.log('[IT] Error accepting offer: ', parsedResponse);
     process.exit(1);
   }
 
@@ -193,7 +193,7 @@ async function setupDLC(dlcManager, uuid, time, overrides = {}) {
 
   //Check if the signed contract is valid
   if (!signedContract.contractId) {
-    console.log('Error signing offer: ', signedContract);
+    console.log('[IT] Error signing offer: ', signedContract);
     process.exit(1);
   }
   const contractID = signedContract.contractId;
@@ -201,28 +201,28 @@ async function setupDLC(dlcManager, uuid, time, overrides = {}) {
   //Check if the contract is in the Signed state
   assert(
     await retry(async () => checkIfContractIsInState(contractID, 'Signed'), 15000),
-    `Contract state is not updated in the Router Wallet to Signed`
+    `[IT] Contract state is not updated in the Router Wallet to Signed`
   );
 
   const txID = await dlcManager.countersign_and_broadcast(JSON.stringify(signedContract));
   let blockchainHeightAtBroadcast = await getBlockchainHeight();
-  console.log(`Broadcast funding transaction with TX ID: ${txID}`);
+  console.log(`[IT] Broadcast funding transaction with TX ID: ${txID}`);
 
   //Fetching Funding TX Details to check if the broadcast was successful
-  console.log('Fetching Funding TX Details');
+  console.log('[IT] Fetching Funding TX Details');
   await fetchTxDetails(txID);
 
   //Waiting for funding transaction confirmations
   let confirmedBroadcastTransaction = await waitForConfirmations(blockchainHeightAtBroadcast, 1);
   if (confirmedBroadcastTransaction) {
-    console.log('Funding transaction confirmed');
+    console.log('[IT] Funding transaction confirmed');
   }
 
   //Check if the balance decreased after broadcasting the funding transaction and waiting 1 confirmation
   let balanceAfterFunding = await checkBalance(dlcManager, '[1 CONFIRMATION]');
   assert(
     Number(balanceAfterFunding) < Number(startingBalance),
-    'BTC Balance did not decrease after broadcasting Funding TX. Expected: ' +
+    '[IT] BTC Balance did not decrease after broadcasting Funding TX. Expected: ' +
       Number(balanceAfterFunding) +
       ' should be less than ' +
       Number(startingBalance)
@@ -232,7 +232,7 @@ async function setupDLC(dlcManager, uuid, time, overrides = {}) {
 
 async function create_attestations_for_uuid(uuid) {
   //Attesting to Events
-  console.log('Attesting to Events');
+  console.log('[IT] Attesting to Events');
   let attestations = await Promise.all(
     attestorList.map((attestorURL, index) =>
       attest(
@@ -246,7 +246,7 @@ async function create_attestations_for_uuid(uuid) {
       )
     )
   );
-  console.log('Attestation 1 received: ', attestations);
+  console.log('[IT] Attestation 1 received: ', attestations);
 }
 
 async function verify_closed_and_balance_returned(dlcManager, contractID, uuid) {
@@ -255,21 +255,21 @@ async function verify_closed_and_balance_returned(dlcManager, contractID, uuid) 
   //Wait for the contract to move into the PreClosed state
   assert(
     await retry(async () => checkIfContractIsInState(contractID, 'PreClosed'), 15000),
-    `Contract state is not updated in the Router Wallet to PreClosed`
+    `[IT] Contract state is not updated in the Router Wallet to PreClosed`
   );
 
   let blockchainHeightAtBroadcast = await getBlockchainHeight();
   //Waiting for closing transaction confirmations
   let confirmedClosingTransaction = await waitForConfirmations(blockchainHeightAtBroadcast, 6);
   if (confirmedClosingTransaction) {
-    console.log('Closing transaction confirmed');
+    console.log('[IT] Closing transaction confirmed');
   }
 
   let balanceAfterClosing = await checkBalance(dlcManager, '[CONTRACT CLOSED]');
   let desiredBalace = Number(startingBalance) + Number(acceptCollateral);
   assert(
     desiredBalace === Number(balanceAfterClosing),
-    'Balance after closing does not match the expected value. Expected: ' +
+    '[IT] Balance after closing does not match the expected value. Expected: ' +
       desiredBalace +
       ' Actual: ' +
       Number(balanceAfterClosing)
@@ -278,7 +278,7 @@ async function verify_closed_and_balance_returned(dlcManager, contractID, uuid) 
   //Check if the contract is in the Closed state
   assert(
     await retry(async () => checkIfContractIsInState(contractID, 'Closed'), 15000),
-    `Contract state is not updated in the Router Wallet to Closed`
+    `[IT] Contract state is not updated in the Router Wallet to Closed`
   );
 }
 
@@ -287,22 +287,22 @@ async function verify_refund_tx(dlcManager, contractID) {
   //Check if the contract is in the PreClosed state
   assert(
     await retry(async () => checkIfContractIsInState(contractID, 'Refunded'), 30000),
-    `Contract state is not updated in the Router Wallet to Refunded`
+    `[IT] Contract state is not updated in the Router Wallet to Refunded`
   );
 
   let blockchainHeightAtBroadcast = await getBlockchainHeight();
   //Waiting for closing transaction confirmations
   let confirmedClosingTransaction = await waitForConfirmations(blockchainHeightAtBroadcast, 6);
   if (confirmedClosingTransaction) {
-    console.log('Closing transaction confirmed');
+    console.log('[IT] Closing transaction confirmed');
   }
 
   let balanceAfterClosing = await checkBalance(dlcManager, '[CONTRACT CLOSED]');
   let desiredBalace = Number(startingBalance) + Number(acceptCollateral);
-  console.log('comparing balance after closing', desiredBalace, Number(balanceAfterClosing));
+  console.log('[IT] comparing balance after closing', desiredBalace, Number(balanceAfterClosing));
   assert(
     desiredBalace === Number(balanceAfterClosing),
-    'Balance after closing does not match the expected value. Expected: ' +
+    '[IT] Balance after closing does not match the expected value. Expected: ' +
       desiredBalace +
       ' Actual: ' +
       Number(balanceAfterClosing)
@@ -320,7 +320,7 @@ async function main() {
   );
 
   await checkBalance(dlcManager, '[STARTING BALANCE]');
-  console.log('Starting DLC Integration Tests');
+  console.log('[IT] Starting DLC Integration Tests');
 
   //Start first test
   // Test the happy path
@@ -335,13 +335,13 @@ async function main() {
   //Waiting for funding transaction confirmations
   let confirmedBroadcastTransaction = await waitForConfirmations(setupDetails1.blockchainHeightAtBroadcast, 6);
   if (confirmedBroadcastTransaction) {
-    console.log('Funding transaction confirmed');
+    console.log('[IT] Funding transaction confirmed');
   }
 
   //Check if the contract is in the Confirmed state
   assert(
     await retry(async () => checkIfContractIsInState(setupDetails1.contractID, 'Confirmed'), 15000),
-    `Contract state is not updated in the Router Wallet to Confirmed`
+    `[IT] Contract state is not updated in the Router Wallet to Confirmed`
   );
 
   // //Waiting for funding transaction confirmations
@@ -360,7 +360,7 @@ async function main() {
 
   await checkBalance(dlcManager, '[ALL FUNDED BALANCE]');
 
-  console.log(`Closing DLC for ${testUUID} created`);
+  console.log(`[IT] Closing DLC for ${testUUID} created`);
   await verify_closed_and_balance_returned(dlcManager, setupDetails1.contractID, testUUID);
 
   // console.log(`Closing DLC for ${testUUID2} created`);
@@ -376,18 +376,29 @@ async function main() {
   //Waiting for funding transaction confirmations
   confirmedBroadcastTransaction = await waitForConfirmations(setupDetails3.blockchainHeightAtBroadcast, 6);
   if (confirmedBroadcastTransaction) {
-    console.log('Funding transaction confirmed');
+    console.log('[IT] Funding transaction confirmed');
   }
 
   //Check if the contract is in the Confirmed state
   assert(
-    await retry(async () => checkIfContractIsInState(setupDetails3.contractID, 'Confirmed'), 15000),
-    `Contract state is not updated in the Router Wallet to Confirmed`
+    await retry(async () => checkIfContractIsInState(setupDetails3.contractID, 'Confirmed'), 30000),
+    `[IT] Contract state is not updated in the Router Wallet to Confirmed`
   );
 
   await verify_refund_tx(dlcManager, setupDetails3.contractID);
 
-  console.log('DLC Integration Test Completed Successfully :)\n\n');
+  console.log('##############################################');
+  console.log('DLC Integration Test Completed Successfully!');
+  console.log(
+    `███████╗██╗    ██╗███████╗███████╗████████╗
+██╔════╝██║    ██║██╔════╝██╔════╝╚══██╔══╝
+███████╗██║ █╗ ██║█████╗  █████╗     ██║
+╚════██║██║███╗██║██╔══╝  ██╔══╝     ██║
+███████║╚███╔███╔╝███████╗███████╗   ██║
+╚══════╝ ╚══╝╚══╝ ╚══════╝╚══════╝   ╚═╝
+`
+  );
+
   process.exit(0);
 }
 

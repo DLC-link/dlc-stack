@@ -4,7 +4,7 @@ default:
   just --list
 
 run-wallet:
-  cd ../wallet && just run
+  cd ../wallet && ATTESTOR_CONFIG=local just run
 
 run-attestors:
   cd ../attestor && just run-multiple
@@ -14,6 +14,9 @@ run-storage:
 
 build-wasm:
   npm run build
+
+the-script:
+  ENV=devnet HANDLE_ATTESTORS=false npm start && wait
 
 alias it := run
 alias run-it := run

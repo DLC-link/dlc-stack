@@ -9,7 +9,7 @@ const devnet = {
   bitcoinNetwork: 'regtest',
   bitcoinNetworkURL: 'https://devnet.dlc.link/electrs',
   // TODO: which wallet?
-  protocolWalletURL: 'https://devnet.dlc.link/stacks-wallet',
+  protocolWalletURL: 'https://devnet.dlc.link/eth-wallet',
   attestorList: [
     'https://devnet.dlc.link/attestor-1',
     'https://devnet.dlc.link/attestor-2',

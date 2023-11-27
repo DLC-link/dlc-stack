@@ -46,7 +46,7 @@ export default class RouterWalletService {
             return res;
         } catch (error) {
             console.error(error);
-            return error;
+            throw error;
         }
     }
 

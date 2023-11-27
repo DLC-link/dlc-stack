@@ -118,9 +118,17 @@ pub struct ContractsRequestParams {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct SignedContractsRequestParams {
     key: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "::serde_with::rust::unwrap_or_skip"
+    )]
     uuid: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "::serde_with::rust::unwrap_or_skip"
+    )]
     state: Option<String>,
     signature: String,
 }
@@ -150,7 +158,11 @@ pub struct UpdateEvent {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct SignedEventsRequestParams {
     key: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "::serde_with::rust::unwrap_or_skip"
+    )]
     event_id: Option<String>,
     signature: String,
 }

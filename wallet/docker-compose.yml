@@ -14,7 +14,8 @@ services:
       - "VERSION=${VERSION:-1}"
       - "API_KEY=${API_KEY}"
       - "PRIVATE_KEY=${PRIVATE_KEY}"
-      - 'ROUTER_WALLET_ADDRESS=http://protocol-wallet:8085'
+      - "ROUTER_WALLET_ADDRESS=http://protocol-wallet:8085"
+      - "ATTESTOR_CONFIG=${ATTESTOR_CONFIG:-devnet}"
     restart: on-failure
 
   protocol-wallet:

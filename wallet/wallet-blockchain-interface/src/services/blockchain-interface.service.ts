@@ -5,14 +5,14 @@ import { WrappedContract } from '../chains/shared/models/wrapped-contract.interf
 import { TransactionReceipt } from '@ethersproject/abstract-provider';
 import { TxBroadcastResult } from '@stacks/transactions';
 
-export default class BlockchainWriterService {
-    private static blockchainWriter: BlockchainWriterService;
+export default class BlockchainInterfaceService {
+    private static blockchainWriter: BlockchainInterfaceService;
     private static contractConfig: WrappedContract;
 
     private constructor() {}
 
-    public static async getBlockchainWriter(): Promise<BlockchainWriterService> {
-        if (!this.blockchainWriter) this.blockchainWriter = new BlockchainWriterService();
+    public static async getBlockchainWriter(): Promise<BlockchainInterfaceService> {
+        if (!this.blockchainWriter) this.blockchainWriter = new BlockchainInterfaceService();
         return this.blockchainWriter;
     }
 
@@ -24,6 +24,7 @@ export default class BlockchainWriterService {
             case 'ETH_SEPOLIA':
             case 'ETH_GOERLI':
             case 'ETH_LOCAL':
+            case 'OKX_TESTNET':
                 return await getETHConfig(configSet);
             case 'STACKS_MAINNET':
             case 'STACKS_TESTNET':
@@ -36,15 +37,15 @@ export default class BlockchainWriterService {
     }
 
     public async getWrappedContract(): Promise<WrappedContract> {
-        if (!BlockchainWriterService.contractConfig) {
-            BlockchainWriterService.contractConfig = await this.readConfig();
+        if (!BlockchainInterfaceService.contractConfig) {
+            BlockchainInterfaceService.contractConfig = await this.readConfig();
         }
-        return BlockchainWriterService.contractConfig;
+        return BlockchainInterfaceService.contractConfig;
     }
 
-    public async setStatusFunded(uuid: string): Promise<TransactionReceipt | TxBroadcastResult> {
+    public async setStatusFunded(uuid: string, btcTxId: string): Promise<TransactionReceipt | TxBroadcastResult> {
         const contractConfig = await this.getWrappedContract();
-        return await contractConfig.setStatusFunded(uuid);
+        return await contractConfig.setStatusFunded(uuid, btcTxId);
     }
 
     public async postCloseDLC(uuid: string, btcTxId: string): Promise<TransactionReceipt | TxBroadcastResult> {
@@ -52,8 +53,8 @@ export default class BlockchainWriterService {
         return await contractConfig.postCloseDLC(uuid, btcTxId);
     }
 
-    public async getAllAttestors(): Promise<string[]> {
+    public async getDLCInfo(uuid: string): Promise<any> {
         const contractConfig = await this.getWrappedContract();
-        return await contractConfig.getAllAttestors();
+        return await contractConfig.getDLCInfo(uuid);
     }
 }

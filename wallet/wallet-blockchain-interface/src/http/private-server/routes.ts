@@ -1,36 +1,34 @@
 import express from 'express';
-import BlockchainWriterService from '../../services/blockchain-writer.service.js';
+import BlockchainInterfaceService from '../../services/blockchain-interface.service.js';
 import { localhostOrDockerOnly } from '../middlewares.js';
+import { getAttestors } from '../../config/attestor-lists.js';
 
-const blockchainWriter = await BlockchainWriterService.getBlockchainWriter();
+const blockchainWriter = await BlockchainInterfaceService.getBlockchainWriter();
 const router = express.Router();
 const TESTMODE: boolean = process.env.TEST_MODE_ENABLED === 'true';
-const JUSTMODE: boolean = process.env.JUST_MODE === 'true';
 
 router.post('/set-status-funded', express.json(), localhostOrDockerOnly, async (req, res) => {
-    console.log('POST /set-status-funded with UUID:', req.body.uuid);
+    console.log(`[WBI] POST /set-status-funded with UUID: ${req.body.uuid} and BTC TX ID: ${req.body.btcTxId}`);
     if (!req.body.uuid) {
         res.status(400).send('Missing UUID');
         return;
     }
-    if (TESTMODE || JUSTMODE) {
+    if (!req.body.btcTxId) {
+        res.status(400).send('Missing BTC TX ID');
+        return;
+    }
+    if (TESTMODE) {
         res.status(200).send('set-status-funded called in test mode.');
         return;
     }
-    const data = await blockchainWriter.setStatusFunded(req.body.uuid as string);
+    const data = await blockchainWriter.setStatusFunded(req.body.uuid as string, req.body.btcTxId as string);
     res.status(200).send(data);
 });
 
 router.get('/get-all-attestors', express.json(), localhostOrDockerOnly, async (req, res) => {
-    console.log('GET /get-all-attestors');
-    let data;
-    if (TESTMODE) {
-        data = ['http://172.20.128.5:8801', 'http://172.20.128.6:8802', 'http://172.20.128.7:8803'];
-    } else if (JUSTMODE) {
-        data = ['http://127.0.0.1:8801', 'http://127.0.0.1:8802', 'http://127.0.0.1:8803'];
-    } else {
-        data = await blockchainWriter.getAllAttestors();
-    }
+    console.log('[WBI] GET /get-all-attestors');
+    let data = getAttestors();
+    console.log('AttestorList:', data);
     res.status(200).send(data);
 });
 
@@ -44,9 +42,9 @@ router.post('/post-close-dlc', express.json(), localhostOrDockerOnly, async (req
         return;
     }
     const { uuid, btcTxId } = req.body;
-    console.log('POST /post-close-dlc with UUID, BTC TX ID:', uuid, btcTxId);
+    console.log('[WBI] POST /post-close-dlc with UUID, BTC TX ID:', uuid, btcTxId);
 
-    if (TESTMODE || JUSTMODE) {
+    if (TESTMODE) {
         res.status(200).send('post-close-dlc called in test mode.');
         return;
     }

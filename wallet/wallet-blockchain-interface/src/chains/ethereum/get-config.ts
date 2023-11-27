@@ -6,7 +6,7 @@ import fs from 'fs';
 import { WrappedContract } from '../shared/models/wrapped-contract.interface.js';
 
 async function fetchDeploymentInfo(subchain: string, version: string, branch: string): Promise<DeploymentInfo> {
-    const contract = 'DlcManager';
+    const contract = 'DLCManager';
     try {
         const response = await fetch(
             `https://raw.githubusercontent.com/DLC-link/dlc-solidity/${branch}/deploymentFiles/${subchain}/v${version}/${contract}.json`
@@ -53,6 +53,11 @@ export default async (config: ConfigSet): Promise<WrappedContract> => {
             provider = new ethers.providers.JsonRpcProvider(`http://127.0.0.1:8545`);
             wallet = new ethers.Wallet(config.privateKey, provider);
             break;
+        case 'OKX_TESTNET':
+            deploymentInfo = await fetchDeploymentInfo('X1test', config.version, config.branch);
+            provider = new ethers.providers.JsonRpcProvider(`https://x1testrpc.okx.com/`);
+            wallet = new ethers.Wallet(config.privateKey, provider);
+            break;
         default:
             throw new Error(`Chain ${config.chain} is not supported.`);
             break;
@@ -65,10 +70,10 @@ export default async (config: ConfigSet): Promise<WrappedContract> => {
     ).connect(wallet);
 
     return {
-        setStatusFunded: async (uuid) => {
+        setStatusFunded: async (uuid, btcTxId) => {
             try {
-                const gasLimit = await contract.estimateGas.setStatusFunded(uuid);
-                const transaction = await contract.setStatusFunded(uuid, {
+                const gasLimit = await contract.estimateGas.setStatusFunded(uuid, btcTxId);
+                const transaction = await contract.setStatusFunded(uuid, btcTxId, {
                     gasLimit: gasLimit.add(10000),
                 });
                 const txReceipt = await transaction.wait();
@@ -93,10 +98,10 @@ export default async (config: ConfigSet): Promise<WrappedContract> => {
                 return error;
             }
         },
-        getAllAttestors: async () => {
+        getDLCInfo: async (uuid) => {
             try {
-                const attestors = await contract.getAllAttestors();
-                return attestors;
+                const dlcInfo = await contract.getDLC(uuid);
+                return dlcInfo;
             } catch (error) {
                 console.log(error);
                 return error;

@@ -10,14 +10,15 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
         'CreateDLC',
         async (
           _uuid: string,
-          _attestorList: string[],
+          _valueLocked: string,
+          _protocolContract: string,
           _creator: string,
           _protocolWallet: string,
-          _eventSource: string,
+          _timestamp: string,
           tx: any
         ) => {
           const currentTime = new Date();
-          const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] New DLC Request... @ ${currentTime} \n\t uuid: ${_uuid} | creator: ${_creator} | attestors: ${_attestorList} \n`;
+          const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] New DLC Request... @ ${currentTime} \n\t uuid: ${_uuid} | creator: ${_creator} | timestamp: ${_timestamp} \n`;
           console.log(_logMessage);
           console.log('TXID:', tx.transactionHash);
           try {
@@ -31,27 +32,22 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
 
       contract.on(
         'SetStatusFunded',
-        async (_uuid: string, _creator: string, _protocolWallet: string, _sender: string, _eventSource: string) => {
+        async (_uuid: string, _btcTxId: string, _protocolWallet: string, _sender: string, tx: any) => {
           const currentTime = new Date();
-          const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC funded @ ${currentTime} \n\t uuid: ${_uuid} | creator: ${_creator} | protocolWallet: ${_protocolWallet} | sender: ${_sender} \n`;
+          const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC funded @ ${currentTime} \n\t uuid: ${_uuid} | protocolWallet: ${_protocolWallet} | sender: ${_sender} \n`;
           console.log(_logMessage);
+          console.log('TXID:', tx.transactionHash);
         }
       );
 
       contract.on(
         'CloseDLC',
-        async (
-          _uuid: string,
-          _outcome: number,
-          _creator: string,
-          _protocolWallet: string,
-          _sender: string,
-          _eventSource: string
-        ) => {
+        async (_uuid: string, _outcome: number, _protocolWallet: string, _sender: string, tx: any) => {
           const currentTime = new Date();
           const outcome = BigInt(_outcome);
           const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] Closing DLC... @ ${currentTime} \n\t uuid: ${_uuid} | outcome: ${outcome} \n`;
           console.log(_logMessage);
+          console.log('TXID:', tx.transactionHash);
 
           try {
             // NOTE: precision_shift is hardcoded to 2
@@ -68,15 +64,15 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
         async (
           _uuid: string,
           _outcome: number,
-          _creator: string,
+          _btcTxId: string,
           _protocolWallet: string,
           _sender: string,
-          _btcTxId: string,
-          _eventSource: string
+          tx: any
         ) => {
           const currentTime = new Date();
           const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC closed @ ${currentTime} \n\t uuid: ${_uuid} | outcome: ${_outcome} | btcTxId: ${_btcTxId} \n`;
           console.log(_logMessage);
+          console.log('TXID:', tx.transactionHash);
         }
       );
     },

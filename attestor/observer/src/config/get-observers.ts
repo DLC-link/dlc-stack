@@ -12,6 +12,7 @@ export default async (): Promise<Observer[]> => {
       case 'ETH_SEPOLIA':
       case 'ETH_GOERLI':
       case 'ETH_LOCAL':
+      case 'OKX_TESTNET':
         return getEthObserver(configSet);
       case 'STACKS_MAINNET':
       case 'STACKS_TESTNET':

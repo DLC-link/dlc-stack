@@ -6,7 +6,7 @@ import { DeploymentInfo } from '../shared/models/deployment-info.interface.js';
 import fs from 'fs';
 
 async function fetchDeploymentInfo(subchain: string, version: string): Promise<DeploymentInfo> {
-  const contract = 'DlcManager';
+  const contract = 'DLCManager';
   const branch = process.env.BRANCH || 'master';
   console.log(`Fetching deployment info for ${contract} on ${subchain} from dlc-solidity/${branch}`);
   try {
@@ -57,6 +57,12 @@ export default async (
         provider: new ethers.providers.JsonRpcProvider(`http://127.0.0.1:8545`),
         deploymentInfo: await getLocalDeploymentInfo('./deploymentFiles/localhost', 'DlcManager', config.version), // TODO:
       };
+    case 'OKX_TESTNET':
+      return {
+        provider: new WebSocketProvider('wss://x1testws.okx.com'),
+        deploymentInfo: await fetchDeploymentInfo('X1test', config.version),
+      };
+
     default:
       break;
   }

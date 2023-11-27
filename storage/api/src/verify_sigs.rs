@@ -106,10 +106,9 @@ where
         let temp_headers = req.headers().clone();
         let auth_header_nonce = temp_headers.get("authorization");
         if auth_header_nonce.is_none() {
-            warn!("did not find auth header in request. Returning forbidden");
+            warn!("did not find auth header in request. Assuming this is a v1 request. Deprecate this over time");
             return Box::pin(async move {
-                let mut res = svc.call(req).await?;
-                *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
+                let res = svc.call(req).await?;
                 Ok(res)
             });
         };
@@ -144,7 +143,9 @@ where
                     .is_err()
                         || !nonces.contains(&auth_header_nonce.to_string())
                     {
-                        error!("Failed to verify signature or nonce");
+                        error!("Failed to verify signature or nonce on events endpoint");
+                        error!("checking for {} in nonces: {:?}", auth_header_nonce, nonces);
+                        error!("query params: {:?}", query_params);
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                     }
                     Ok(res)
@@ -164,7 +165,9 @@ where
                     .is_err()
                         || !nonces.contains(&auth_header_nonce.to_string())
                     {
-                        error!("Failed to verify signature or nonce");
+                        error!("Failed to verify signature or nonce on contract endpoint");
+                        error!("checking for {} in nonces: {:?}", auth_header_nonce, nonces);
+                        error!("query params: {:?}", query_params);
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                     }
                     Ok(res)
@@ -201,7 +204,8 @@ where
                         || !nonces.contains(&auth_header_nonce.to_string())
                         || auth_header_nonce != message_nonce
                     {
-                        error!("Failed to verify signature or nonce");
+                        error!("Failed to verify signature or nonce for body");
+                        error!("body_json: {:?}", body_json);
                         let mut res = svc.call(req).await?;
                         *res.response_mut().status_mut() = StatusCode::FORBIDDEN;
                         return Ok(res);

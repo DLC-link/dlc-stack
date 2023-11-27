@@ -32,8 +32,9 @@ jobs:
           ECR_REPOSITORY: storage-api
           IMAGE_TAG: ${{ github.ref_name }}-${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f storage/Dockerfile .
+          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:master -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f storage/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:master
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
 
   build-attestor-public:
@@ -63,8 +64,9 @@ jobs:
           ECR_REPOSITORY: dlc-attestor
           IMAGE_TAG: ${{ github.ref_name }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f attestor/Dockerfile .
+          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:master -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f attestor/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:master
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
 
   build-BI-public:
@@ -94,8 +96,9 @@ jobs:
           ECR_REPOSITORY: dlc-blockchain-interface
           IMAGE_TAG: ${{ github.ref_name }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f wallet/wallet-blockchain-interface/Dockerfile .
+          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:master -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f wallet/wallet-blockchain-interface/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:master
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
 
   build-wallet-public:
@@ -125,6 +128,7 @@ jobs:
           ECR_REPOSITORY: dlc-protocol-wallet
           IMAGE_TAG: ${{ github.ref_name }}
         run: |
-          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f wallet/Dockerfile .
+          docker build -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:master -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f wallet/Dockerfile .
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:latest
+          docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:master
           docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG

@@ -48,7 +48,7 @@ services:
     ports:
       - 8801:8801
     environment:
-      'BRANCH': 'attestor-manager'
+      'BRANCH': '${SOLIDITY_BRANCH:-dev}'
       'PORT': '8801'
       'DEV_ENDPOINTS_ENABLED': 'true'
       'ATTESTOR_XPRIV': 'xprv9s21ZrQH143K3UL4H8EBxF8trNkq3Pfs4ZhpSKe56oX75rJ1b6Jkj2CAcbYkdb2KASLp5LoubpzqF2KwMHUBtGKPj9DfaiZfLByUTtFkwPu'
@@ -77,7 +77,7 @@ services:
     ports:
       - 8802:8802
     environment:
-      'BRANCH': 'attestor-manager'
+      'BRANCH': '${SOLIDITY_BRANCH:-dev}'
       'PORT': '8802'
       'DEV_ENDPOINTS_ENABLED': 'true'
       'ATTESTOR_XPRIV': 'xprv9s21ZrQH143K3pj61DiUpUHeU4TU2UjBj2L8jutCJxTmggWgx1kmFjWjUGtcNnRhdYc5akWQe7zKm1fVzJcszpZ6r5S1oA44s5q9Q8Gd2P9'
@@ -106,7 +106,7 @@ services:
     ports:
       - 8803:8803
     environment:
-      'BRANCH': 'attestor-manager'
+      'BRANCH': '${SOLIDITY_BRANCH:-dev}'
       'PORT': '8803'
       'DEV_ENDPOINTS_ENABLED': 'true'
       'ATTESTOR_XPRIV': 'xprv9s21ZrQH143K4CegKvRcNhZXfeSd2siDFE4EcAxm8d1MbofXiQZ6DySTZErHkYztDWyP1VrmUfWjmbMobe2sABM7AdMpuBd3jeRxkZ6MvKj'
@@ -138,12 +138,14 @@ services:
     environment:
       - 'PORT=3000'
       - 'TEST_MODE_ENABLED=true'
+      - 'BRANCH=${SOLIDITY_BRANCH:-dev}'
       - 'ROUTER_WALLET_ADDRESS=http://router-wallet:8085'
-      - 'CHAIN=STACKS_MOCKNET'
-      - 'VERSION=1'
-      - 'API_KEY=abcdef1234567890'
+      - 'CHAIN=${CHAIN_1:-STACKS_MOCKNET}'
+      - 'VERSION=${VERSION_1:-1}'
+      - 'API_KEY=${API_KEY_1:-abcdef1234567890}'
       - 'PRIVATE_KEY=6a1a754ba863d7bab14adbbc3f8ebb090af9e871ace621d3e5ab634e1422885e01'
       - 'MOCKNET_ADDRESS=devnet.dlc.link'
+      - 'ATTESTOR_CONFIG=docker'
     depends_on:
       - dlc-link-attestor-1
       - dlc-link-attestor-2

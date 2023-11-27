@@ -21,7 +21,7 @@ use std::time::Duration;
 use std::{collections::HashMap, env, str::FromStr, sync::Arc};
 
 use bitcoin::{PublicKey, XOnlyPublicKey};
-use dlc_link_manager::{AsyncOracle, AsyncStorage, Manager, TEN_YEARS};
+use dlc_link_manager::{AsyncOracle, AsyncStorage, Manager, FIFTY_YEARS};
 use dlc_manager::{
     contract::{
         contract_input::{ContractInput, ContractInputInfo, OracleInput},
@@ -201,7 +201,6 @@ async fn process_request(
                 accept_collateral: u64,
                 offer_collateral: u64,
                 total_outcomes: u64,
-                attestor_list: String,
                 refund_delay: u32,
             }
             let result = async {
@@ -217,23 +216,8 @@ async fn process_request(
                         ))
                     })?;
 
-                let bitcoin_contract_attestor_urls: Vec<String> =
-                    serde_json::from_str(&req.attestor_list.clone()).map_err(|e| {
-                        WalletError(format!("Error deserializing attestor list: {}", e))
-                    })?;
-
-                match bitcoin_contract_attestor_urls
-                    .iter()
-                    .any(|url| !attestor_urls.contains(url))
-                {
-                    true => Err(WalletError(
-                        "Attestor not found in attestor list".to_string(),
-                    )),
-                    _ => Ok(()),
-                }?;
-
                 let bitcoin_contract_attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>> =
-                    generate_attestor_client(bitcoin_contract_attestor_urls.clone()).await;
+                    generate_attestor_client(attestor_urls.clone()).await;
 
                 create_new_offer(
                     manager,
@@ -554,7 +538,7 @@ async fn create_new_offer(
     };
 
     let adjusted_refund_delay = match refund_delay {
-        0 => TEN_YEARS,
+        0 => FIFTY_YEARS,
         _ => refund_delay,
     };
 
@@ -672,7 +656,7 @@ async fn periodic_check(
             vec![]
         }
     };
-    let mut newly_confirmed_uuids: Vec<String> = vec![];
+    let mut newly_confirmed_uuids: Vec<(String, bitcoin::Txid)> = vec![];
     let mut newly_closed_uuids: Vec<(String, bitcoin::Txid)> = vec![];
 
     for (id, uuid) in updated_contracts {
@@ -688,8 +672,9 @@ async fn periodic_check(
             }
         };
         match contract {
-            Contract::Confirmed(_c) => {
-                newly_confirmed_uuids.push(uuid);
+            Contract::Confirmed(c) => {
+                newly_confirmed_uuids
+                    .push((uuid, c.accepted_contract.dlc_transactions.fund.txid()));
             }
             Contract::PreClosed(c) => {
                 newly_closed_uuids.push((uuid, c.signed_cet.txid()));
@@ -710,12 +695,15 @@ async fn periodic_check(
         };
     }
 
-    for uuid in newly_confirmed_uuids {
-        debug!("Contract is funded, setting funded to true: {}", uuid);
+    for (uuid, txid) in newly_confirmed_uuids {
+        debug!(
+            "Contract is funded, setting funded to true: {}, btc tx id: {}",
+            uuid, txid
+        );
         reqwest::Client::new()
             .post(&funded_url)
             .timeout(REQWEST_TIMEOUT)
-            .json(&json!({ "uuid": uuid }))
+            .json(&json!({"uuid": uuid, "btcTxId": txid.to_string()}))
             .send()
             .await?;
     }
