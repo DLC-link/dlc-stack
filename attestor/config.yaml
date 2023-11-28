@@ -1,0 +1,23 @@
+settings:
+  # The dlc-solidity branch contract deployment infos will be fetched from
+  solidity-branch: dev
+  # Endpoint for CET Storage API
+  storage-api-endpoint: http://127.0.0.1:8100
+  # Developer endpoints
+  dev-endpoints-enabled: true
+
+# Chain configurations
+#
+#  - network: <network name> (required) - see supported chains in ./observer/src/config/models.ts
+#    version: <contract version> (optional) - currently only version is default: 1
+#    endpoint: <chain endpoint> (optional) - RPC/WS endpoint for the chain, see ./observer/src/config/network-configs.ts for defaults
+#    api_key: <api key> (optional) - API key for the provider, see ./observer/src/config/network-configs.ts for defaults
+#    api_key_required: <true/false> (optional) - whether the API key is required for the provider, see ./observer/src/config/network-configs.ts for defaults
+chains:
+  - network: OKX_TESTNET
+    endpoint: http://127.0.0.1:8545
+
+  - network: ETH_SEPOLIA
+    api_key: ${INFURA_API_KEY}
+
+  - network: STACKS_MOCKNET

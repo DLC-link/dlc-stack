@@ -1,7 +1,11 @@
-export interface ConfigSet {
-  chain: Chain;
+export interface ChainConfig {
+  network: Chain;
   version: string;
+  api_key_required?: boolean;
   api_key?: string;
+  endpoint: string;
+  type: 'EVM' | 'STX';
+  name: string;
 }
 
 export type EthChain = 'ETH_MAINNET' | 'ETH_SEPOLIA' | 'ETH_GOERLI' | 'ETH_LOCAL';

@@ -1,8 +1,8 @@
 import { StacksApiSocketClient } from '@stacks/blockchain-api-client';
 import { NetworkConfig } from '../models/interfaces.js';
 import { io } from 'socket.io-client';
-import { ConfigSet } from '../../../config/models.js';
-import { getEnv } from '../../../config/read-env-configs.js';
+import { ChainConfig } from '../../../config/models.js';
+import ConfigService from '../../../services/config.service.js';
 
 function setupSocketClient(endpoint: string): StacksApiSocketClient {
   const _socket = io(endpoint, {
@@ -35,38 +35,35 @@ function setupSocketClient(endpoint: string): StacksApiSocketClient {
   return _stacksSocket;
 }
 
-export function getConfig(config: ConfigSet): NetworkConfig {
+export function getConfig(config: ChainConfig): NetworkConfig {
   let socketEndpoint: string;
   let socket: StacksApiSocketClient;
   let deployer: string;
   let api_base_extended: string;
 
-  switch (config.chain) {
+  switch (config.network) {
     case 'STACKS_MAINNET':
-      socketEndpoint = 'wss://api.hiro.so/';
       deployer = '';
       api_base_extended = 'https://api.hiro.so/extended/v1';
       break;
     case 'STACKS_TESTNET':
-      socketEndpoint = 'wss://api.testnet.hiro.so/';
       deployer = 'ST1JHQ5GPQT249ZWG6V4AWETQW5DYA5RHJB0JSMQ3';
       api_base_extended = 'https://api.testnet.hiro.so/extended/v1';
       break;
     case 'STACKS_MOCKNET':
-      socketEndpoint = `ws://${getEnv('MOCKNET_ADDRESS')}:3999/`;
       deployer = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
-      api_base_extended = `http://${getEnv('MOCKNET_ADDRESS')}:3999/extended/v1`;
+      api_base_extended = `http://${ConfigService.getSettings()['mocknet-address']}:3999/extended/v1`;
       break;
     case 'STACKS_LOCAL':
-      socketEndpoint = 'ws://localhost:3999/';
       deployer = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
       api_base_extended = 'http://localhost:3999/extended/v1';
       break;
     default:
-      throw new Error(`${config.chain} is not a valid chain.`);
+      throw new Error(`${config.network} is not a valid chain.`);
       break;
   }
 
+  socketEndpoint = config.endpoint;
   socket = setupSocketClient(socketEndpoint);
   return { socket, deploymentInfo: { deployer, api_base_extended } };
 }

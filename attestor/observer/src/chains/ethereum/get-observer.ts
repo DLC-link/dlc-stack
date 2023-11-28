@@ -1,18 +1,16 @@
 import { ethers } from 'ethers';
-import { ConfigSet } from '../../config/models.js';
-import getConfig from './get-config.js';
-import { DeploymentInfo } from '../shared/models/deployment-info.interface.js';
+import { ChainConfig } from '../../config/models.js';
+import getConfig from './get-network-config.js';
 import { Observer } from '../shared/models/observer.interface.js';
 import { DlcManagerV0 } from './contracts/dlc-manager-v0.js';
 import { DlcManagerV1 } from './contracts/dlc-manager-v1.js';
 
-export const getEthObserver = async (config: ConfigSet): Promise<Observer> => {
+export const getEthObserver = async (config: ChainConfig): Promise<Observer> => {
   const networkConfig = await getConfig(config);
-  if (!networkConfig) throw new Error(`Could not load config for ${config.chain}.`);
+  if (!networkConfig) throw new Error(`Could not load config for ${config.network}.`);
 
-  console.log(`\n[${config.chain}] Loaded config:`);
+  console.log(`\n[${config.network}] Loaded config:`);
   console.dir(networkConfig.deploymentInfo, { depth: 1 });
-  console.dir(networkConfig.provider, { depth: 1 });
 
   const deploymentInfo = networkConfig.deploymentInfo;
   const contract = new ethers.Contract(

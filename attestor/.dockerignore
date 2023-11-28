@@ -9,3 +9,4 @@ target
 docker/
 node_modules/
 deploymentFiles
+.env

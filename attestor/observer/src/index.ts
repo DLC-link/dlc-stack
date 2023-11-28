@@ -1,19 +1,9 @@
 import AttestorService from './services/attestor.service.js';
-import getObservers from './config/get-observers.js';
-import { Observer } from './chains/shared/models/observer.interface.js';
 import startServer from './http/server.js';
 import setupPolyfills from './polyfills.js';
-
-function startObservers(observers: Observer[]) {
-  observers.forEach((observer) => observer.start());
-}
-
-async function testAttestorService() {
-  await AttestorService.createAnnouncement('event1', '2023-10-08T13:48:00Z');
-  await AttestorService.createAttestation('event1', 10n);
-  const attestation = await AttestorService.getEvent('event1');
-  console.log('attested event1:', attestation);
-}
+import ConfigService from './services/config.service.js';
+import { getEthObserver } from './chains/ethereum/get-observer.js';
+import getStacksObserver from './chains/stacks/get-observer.js';
 
 async function main() {
   await AttestorService.init();
@@ -24,14 +14,27 @@ async function main() {
   // Set up server with routes
   startServer();
 
-  // Load observers
-  const observers = await getObservers();
+  // Load chain configs
+  const chainConfigs = ConfigService.getChainConfigs();
+
+  const observerPromises = chainConfigs.map((config) => {
+    switch (config.type) {
+      case 'EVM':
+        return getEthObserver(config);
+      case 'STX':
+        return getStacksObserver(config);
+      default:
+        throw new Error(`${config.type} is not a valid type.`);
+    }
+  });
+
+  const observers = await Promise.all(observerPromises);
 
   // Start observers
-  startObservers(observers);
-
-  // Test attestor service
-  // await testAttestorService();
+  observers.forEach((observer) => observer.start());
 }
 
-main();
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

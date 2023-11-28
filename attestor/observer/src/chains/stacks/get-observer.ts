@@ -1,11 +1,11 @@
-import { ConfigSet } from '../../config/models.js';
+import { ChainConfig } from '../../config/models.js';
 import { DlcManagerV1 } from './config/contract-configs/dlc-manager-v1.js';
 import { getConfig } from './config/get-config.js';
 import { Observer } from '../shared/models/observer.interface.js';
 import { ContractConfig, NetworkConfig } from './models/interfaces.js';
 import { fetchTXInfo } from './utilities/api-calls.js';
 
-export default async (config: ConfigSet): Promise<Observer> => {
+export default async (config: ChainConfig): Promise<Observer> => {
   let dlcManager: ContractConfig;
   const networkConfig: NetworkConfig = getConfig(config);
 

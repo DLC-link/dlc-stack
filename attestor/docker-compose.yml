@@ -5,18 +5,18 @@ services:
     ports:
       - ${ATTESTOR_PORT:-8801}:8801
     environment:
-      "PORT": "8801"
+      'PORT': '8801'
       # Supported chains:
       # ETH_GOERLI, ETH_SEPOLIA, ETH_MAINNET, ETH_LOCAL
       # STACKS_TESTNET, STACKS_MAINNET, STACKS_MOCKNET, STACKS_LOCAL
-      "CHAIN_1": "ETH_SEPOLIA"
-      "VERSION_1": "1"
+      'CHAIN_1': 'ETH_SEPOLIA'
+      'VERSION_1': '1'
       # This is the API key for the chain (Infura key for ETH, N/A for Stacks):
-      "API_KEY_1": ${INFURA_API_KEY}
-      "STORAGE_API_ENDPOINT": "https://devnet.dlc.link/storage-api"
+      'API_KEY_1': ${INFURA_API_KEY}
+      'STORAGE_API_ENDPOINT': 'https://devnet.dlc.link/storage-api'
       # Optional BRANCH: the branch in dlc-solidity repo to fetch deployment info from
       # Default: master
-      "BRANCH": "dev"
+      'BRANCH': 'dev'
       # Optional ATTESTOR_XPRIV: the extended private key to use for signing attestations
       # If none is provided, a random key will be generated
-      "ATTESTOR_XPRIV": ${ATTESTOR_XPRIV}
+      'ATTESTOR_XPRIV': ${ATTESTOR_XPRIV}

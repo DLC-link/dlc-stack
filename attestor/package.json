@@ -19,7 +19,7 @@
     "dev:1": "PORT=8801 npm run dev",
     "dev:2": "PORT=8802 npm run dev",
     "dev:3": "PORT=8803 npm run dev",
-    "lint": "npx prettier . --write",
+    "lint": "npx prettier ./observer --write",
     "test": "jest"
   },
   "keywords": [],
@@ -34,10 +34,12 @@
     "attestor": "file:pkg",
     "bip32": "^4.0.0",
     "bip39": "^3.1.0",
+    "chalk": "^5.3.0",
     "cross-fetch": "^3.1.8",
     "dotenv": "^16.3.1",
     "ethers": "^5.7.2",
     "express": "^4.18.2",
+    "js-yaml": "^4.1.0",
     "micro-stacks": "^1.2.1",
     "node-fetch": "^3.3.2",
     "socket.io": "^4.7.2",
@@ -49,6 +51,7 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.17",
+    "@types/js-yaml": "^4.0.9",
     "@types/strftime": "^0.9.4",
     "tsc-watch": "^6.0.4"
   }

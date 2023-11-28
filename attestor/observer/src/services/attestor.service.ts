@@ -1,13 +1,13 @@
 import { Attestor } from 'attestor';
-import { getEnv } from '../config/read-env-configs.js';
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from 'tiny-secp256k1';
+import ConfigService from './config.service.js';
 
 function getOrGenerateSecretFromConfig(): string {
   let secretKey: string;
   try {
-    secretKey = getEnv('ATTESTOR_XPRIV');
+    secretKey = ConfigService.getEnv('ATTESTOR_XPRIV');
   } catch (error) {
     console.warn('No ATTESTOR_XPRIV extended key env var found, generating xpriv key');
     const mnemonic = generateMnemonic();
@@ -28,12 +28,12 @@ function createMaturationDate() {
 export default class AttestorService {
   private static attestor: Attestor;
 
-  private constructor() { }
+  private constructor() {}
 
   public static async getAttestor(): Promise<Attestor> {
     if (!this.attestor) {
       this.attestor = await Attestor.new(
-        getEnv('STORAGE_API_ENDPOINT'),
+        ConfigService.getSettings()['storage-api-endpoint'],
         getOrGenerateSecretFromConfig()
       );
       console.log('Attestor created');
@@ -53,7 +53,7 @@ export default class AttestorService {
       health.get('data').forEach((element: Iterable<readonly [PropertyKey, any]>) => {
         health_response.push(Object.fromEntries(element));
       });
-      return JSON.stringify({ 'data': health_response });
+      return JSON.stringify({ data: health_response });
     } catch (error) {
       console.error(error);
       return error;

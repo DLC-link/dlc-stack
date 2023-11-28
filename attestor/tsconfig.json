@@ -8,6 +8,7 @@
     "moduleResolution": "NodeNext",
     "outDir": "./dist",
     "rootDir": "./observer",
-    "skipLibCheck": true // Skip type checking all .d.ts files.
+    "skipLibCheck": true, // Skip type checking all .d.ts files.
+    "sourceMap": true,
   }
 }
