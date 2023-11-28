@@ -1,10 +1,14 @@
 import * as http from 'http';
 import express from 'express';
 import routes from './routes.js';
+import swStats from 'swagger-stats';
+// const apiSpec = require('swagger.json');
 
 export default () => {
   const app = express();
   app.use(routes);
+  app.use(swStats.getMiddleware());
+
   const server = http.createServer(app);
 
   const port = parseInt(process.env.PORT as string) || 3000;
