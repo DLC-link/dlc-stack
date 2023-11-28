@@ -42,18 +42,13 @@ services:
     container_name: attestor-1
     hostname: attestor-1
     image: 903295530547.dkr.ecr.us-east-1.amazonaws.com/dlc-attestor:${IMAGE_TAG}
+    volumes:
+      - ./attestor-config.yaml:/app/attestor/config.yaml
     ports:
       - 8801:8801
     environment:
-      'BRANCH': 'attestor-manager'
       'PORT': '8801'
-      'DEV_ENDPOINTS_ENABLED': 'true'
       'ATTESTOR_XPRIV': 'xprv9s21ZrQH143K3UL4H8EBxF8trNkq3Pfs4ZhpSKe56oX75rJ1b6Jkj2CAcbYkdb2KASLp5LoubpzqF2KwMHUBtGKPj9DfaiZfLByUTtFkwPu'
-      'STORAGE_API_ENDPOINT': 'http://storageapi:8100'
-      'MOCKNET_ADDRESS': 'stx-btc1.dlc.link'
-      'CHAIN_1': '${CHAIN_1:-STACKS_MOCKNET}'
-      'VERSION_1': '${VERSION_1:-1}'
-      'API_KEY_1': '${API_KEY_1:-abcdef1234567890}'
     restart: on-failure
     depends_on:
       - storageapi
@@ -65,18 +60,13 @@ services:
     container_name: attestor-2
     hostname: attestor-2
     image: 903295530547.dkr.ecr.us-east-1.amazonaws.com/dlc-attestor:${IMAGE_TAG}
+    volumes:
+      - ./attestor-config.yaml:/app/attestor/config.yaml
     ports:
       - 8802:8802
     environment:
-      'BRANCH': 'attestor-manager'
       'PORT': '8802'
-      'DEV_ENDPOINTS_ENABLED': 'true'
       'ATTESTOR_XPRIV': 'xprv9s21ZrQH143K3pj61DiUpUHeU4TU2UjBj2L8jutCJxTmggWgx1kmFjWjUGtcNnRhdYc5akWQe7zKm1fVzJcszpZ6r5S1oA44s5q9Q8Gd2P9'
-      'STORAGE_API_ENDPOINT': 'http://storageapi:8100'
-      'MOCKNET_ADDRESS': 'stx-btc1.dlc.link'
-      'CHAIN_1': '${CHAIN_1:-STACKS_MOCKNET}'
-      'VERSION_1': '${VERSION_1:-1}'
-      'API_KEY_1': '${API_KEY_1:-abcdef1234567890}'
     restart: on-failure
     depends_on:
       - storageapi
@@ -88,18 +78,13 @@ services:
     container_name: attestor-3
     hostname: attestor-3
     image: 903295530547.dkr.ecr.us-east-1.amazonaws.com/dlc-attestor:${IMAGE_TAG}
+    volumes:
+      - ./attestor-config.yaml:/app/attestor/config.yaml
     ports:
       - 8803:8803
     environment:
-      'BRANCH': 'attestor-manager'
       'PORT': '8803'
-      'DEV_ENDPOINTS_ENABLED': 'true'
       'ATTESTOR_XPRIV': 'xprv9s21ZrQH143K4CegKvRcNhZXfeSd2siDFE4EcAxm8d1MbofXiQZ6DySTZErHkYztDWyP1VrmUfWjmbMobe2sABM7AdMpuBd3jeRxkZ6MvKj'
-      'STORAGE_API_ENDPOINT': 'http://storageapi:8100'
-      'MOCKNET_ADDRESS': 'stx-btc1.dlc.link'
-      'CHAIN_1': '${CHAIN_1:-STACKS_MOCKNET}'
-      'VERSION_1': '${VERSION_1:-1}'
-      'API_KEY_1': '${API_KEY_1:-abcdef1234567890}'
     restart: on-failure
     depends_on:
       - storageapi

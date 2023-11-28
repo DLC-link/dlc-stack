@@ -1,0 +1,7 @@
+settings:
+  solidity-branch: dev
+  storage-api-endpoint: http://storageapi:8100
+  dev-endpoints-enabled: true
+
+chains:
+  - network: STACKS_MOCKNET

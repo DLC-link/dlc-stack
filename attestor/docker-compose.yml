@@ -4,19 +4,12 @@ services:
     image: attestor:new
     ports:
       - ${ATTESTOR_PORT:-8801}:8801
+    volumes:
+      - ./config.yaml:/app/attestor/config.yaml
     environment:
       'PORT': '8801'
-      # Supported chains:
-      # ETH_GOERLI, ETH_SEPOLIA, ETH_MAINNET, ETH_LOCAL
-      # STACKS_TESTNET, STACKS_MAINNET, STACKS_MOCKNET, STACKS_LOCAL
-      'CHAIN_1': 'ETH_SEPOLIA'
-      'VERSION_1': '1'
-      # This is the API key for the chain (Infura key for ETH, N/A for Stacks):
-      'API_KEY_1': ${INFURA_API_KEY}
-      'STORAGE_API_ENDPOINT': 'https://devnet.dlc.link/storage-api'
-      # Optional BRANCH: the branch in dlc-solidity repo to fetch deployment info from
-      # Default: master
-      'BRANCH': 'dev'
       # Optional ATTESTOR_XPRIV: the extended private key to use for signing attestations
       # If none is provided, a random key will be generated
       'ATTESTOR_XPRIV': ${ATTESTOR_XPRIV}
+      # Optional INFURA_API_KEY: the Infura API key to use for Ethereum transactions
+      'INFURA_API_KEY': ${INFURA_API_KEY}

@@ -45,22 +45,13 @@ services:
     build:
       context: .
       dockerfile: ./attestor/Dockerfile
+    volumes:
+      - ./it/attestor-config.yaml:/app/attestor/config.yaml
     ports:
       - 8801:8801
     environment:
-      'BRANCH': '${SOLIDITY_BRANCH:-dev}'
       'PORT': '8801'
-      'DEV_ENDPOINTS_ENABLED': 'true'
       'ATTESTOR_XPRIV': 'xprv9s21ZrQH143K3UL4H8EBxF8trNkq3Pfs4ZhpSKe56oX75rJ1b6Jkj2CAcbYkdb2KASLp5LoubpzqF2KwMHUBtGKPj9DfaiZfLByUTtFkwPu'
-      'STORAGE_API_ENDPOINT': 'http://storageapi:8100'
-      'MOCKNET_ADDRESS': 'stx-btc1.dlc.link'
-      'CHAIN_1': '${CHAIN_1:-STACKS_MOCKNET}'
-      'VERSION_1': '${VERSION_1:-1}'
-      'API_KEY_1': '${API_KEY_1:-abcdef1234567890}'
-    # env_file:
-    #   - ./attestor/observer/.env
-    # volumes:
-    #   - ./attestor/observer/src:/app/attestor/observer/src
     restart: on-failure
     depends_on:
       - storageapi
@@ -74,22 +65,13 @@ services:
     build:
       context: .
       dockerfile: ./attestor/Dockerfile
+    volumes:
+      - ./it/attestor-config.yaml:/app/attestor/config.yaml
     ports:
       - 8802:8802
     environment:
-      'BRANCH': '${SOLIDITY_BRANCH:-dev}'
       'PORT': '8802'
-      'DEV_ENDPOINTS_ENABLED': 'true'
       'ATTESTOR_XPRIV': 'xprv9s21ZrQH143K3pj61DiUpUHeU4TU2UjBj2L8jutCJxTmggWgx1kmFjWjUGtcNnRhdYc5akWQe7zKm1fVzJcszpZ6r5S1oA44s5q9Q8Gd2P9'
-      'STORAGE_API_ENDPOINT': 'http://storageapi:8100'
-      'MOCKNET_ADDRESS': 'stx-btc1.dlc.link'
-      'CHAIN_1': '${CHAIN_1:-STACKS_MOCKNET}'
-      'VERSION_1': '${VERSION_1:-1}'
-      'API_KEY_1': '${API_KEY_1:-abcdef1234567890}'
-    # env_file:
-    #   - ./attestor/observer/.env
-    # volumes:
-    #   - ./attestor/observer/src:/app/attestor/observer/src
     restart: on-failure
     depends_on:
       - storageapi
@@ -103,22 +85,13 @@ services:
     build:
       context: .
       dockerfile: ./attestor/Dockerfile
+    volumes:
+      - ./it/attestor-config.yaml:/app/attestor/config.yaml
     ports:
       - 8803:8803
     environment:
-      'BRANCH': '${SOLIDITY_BRANCH:-dev}'
       'PORT': '8803'
-      'DEV_ENDPOINTS_ENABLED': 'true'
       'ATTESTOR_XPRIV': 'xprv9s21ZrQH143K4CegKvRcNhZXfeSd2siDFE4EcAxm8d1MbofXiQZ6DySTZErHkYztDWyP1VrmUfWjmbMobe2sABM7AdMpuBd3jeRxkZ6MvKj'
-      'STORAGE_API_ENDPOINT': 'http://storageapi:8100'
-      'MOCKNET_ADDRESS': 'stx-btc1.dlc.link'
-      'CHAIN_1': '${CHAIN_1:-STACKS_MOCKNET}'
-      'VERSION_1': '${VERSION_1:-1}'
-      'API_KEY_1': '${API_KEY_1:-abcdef1234567890}'
-    # env_file:
-    #   - ./attestor/observer/.env
-    # volumes:
-    #   - ./attestor/observer/src:/app/attestor/observer/src
     restart: on-failure
     depends_on:
       - storageapi
