@@ -195,8 +195,6 @@ jobs:
             status=$(docker ps -a -f name=integration-test --format '{{.Status}}')
             exit_code=$(echo $status | awk '{print $2}' | tr -d '()')
 
-            echo "Debug: status = $status"
-
             if [[ "$status" =~ "Exited" ]]; then
               if [[ "$exit_code" == "0" ]]; then
                 echo "Test succeeded"
@@ -208,6 +206,7 @@ jobs:
               fi
             else
               echo "Waiting for test to complete, current status: $status"
+              docker logs --since=5s integration-test
             fi
             sleep 5
           done
