@@ -6,6 +6,7 @@ import fetch from 'cross-fetch';
 import config from './config.js';
 import setupPolyfills from './polyfills.js';
 
+const DEFAULT_WAIT_TIME = 30000;
 setupPolyfills();
 
 const {
@@ -143,7 +144,7 @@ async function waitForConfirmations(blockchainHeightAtBroadcast, targetConfirmat
         Number(currentBlockchainHeight) - Number(blockchainHeightAtBroadcast)
       } / ${targetConfirmations}`
     );
-    await new Promise((resolve) => setTimeout(resolve, 15000));
+    await new Promise((resolve) => setTimeout(resolve, DEFAULT_WAIT_TIME));
   }
   return true;
 }
@@ -200,7 +201,7 @@ async function setupDLC(dlcManager, uuid, time, overrides = {}) {
 
   //Check if the contract is in the Signed state
   assert(
-    await retry(async () => checkIfContractIsInState(contractID, 'Signed'), 15000),
+    await retry(async () => checkIfContractIsInState(contractID, 'Signed'), DEFAULT_WAIT_TIME),
     `[IT] Contract state is not updated in the Router Wallet to Signed`
   );
 
@@ -254,7 +255,7 @@ async function verify_closed_and_balance_returned(dlcManager, contractID, uuid) 
   await create_attestations_for_uuid(uuid);
   //Wait for the contract to move into the PreClosed state
   assert(
-    await retry(async () => checkIfContractIsInState(contractID, 'PreClosed'), 15000),
+    await retry(async () => checkIfContractIsInState(contractID, 'PreClosed'), DEFAULT_WAIT_TIME),
     `[IT] Contract state is not updated in the Router Wallet to PreClosed`
   );
 
@@ -277,7 +278,7 @@ async function verify_closed_and_balance_returned(dlcManager, contractID, uuid) 
 
   //Check if the contract is in the Closed state
   assert(
-    await retry(async () => checkIfContractIsInState(contractID, 'Closed'), 15000),
+    await retry(async () => checkIfContractIsInState(contractID, 'Closed'), DEFAULT_WAIT_TIME),
     `[IT] Contract state is not updated in the Router Wallet to Closed`
   );
 }
@@ -340,7 +341,7 @@ async function main() {
 
   //Check if the contract is in the Confirmed state
   assert(
-    await retry(async () => checkIfContractIsInState(setupDetails1.contractID, 'Confirmed'), 15000),
+    await retry(async () => checkIfContractIsInState(setupDetails1.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
     `[IT] Contract state is not updated in the Router Wallet to Confirmed`
   );
 
@@ -352,7 +353,7 @@ async function main() {
 
   // //Check if the contract is in the Confirmed state
   // assert(
-  //   await retry(async () => checkIfContractIsInState(setupDetails2.contractID, 'Confirmed'), 15000),
+  //   await retry(async () => checkIfContractIsInState(setupDetails2.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
   //   `Contract state is not updated in the Router Wallet to Confirmed`
   // );
 
@@ -381,7 +382,7 @@ async function main() {
 
   //Check if the contract is in the Confirmed state
   assert(
-    await retry(async () => checkIfContractIsInState(setupDetails3.contractID, 'Confirmed'), 30000),
+    await retry(async () => checkIfContractIsInState(setupDetails3.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
     `[IT] Contract state is not updated in the Router Wallet to Confirmed`
   );
 
