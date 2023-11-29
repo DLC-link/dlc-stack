@@ -6,7 +6,7 @@ import fetch from 'cross-fetch';
 import config from './config.js';
 import setupPolyfills from './polyfills.js';
 
-const DEFAULT_WAIT_TIME = 30000;
+const DEFAULT_WAIT_TIME = 60000;
 setupPolyfills();
 
 const {
@@ -324,11 +324,13 @@ async function main() {
   console.log('[IT] Starting DLC Integration Tests');
 
   //Start first test
+  console.log('[IT] ##################### STARTING HAPPY PATH TEST #####################');
   // Test the happy path
   const testUUID = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
   let setupDetails1 = await setupDLC(dlcManager, testUUID);
 
   //Start second test
+  // console.log('[IT] ##################### STARTING SECOND TEST #####################');
   // This is a placeholder, feel free to overwrite this test
   // const testUUID2 = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
   // let setupDetails2 = await setupDLC(dlcManager, testUUID2);
@@ -370,6 +372,7 @@ async function main() {
   // --- Refund tests
 
   //Start third test
+  console.log('[IT] ##################### STARTING REFUND TEST #####################');
   const testUUID3 = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
   // Create a DLC that will refund. Attestation maturity is 20 seconds in the future, and refund delay is 1 second after that.
   let setupDetails3 = await setupDLC(dlcManager, testUUID3, new Date().getTime() + 20000, { refundDelay: 1 });

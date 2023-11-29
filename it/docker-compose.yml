@@ -12,7 +12,7 @@ services:
     ports:
       - '5431:5432'
     healthcheck:
-      test: [ 'CMD-SHELL', 'pg_isready -U postgres' ]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -122,7 +122,7 @@ services:
       - 'VERSION=1'
       - 'API_KEY=abcdef1234567890'
       - 'PRIVATE_KEY=6a1a754ba863d7bab14adbbc3f8ebb090af9e871ace621d3e5ab634e1422885e01'
-      - 'MOCKNET_ADDRESS=devnet.dlc.link'
+      - 'MOCKNET_ADDRESS=stx-btc1.dlc.link'
       - 'ATTESTOR_CONFIG=docker'
     depends_on:
       - dlc-link-attestor-1
