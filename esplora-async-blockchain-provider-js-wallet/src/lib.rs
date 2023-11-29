@@ -157,7 +157,7 @@ impl EsploraAsyncBlockchainProviderJsWallet {
             Err(e) => {
                 return Err(Error::BlockchainError(format!(
                     "Error unwrapping mutex for chain_data: {}",
-                    e.to_string()
+                    e
                 )))
             }
             Ok(chain_data) => {
@@ -223,16 +223,10 @@ impl EsploraAsyncBlockchainProviderJsWallet {
         // Using a block closure here ensures the mutex is dropped at the end of the block
         {
             let cdata = self.chain_data.lock().map_err(|e| {
-                Error::BlockchainError(format!(
-                    "Error getting lock on mutex for chain_data: {}",
-                    e.to_string()
-                ))
+                Error::BlockchainError(format!("Error getting lock on mutex for chain_data: {}", e))
             })?;
             let mut stored_utxos = cdata.utxos.try_borrow_mut().map_err(|e| {
-                Error::BlockchainError(format!(
-                    "Error getting lock on mutex for chain_data: {}",
-                    e.to_string()
-                ))
+                Error::BlockchainError(format!("Error getting lock on mutex for chain_data: {}", e))
             })?;
             let stored_utxos = match stored_utxos.as_mut() {
                 Some(utxos) => utxos,
@@ -255,10 +249,7 @@ impl EsploraAsyncBlockchainProviderJsWallet {
                 .map_err(|e| Error::BlockchainError(e.to_string()))?;
 
             let local_cdata = self.chain_data.lock().map_err(|e| {
-                Error::BlockchainError(format!(
-                    "Error getting lock on mutex for chain_data: {}",
-                    e.to_string()
-                ))
+                Error::BlockchainError(format!("Error getting lock on mutex for chain_data: {}", e))
             })?;
             match local_cdata.txs.borrow_mut().as_mut() {
                 Some(txs) => {
@@ -276,10 +267,7 @@ impl EsploraAsyncBlockchainProviderJsWallet {
 
     pub fn get_utxos(&self) -> Result<Vec<Utxo>, Error> {
         let cdata = self.chain_data.lock().map_err(|e| {
-            Error::BlockchainError(format!(
-                "Error getting lock on mutex for chain_data: {}",
-                e.to_string()
-            ))
+            Error::BlockchainError(format!("Error getting lock on mutex for chain_data: {}", e))
         })?;
         let utxos_result = match cdata.utxos.borrow().as_ref() {
             Some(utxos) => Ok(utxos.clone()),
@@ -302,10 +290,7 @@ impl AsyncBlockchain for EsploraAsyncBlockchainProviderJsWallet {
             .await?;
         if tx_status.confirmed {
             let block_chain_height = self.blockchain.get_height().await.map_err(|e| {
-                Error::BlockchainError(format!(
-                    "Error getting blockchain height: {}",
-                    e.to_string()
-                ))
+                Error::BlockchainError(format!("Error getting blockchain height: {}", e))
             })? as u64;
             if let Some(block_height) = tx_status.block_height {
                 return Ok((block_chain_height - block_height as u64 + 1) as u32);

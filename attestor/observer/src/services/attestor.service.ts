@@ -21,7 +21,7 @@ function getOrGenerateSecretFromConfig(): string {
 
 function createMaturationDate() {
   const maturationDate = new Date();
-  maturationDate.setMonth(maturationDate.getMonth() + 3);
+  maturationDate.setDate(maturationDate.getDate() + 1);
   return maturationDate.toISOString();
 }
 
@@ -38,7 +38,6 @@ export default class AttestorService {
       );
       console.log('Attestor created');
     }
-    console.log('Attestor public key:', await this.attestor.get_pubkey());
     return this.attestor;
   }
 
@@ -63,7 +62,9 @@ export default class AttestorService {
   public static async createAnnouncement(uuid: string, maturation?: string) {
     const attestor = await this.getAttestor();
 
-    let _maturation = maturation ? new Date(maturation).toISOString() : createMaturationDate();
+    console.log('createAnnouncement with UUID:', uuid, 'and maturation:', maturation);
+
+    let _maturation = maturation ? new Date(Number(maturation)).toISOString() : createMaturationDate();
 
     try {
       await attestor.create_event(uuid, _maturation);

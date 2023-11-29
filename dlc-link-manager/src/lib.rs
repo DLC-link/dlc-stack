@@ -31,8 +31,8 @@ use std::string::ToString;
 
 /// The number of confirmations required before moving the the confirmed state.
 pub const NB_CONFIRMATIONS: u32 = 6;
-/// The delay to set the refund value to.
-pub const REFUND_DELAY: u32 = 86400 * 7;
+/// The upper bound for the delay refund verification check, 10 years.
+pub const FIFTY_YEARS: u32 = 86400 * 365 * 50;
 /// The nSequence value used for CETs in DLC channels
 pub const CET_NSEQUENCE: u32 = 288;
 /// Timeout in seconds when waiting for a peer's reply, after which a DLC channel
@@ -210,6 +210,7 @@ where
         &self,
         contract_input: &ContractInput,
         counter_party: PublicKey,
+        refund_delay: u32,
     ) -> Result<OfferDlc, Error> {
         let manager_oracles = match &self.oracles {
             // Oracles is now an optional field, so check here before continuing.
@@ -281,7 +282,7 @@ where
             &self.secp,
             contract_input,
             oracle_announcements,
-            REFUND_DELAY,
+            refund_delay,
             &counter_party,
             &self.wallet,
             &self.blockchain,
@@ -342,7 +343,7 @@ where
         offered_message: &OfferDlc,
         counter_party: PublicKey,
     ) -> Result<(), Error> {
-        offered_message.validate(&self.secp, REFUND_DELAY, REFUND_DELAY * 2)?;
+        offered_message.validate(&self.secp, 0, FIFTY_YEARS)?;
         let contract: OfferedContract =
             OfferedContract::try_from_offer_dlc(offered_message, counter_party)?;
         contract.validate()?;
@@ -491,8 +492,8 @@ where
                         .accepted_contract
                         .offered_contract
                         .contract_info
-                        .get(0)
-                        .and_then(|info| info.oracle_announcements.get(0))
+                        .first()
+                        .and_then(|info| info.oracle_announcements.first())
                         .map(|announcement| announcement.oracle_event.event_id.clone())
                         .ok_or(Error::InvalidState("Missing oracle event ID".to_string()))?;
 
@@ -500,7 +501,7 @@ where
                 }
                 Ok(false) => (),
                 Err(e) => error!(
-                    "Error checking confirmed contract {}: {}",
+                    "Error checking signed contract {}: {}",
                     c.accepted_contract.get_contract_id_string(),
                     e
                 ),
@@ -531,8 +532,8 @@ where
                         .accepted_contract
                         .offered_contract
                         .contract_info
-                        .get(0)
-                        .and_then(|info| info.oracle_announcements.get(0))
+                        .first()
+                        .and_then(|info| info.oracle_announcements.first())
                         .map(|announcement| announcement.oracle_event.event_id.clone())
                         .ok_or(Error::InvalidState("Missing oracle event ID".to_string()))?;
 
@@ -656,8 +657,8 @@ where
                         .accepted_contract
                         .offered_contract
                         .contract_info
-                        .get(0)
-                        .and_then(|info| info.oracle_announcements.get(0))
+                        .first()
+                        .and_then(|info| info.oracle_announcements.first())
                         .map(|announcement| announcement.oracle_event.event_id.clone())
                         .ok_or(Error::InvalidState("Missing oracle event ID".to_string()))?;
 

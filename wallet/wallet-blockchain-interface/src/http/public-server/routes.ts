@@ -12,18 +12,15 @@ const TESTMODE: boolean = process.env.TEST_MODE_ENABLED === 'true';
 
 router.get('/health', express.json(), async (req, res) => {
     const data = readEnvConfigs();
-    console.log('[WBI] GET /health');
     res.status(200).send({ chain: data.chain, version: data.version });
 });
 
 router.get('/wallet-health', express.json(), async (req, res) => {
-    console.log('[WBI] GET /wallet-health');
     const data = await routerWallet.getHealth();
     res.status(data.status).send(await data.json());
 });
 
 router.get('/info', express.json(), async (req, res) => {
-    console.log('[WBI] GET /info');
     const data = await routerWallet.getInfo();
     res.status(data.status).send(await data.json());
 });
@@ -37,21 +34,25 @@ router.post('/offer', express.json(), async (req, res) => {
     }
 
     let valueLocked: BigNumber;
+    let refundDelay: BigNumber;
     let offerRequest: {
         uuid: string;
         acceptCollateral: number;
         offerCollateral: number;
         totalOutcomes: number;
+        refundDelay: number;
     };
 
     if (TESTMODE) {
         console.log('[WBI] Test mode enabled. Using default collateral.');
-        valueLocked = BigNumber.from(10000);
+        valueLocked = BigNumber.from(req.body.acceptCollateral);
+        refundDelay = BigNumber.from(req.body.refundDelay);
     } else {
         try {
             const dlcInfo = await blockchainWriter.getDLCInfo(uuid);
             console.log('[WBI] DLC Info:', dlcInfo);
             valueLocked = dlcInfo.valueLocked as BigNumber;
+            refundDelay = dlcInfo.refundDelay as BigNumber;
         } catch (error) {
             console.log(error);
             res.status(500).send(error);
@@ -60,11 +61,11 @@ router.post('/offer', express.json(), async (req, res) => {
     }
 
     offerRequest = {
-        uuid: uuid,
+        uuid,
         acceptCollateral: valueLocked.toNumber(),
         offerCollateral: 0,
-        // TODO: ?
         totalOutcomes: 100,
+        refundDelay: refundDelay.toNumber(),
     };
 
     console.log('[WBI] Offer Request:', offerRequest);
@@ -74,7 +75,6 @@ router.post('/offer', express.json(), async (req, res) => {
 });
 
 router.put('/offer/accept', express.json(), async (req, res) => {
-    console.log('[WBI] PUT /offer/accept');
     const data = await routerWallet.acceptOffer(req.body);
     res.status(data.status).send(await data.json());
 });

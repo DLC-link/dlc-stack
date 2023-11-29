@@ -1,3 +1,7 @@
+#![deny(clippy::unwrap_used)]
+#![deny(unused_mut)]
+// #![deny(dead_code)]
+
 extern crate core;
 extern crate log;
 use ::hex::ToHex;
@@ -127,7 +131,7 @@ impl Attestor {
         }
     }
 
-    pub async fn attest(&self, uuid: String, outcome: u64) {
+    pub async fn attest(&self, uuid: String, outcome: u64) -> Result<(), JsError> {
         clog!("[WASM-ATTESTOR] retrieving oracle event with uuid {}", uuid);
         let mut event: DbValue;
 
@@ -140,21 +144,23 @@ impl Attestor {
         {
             Ok(val) => val,
             Err(e) => {
-                clog!(
+                let message = format!(
                     "[WASM-ATTESTOR] Error retrieving event from StorageAPI: {:?}",
                     e
                 );
-                panic!();
+                clog!("{}", message);
+                return Err(JsError::new(&message));
             }
         };
         let event_vec = match res {
             Some(val) => val,
             None => {
-                clog!(
+                let error_message = format!(
                     "[WASM-ATTESTOR] Event missing in StorageAPI with uuid: {}",
                     uuid
                 );
-                panic!();
+                clog!("{}", error_message);
+                return Err(JsError::new(&error_message));
             }
         };
         event = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).unwrap();
@@ -166,11 +172,10 @@ impl Attestor {
         let num_digits_to_sign = match announcement.oracle_event.event_descriptor {
             dlc_messages::oracle_msgs::EventDescriptor::DigitDecompositionEvent(e) => e.nb_digits,
             _ => {
-                panic!()
-                // return Err(AttestorError::OracleEventNotFoundError(
-                //     "Got an unexpected EventDescriptor type!".to_string(),
-                // )
-                // .into())
+                return Err(AttestorError::OracleEventNotFoundError(
+                    "Got an unexpected EventDescriptor type!".to_string(),
+                )
+                .into())
             }
         };
 
@@ -218,6 +223,7 @@ impl Attestor {
                 None
             }
         };
+        Ok(())
     }
 
     pub async fn get_events(&self) -> JsValue {
