@@ -14,21 +14,15 @@ async function main() {
   // Set up server with routes
   startServer();
 
-  // Load chain configs
-  const chainConfigs = ConfigService.getChainConfigs();
-
-  const observerPromises = chainConfigs.map((config) => {
-    switch (config.type) {
-      case 'EVM':
-        return getEthObserver(config);
-      case 'STX':
-        return getStacksObserver(config);
-      default:
-        throw new Error(`${config.type} is not a valid type.`);
-    }
+  const evmChains = ConfigService.getEvmChainConfigs();
+  const evmObservers = evmChains.map((config) => {
+    return getEthObserver(config);
   });
 
-  const observers = await Promise.all(observerPromises);
+  const stxChains = ConfigService.getStxChainConfigs();
+  const stxObservers = stxChains.map((config) => getStacksObserver(config));
+
+  const observers = await Promise.all([...evmObservers, ...stxObservers]);
 
   // Start observers
   observers.forEach((observer) => observer.start());

@@ -32,9 +32,9 @@ export default async (
   deploymentInfo: DeploymentInfo;
 }> => {
   const deploymentInfo =
-    config.name === 'localhost'
+    config.network === 'localhost'
       ? await getLocalDeploymentInfo('./observer/deploymentFiles/localhost', 'DLCManager', config.version)
-      : await fetchDeploymentInfo(config.name, config.version);
+      : await fetchDeploymentInfo(config.network, config.version);
 
   let provider;
   if (config.endpoint?.startsWith('http')) {

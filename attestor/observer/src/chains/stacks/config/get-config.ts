@@ -42,19 +42,19 @@ export function getConfig(config: ChainConfig): NetworkConfig {
   let api_base_extended: string;
 
   switch (config.network) {
-    case 'STACKS_MAINNET':
+    case 'mainnet':
       deployer = '';
       api_base_extended = 'https://api.hiro.so/extended/v1';
       break;
-    case 'STACKS_TESTNET':
+    case 'testnet':
       deployer = 'ST1JHQ5GPQT249ZWG6V4AWETQW5DYA5RHJB0JSMQ3';
       api_base_extended = 'https://api.testnet.hiro.so/extended/v1';
       break;
-    case 'STACKS_MOCKNET':
+    case 'mocknet':
       deployer = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
       api_base_extended = `http://${ConfigService.getSettings()['mocknet-address']}:3999/extended/v1`;
       break;
-    case 'STACKS_LOCAL':
+    case 'local':
       deployer = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
       api_base_extended = 'http://localhost:3999/extended/v1';
       break;

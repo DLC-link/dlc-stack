@@ -54,7 +54,7 @@ export default async (config: ConfigSet): Promise<WrappedContract> => {
             wallet = new ethers.Wallet(config.privateKey, provider);
             break;
         case 'OKX_TESTNET':
-            deploymentInfo = await fetchDeploymentInfo('X1test', config.version, config.branch);
+            deploymentInfo = await fetchDeploymentInfo('x1test', config.version, config.branch);
             provider = new ethers.providers.JsonRpcProvider(`https://x1testrpc.okx.com/`);
             wallet = new ethers.Wallet(config.privateKey, provider);
             break;

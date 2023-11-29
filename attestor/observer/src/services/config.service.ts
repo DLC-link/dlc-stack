@@ -3,7 +3,6 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 
 import { ChainConfig, validChains } from '../config/models.js';
-import { defaultConfigs } from '../config/network-configs.js';
 
 // The yaml file should be in the following format:
 interface NodeConfig {
@@ -13,7 +12,8 @@ interface NodeConfig {
     'dev-endpoints-enabled'?: boolean;
     'mocknet-address'?: string;
   };
-  chains: ChainConfig[];
+  'evm-chains': ChainConfig[];
+  'stx-chains': ChainConfig[];
 }
 
 export default class ConfigService {
@@ -30,15 +30,33 @@ export default class ConfigService {
     dotenv.config();
     try {
       const configFile = fs.readFileSync('./config.yaml', 'utf8');
-      const config = yaml.load(configFile) as NodeConfig;
+      let config = yaml.load(configFile) as NodeConfig;
 
-      let chainConfigs: ChainConfig[] = config.chains;
+      let evmChainConfigs: ChainConfig[] = config['evm-chains'];
 
-      chainConfigs.forEach((chainConfig) => {
-        this.validateNetwork(chainConfig);
-        const defaultConfig = defaultConfigs.find((defaultConfig) => defaultConfig.network === chainConfig.network);
-        this.validateApiKey(chainConfig, defaultConfig);
-      });
+      if (!evmChainConfigs) {
+        evmChainConfigs = [];
+      } else {
+        evmChainConfigs = evmChainConfigs.map((chainConfig) => {
+          this.validateNetwork(chainConfig);
+          chainConfig.version = chainConfig.version.toString();
+          return this.validateApiKey(chainConfig);
+        });
+      }
+
+      let stxChainConfigs: ChainConfig[] = config['stx-chains'];
+
+      if (!stxChainConfigs) {
+        stxChainConfigs = [];
+      } else {
+        stxChainConfigs = stxChainConfigs.map((chainConfig) => {
+          this.validateNetwork(chainConfig);
+          chainConfig.version = chainConfig.version.toString();
+          return this.validateApiKey(chainConfig);
+        });
+      }
+
+      config = { ...config, 'evm-chains': evmChainConfigs, 'stx-chains': stxChainConfigs };
 
       return config;
     } catch (error) {
@@ -47,20 +65,12 @@ export default class ConfigService {
     }
   }
 
-  public static getChainConfigs(): ChainConfig[] {
-    const rawConfigs = this.getConfig().chains;
-    let results;
-    results = rawConfigs.map((chainConfig) => {
-      const defaultConfig = defaultConfigs.find((defaultConfig) => defaultConfig.network === chainConfig.network);
-      if (defaultConfig) {
-        chainConfig.version = chainConfig.version || defaultConfig.version;
-        chainConfig.endpoint = chainConfig.endpoint || defaultConfig.endpoint;
-        chainConfig.name = chainConfig.name || defaultConfig.name;
-        chainConfig.type = chainConfig.type || defaultConfig.type;
-      }
-      return chainConfig;
-    });
-    return results;
+  public static getEvmChainConfigs(): ChainConfig[] {
+    return this.getConfig()['evm-chains'];
+  }
+
+  public static getStxChainConfigs(): ChainConfig[] {
+    return this.getConfig()['stx-chains'];
   }
 
   public static getSettings(): NodeConfig['settings'] {
@@ -79,7 +89,7 @@ export default class ConfigService {
     }
   }
 
-  private static validateApiKey(chainConfig: ChainConfig, defaultConfig?: ChainConfig) {
+  private static validateApiKey(chainConfig: ChainConfig): ChainConfig {
     if (chainConfig.api_key && chainConfig.api_key.startsWith('${') && chainConfig.api_key.endsWith('}')) {
       const envVariable = chainConfig.api_key.slice(2, -1);
       if (!process.env[envVariable]) {
@@ -87,13 +97,6 @@ export default class ConfigService {
       }
       chainConfig.api_key = process.env[envVariable];
     }
-    chainConfig.api_key_required = chainConfig.api_key_required ?? defaultConfig?.api_key_required;
-    if (
-      (!chainConfig.endpoint || chainConfig.endpoint == defaultConfig?.endpoint) &&
-      defaultConfig?.api_key_required &&
-      (!chainConfig.api_key_required || !chainConfig.api_key)
-    ) {
-      throw new Error(`API key is required when using the default endpoint for ${chainConfig.network}.`);
-    }
+    return chainConfig;
   }
 }
