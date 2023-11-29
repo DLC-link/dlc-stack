@@ -288,7 +288,7 @@ async function verify_refund_tx(dlcManager, contractID) {
   let startingBalance = await checkBalance(dlcManager, '[ALL FUNDED BALANCE]');
   //Check if the contract is in the PreClosed state
   assert(
-    await retry(async () => checkIfContractIsInState(contractID, 'Refunded'), 30000),
+    await retry(async () => checkIfContractIsInState(contractID, 'Refunded'), DEFAULT_WAIT_TIME),
     `[IT] Contract state is not updated in the Router Wallet to Refunded`
   );
 
