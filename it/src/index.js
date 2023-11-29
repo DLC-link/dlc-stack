@@ -379,7 +379,7 @@ async function main() {
   let setupDetails3 = await setupDLC(dlcManager, testUUID3, new Date().getTime() + 20000, { refundDelay: 20 });
 
   //Waiting for funding transaction confirmations
-  confirmedBroadcastTransaction = await waitForConfirmations(setupDetails3.blockchainHeightAtBroadcast, 6);
+  let confirmedBroadcastTransaction = await waitForConfirmations(setupDetails3.blockchainHeightAtBroadcast, 6);
   if (confirmedBroadcastTransaction) {
     console.log('[IT] Funding transaction confirmed');
   }
