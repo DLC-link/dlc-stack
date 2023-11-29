@@ -8,6 +8,8 @@
     "node": "18.x"
   },
   "scripts": {
+    "clean": "rm -rf dist && rm -rf node_modules",
+    "clean:all": "rm -rf dist && rm -rf node_modules && rm -rf pkg",
     "build": "./build_all.sh",
     "build:ts": "tsc -p .",
     "build:wasm": "AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang wasm-pack build --target bundler .",
