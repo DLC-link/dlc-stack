@@ -7,7 +7,7 @@ import config from './config.js';
 import setupPolyfills from './polyfills.js';
 
 const DEFAULT_WAIT_TIME = 60000;
-const BLOCK_TIME = 15000;
+const BLOCK_TIME = 5000;
 setupPolyfills();
 
 const {
