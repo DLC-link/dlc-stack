@@ -16,14 +16,18 @@ settings:
 
 # Supported evm-chains: mainnet, sepolia, goerli, localhost, x1test
 evm-chains:
+  # L1 mainnet is not supported yet!
   # - network: mainnet
   #   version: 1
   #   endpoint: wss://mainnet.infura.io/ws/v3/
   #   api_key: ${INFURA_API_KEY}
 
+  # This is how a setup looks that uses a local node,
+  # but the 'sepolia' contracts from dlc-solidity
   - network: sepolia
     version: 1
     endpoint: http://localhost:8545
+    # endpoint: wss://sepolia.infura.io/ws/v3/
     # api_key: ${INFURA_API_KEY}
 
   - network: goerli
