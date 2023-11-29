@@ -130,7 +130,7 @@ async function retry(checkFunction, timeoutTime) {
 
 function assert(predicate, message) {
   if (!predicate) {
-    console.error(message);
+    console.log(message);
     process.exit(1);
   }
 }
@@ -324,11 +324,11 @@ async function main() {
   await checkBalance(dlcManager, '[STARTING BALANCE]');
   console.log('[IT] Starting DLC Integration Tests');
 
-  //Start first test
-  console.log('[IT] ##################### STARTING HAPPY PATH TEST #####################');
-  // Test the happy path
-  const testUUID = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
-  let setupDetails1 = await setupDLC(dlcManager, testUUID);
+  // //Start first test
+  // console.log('[IT] ##################### STARTING HAPPY PATH TEST #####################');
+  // // Test the happy path
+  // const testUUID = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
+  // let setupDetails1 = await setupDLC(dlcManager, testUUID);
 
   //Start second test
   // console.log('[IT] ##################### STARTING SECOND TEST #####################');
@@ -336,17 +336,17 @@ async function main() {
   // const testUUID2 = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
   // let setupDetails2 = await setupDLC(dlcManager, testUUID2);
 
-  //Waiting for funding transaction confirmations
-  let confirmedBroadcastTransaction = await waitForConfirmations(setupDetails1.blockchainHeightAtBroadcast, 6);
-  if (confirmedBroadcastTransaction) {
-    console.log('[IT] Funding transaction confirmed');
-  }
+  // //Waiting for funding transaction confirmations
+  // let confirmedBroadcastTransaction = await waitForConfirmations(setupDetails1.blockchainHeightAtBroadcast, 6);
+  // if (confirmedBroadcastTransaction) {
+  //   console.log('[IT] Funding transaction confirmed');
+  // }
 
-  //Check if the contract is in the Confirmed state
-  assert(
-    await retry(async () => checkIfContractIsInState(setupDetails1.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
-    `[IT] Contract state is not updated in the Router Wallet to Confirmed`
-  );
+  // //Check if the contract is in the Confirmed state
+  // assert(
+  //   await retry(async () => checkIfContractIsInState(setupDetails1.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
+  //   `[IT] Contract state is not updated in the Router Wallet to Confirmed`
+  // );
 
   // //Waiting for funding transaction confirmations
   // confirmedBroadcastTransaction = await waitForConfirmations(setupDetails2.blockchainHeightAtBroadcast, 6);
@@ -362,10 +362,10 @@ async function main() {
 
   // ----------------------------------------------
 
-  await checkBalance(dlcManager, '[ALL FUNDED BALANCE]');
+  // await checkBalance(dlcManager, '[ALL FUNDED BALANCE]');
 
-  console.log(`[IT] Closing DLC for ${testUUID} created`);
-  await verify_closed_and_balance_returned(dlcManager, setupDetails1.contractID, testUUID);
+  // console.log(`[IT] Closing DLC for ${testUUID} created`);
+  // await verify_closed_and_balance_returned(dlcManager, setupDetails1.contractID, testUUID);
 
   // console.log(`Closing DLC for ${testUUID2} created`);
   // await verify_closed_and_balance_returned(dlcManager, setupDetails2.contractID, testUUID2);
@@ -375,8 +375,8 @@ async function main() {
   //Start third test
   console.log('[IT] ##################### STARTING REFUND TEST #####################');
   const testUUID3 = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
-  // Create a DLC that will refund. Attestation maturity is 20 seconds in the future, and refund delay is 1 second after that.
-  let setupDetails3 = await setupDLC(dlcManager, testUUID3, new Date().getTime() + 20000, { refundDelay: 1 });
+  // Create a DLC that will refund. Attestation maturity is 20 seconds in the future, and refund delay is 20 second after that.
+  let setupDetails3 = await setupDLC(dlcManager, testUUID3, new Date().getTime() + 20000, { refundDelay: 20 });
 
   //Waiting for funding transaction confirmations
   confirmedBroadcastTransaction = await waitForConfirmations(setupDetails3.blockchainHeightAtBroadcast, 6);

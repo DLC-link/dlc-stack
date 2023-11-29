@@ -36,8 +36,8 @@ const testnet = {
 
 // Local services, but regtest bitcoin
 const local = {
-  testWalletPrivateKey: 'b5984262748203b2043923dd34202d1a6e05601af0c00e232d3b1988ce9608f5',
-  testWalletAddress: 'bcrt1qpnuck30uakpc0ffcmd3nwdd59y547qlzsmf34l',
+  testWalletPrivateKey: process.env.TEST_WALLET_PKEY,
+  testWalletAddress: process.env.TEST_WALLET_ADDRESS,
   bitcoinNetwork: 'regtest',
   bitcoinNetworkURL: 'https://devnet.dlc.link/electrs',
   protocolWalletURL: 'http://127.0.0.1:3003',
@@ -47,8 +47,8 @@ const local = {
 
 // Local services with just script, but regtest bitcoin
 const local_just = {
-  testWalletPrivateKey: 'b5984262748203b2043923dd34202d1a6e05601af0c00e232d3b1988ce9608f5',
-  testWalletAddress: 'bcrt1qpnuck30uakpc0ffcmd3nwdd59y547qlzsmf34l',
+  testWalletPrivateKey: process.env.TEST_WALLET_PKEY,
+  testWalletAddress: process.env.TEST_WALLET_ADDRESS,
   bitcoinNetwork: 'regtest',
   bitcoinNetworkURL: 'https://devnet.dlc.link/electrs',
   protocolWalletURL: 'http://127.0.0.1:3003',
