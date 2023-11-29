@@ -473,6 +473,11 @@ where
                 &contract.accepted_contract.dlc_transactions.fund.txid(),
             )
             .await?;
+        debug!(
+            "Checking signed contract {} with {} confirmations",
+            contract.accepted_contract.get_contract_id_string(),
+            confirmations
+        );
         if confirmations >= NB_CONFIRMATIONS {
             self.store
                 .update_contract(&Contract::Confirmed(contract.clone()))

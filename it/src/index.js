@@ -7,6 +7,7 @@ import config from './config.js';
 import setupPolyfills from './polyfills.js';
 
 const DEFAULT_WAIT_TIME = 60000;
+const BLOCK_TIME = 15000;
 setupPolyfills();
 
 const {
@@ -138,13 +139,13 @@ async function waitForConfirmations(blockchainHeightAtBroadcast, targetConfirmat
   const url = `${process.env.ELECTRUM_API_URL}/blocks/tip/height`;
   let currentBlockchainHeight = blockchainHeightAtBroadcast;
   while (Number(currentBlockchainHeight) - Number(blockchainHeightAtBroadcast) < targetConfirmations) {
+    await new Promise((resolve) => setTimeout(resolve, BLOCK_TIME));
     currentBlockchainHeight = await (await fetch(url)).json();
     console.log(
       `[IT] Confirmations: ${
         Number(currentBlockchainHeight) - Number(blockchainHeightAtBroadcast)
       } / ${targetConfirmations}`
     );
-    await new Promise((resolve) => setTimeout(resolve, DEFAULT_WAIT_TIME));
   }
   return true;
 }
