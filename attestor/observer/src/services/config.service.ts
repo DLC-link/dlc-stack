@@ -29,7 +29,7 @@ export default class ConfigService {
   private static readConfig(): NodeConfig {
     dotenv.config();
     try {
-      const configFile = fs.readFileSync('./config.yaml', 'utf8');
+      const configFile = fs.readFileSync(process.env.CONFIG_LOCATION ?? './config.yaml', 'utf8');
       let config = yaml.load(configFile) as NodeConfig;
 
       let evmChainConfigs: ChainConfig[] = config['evm-chains'];
