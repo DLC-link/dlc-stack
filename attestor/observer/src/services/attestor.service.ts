@@ -59,7 +59,7 @@ export default class AttestorService {
     }
   }
 
-  public static async createAnnouncement(uuid: string, maturation?: string) {
+  public static async createAnnouncement(uuid: string, chain: string, maturation?: string) {
     const attestor = await this.getAttestor();
 
     console.log('createAnnouncement with UUID:', uuid, 'and maturation:', maturation);
@@ -67,7 +67,7 @@ export default class AttestorService {
     let _maturation = maturation ? new Date(Number(maturation)).toISOString() : createMaturationDate();
 
     try {
-      await attestor.create_event(uuid, _maturation);
+      await attestor.create_event(uuid, _maturation, chain);
     } catch (error) {
       console.error(error);
       return error;

@@ -49,6 +49,7 @@ pub struct NewEvent {
     pub event_id: String,
     pub content: String,
     pub key: String,
+    pub chain: String,
 }
 
 #[derive(Serialize, Deserialize, Queryable, Debug)]
@@ -57,6 +58,7 @@ pub struct Event {
     pub event_id: String,
     pub content: String,
     pub key: String,
+    pub chain: String,
 }
 
 #[derive(Serialize, Deserialize, AsChangeset, Debug, Clone)]
@@ -65,6 +67,7 @@ pub struct UpdateEvent {
     pub event_id: String,
     pub content: String,
     pub key: String,
+    pub chain: String,
 }
 
 #[derive(Serialize, Deserialize, AsChangeset, Debug, Clone)]

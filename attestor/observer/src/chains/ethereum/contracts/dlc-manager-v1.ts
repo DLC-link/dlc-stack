@@ -22,7 +22,7 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
           console.log(_logMessage);
           console.log('TXID:', tx.transactionHash);
           try {
-            await AttestorService.createAnnouncement(_uuid);
+            await AttestorService.createAnnouncement(_uuid, `evm-${deploymentInfo.network.toLowerCase()}`);
             console.log(await AttestorService.getEvent(_uuid));
           } catch (error) {
             console.error(error);

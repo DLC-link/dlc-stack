@@ -1,5 +1,4 @@
 use diesel::PgConnection;
-use dlc_storage_common;
 use dlc_storage_common::models::{
     Contract, DeleteContract, DeleteEvent, Event, NewContract, NewEvent, UpdateContract,
     UpdateEvent,

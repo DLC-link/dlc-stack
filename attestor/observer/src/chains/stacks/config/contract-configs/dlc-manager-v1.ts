@@ -54,7 +54,7 @@ export class DlcManagerV1 implements ContractConfig {
           const _logMessage = `[${this._contractFullName}] New DLC Request @ ${currentTime} \n\t uuid: ${_uuid} | creator: ${_creator} | callbackContract: ${_callbackContract} | protocol-wallet: ${_protocolWallet} | attestors: ${_attestors} \n`;
           console.log(_logMessage);
           try {
-            await AttestorService.createAnnouncement(_uuid);
+            await AttestorService.createAnnouncement(_uuid, this._deploymentInfo.chainName);
             console.log(await AttestorService.getEvent(_uuid));
           } catch (error) {
             console.error(error);

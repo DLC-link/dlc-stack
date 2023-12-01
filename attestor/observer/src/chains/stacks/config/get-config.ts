@@ -40,23 +40,28 @@ export function getConfig(config: ChainConfig): NetworkConfig {
   let socket: StacksApiSocketClient;
   let deployer: string;
   let api_base_extended: string;
+  let chainName: string;
 
   switch (config.network) {
     case 'mainnet':
       deployer = '';
       api_base_extended = 'https://api.hiro.so/extended/v1';
+      chainName = 'stx-mainnet';
       break;
     case 'testnet':
       deployer = 'ST1JHQ5GPQT249ZWG6V4AWETQW5DYA5RHJB0JSMQ3';
       api_base_extended = 'https://api.testnet.hiro.so/extended/v1';
+      chainName = 'stx-testnet';
       break;
     case 'mocknet':
       deployer = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
       api_base_extended = `http://${ConfigService.getSettings()['mocknet-address']}:3999/extended/v1`;
+      chainName = 'stx-mocknet';
       break;
     case 'local':
       deployer = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
       api_base_extended = 'http://localhost:3999/extended/v1';
+      chainName = 'stx-local';
       break;
     default:
       throw new Error(`${config.network} is not a valid chain.`);
@@ -65,5 +70,5 @@ export function getConfig(config: ChainConfig): NetworkConfig {
 
   socketEndpoint = config.endpoint;
   socket = setupSocketClient(socketEndpoint);
-  return { socket, deploymentInfo: { deployer, api_base_extended } };
+  return { socket, deploymentInfo: { deployer, api_base_extended, chainName } };
 }

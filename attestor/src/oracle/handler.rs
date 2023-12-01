@@ -46,6 +46,7 @@ impl StorageApiConn {
         event_id: String,
         new_event: Vec<u8>,
         secret_key: SecretKey,
+        chain: String,
     ) -> Result<Option<Vec<u8>>, OracleError> {
         let new_content = base64::encode(new_event.clone());
         let event = match self
@@ -71,6 +72,7 @@ impl StorageApiConn {
                 content: new_content.clone(),
                 event_id: event_id.clone(),
                 key: self.public_key.clone(),
+                chain: chain.clone(),
             };
             let res = self.client.update_event(update_event, secret_key).await;
             match res {
@@ -82,6 +84,7 @@ impl StorageApiConn {
                 event_id: event_id.clone(),
                 content: new_content.clone(),
                 key: self.public_key.clone(),
+                chain: chain.clone(),
             };
             let res = self.client.create_event(event, secret_key).await;
             match res {

@@ -31,6 +31,7 @@ export interface AddressSubscription {
 export interface DeploymentInfo {
   deployer: string;
   api_base_extended: string;
+  chainName: string;
 }
 
 export interface ContractConfig {

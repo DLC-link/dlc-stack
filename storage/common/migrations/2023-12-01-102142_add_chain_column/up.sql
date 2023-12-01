@@ -1,0 +1,3 @@
+-- Your SQL goes here
+ALTER TABLE events ADD COLUMN chain VARCHAR(255) NOT NULL DEFAULT 'mainnet';
+ALTER TABLE events ALTER COLUMN chain DROP DEFAULT;

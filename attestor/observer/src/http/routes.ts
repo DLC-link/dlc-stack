@@ -38,16 +38,17 @@ if (ConfigService.getSettings()['dev-endpoints-enabled']) {
   console.log(chalk.bgYellow('Dev endpoints enabled!'));
   router.get('/create-announcement/:uuid', async (req, res) => {
     console.log('GET /create-announcement with url, params and query: ', req.url, req.params, req.query);
-    let time;
+    let time, chain;
     if (req.query.time) {
       time = req.query.time;
     }
+    chain = (req.query.chain as string) ?? 'stx-mocknet';
     if (!req.params.uuid) {
       res.status(400).send('Missing UUID');
       return;
     }
     res.setHeader('Access-Control-Allow-Origin', '*');
-    const data = await AttestorService.createAnnouncement(req.params.uuid, time as string);
+    const data = await AttestorService.createAnnouncement(req.params.uuid, chain, time as string);
     res.status(200).send(data);
   });
 

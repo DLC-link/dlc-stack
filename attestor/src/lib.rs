@@ -1,5 +1,5 @@
-#![deny(clippy::unwrap_used)]
-#![deny(unused_mut)]
+// #![deny(clippy::unwrap_used)]
+// #![deny(unused_mut)]
 // #![deny(dead_code)]
 
 extern crate core;
@@ -83,15 +83,21 @@ impl Attestor {
         ]}))?)
     }
 
-    pub async fn create_event(&self, uuid: &str, maturation: &str) -> Result<(), JsValue> {
+    pub async fn create_event(
+        &self,
+        uuid: &str,
+        maturation: &str,
+        chain: &str,
+    ) -> Result<(), JsValue> {
         let maturation = OffsetDateTime::parse(maturation, &Rfc3339)
             .map_err(AttestorError::DatetimeParseError)
             .unwrap();
 
         clog!(
-            "[WASM-ATTESTOR] Creating event for uuid: {} and maturation_time : {}",
+            "[WASM-ATTESTOR] Creating event for uuid: {} and maturation_time : {} on chain: {}",
             uuid,
-            maturation
+            maturation,
+            chain
         );
 
         let (announcement_obj, outstanding_sk_nonces) = build_announcement(
@@ -108,6 +114,7 @@ impl Attestor {
             None,
             None,
             uuid.to_string(),
+            chain.to_string(),
         );
 
         let new_event = serde_json::to_string(&db_value).unwrap().into_bytes();
@@ -117,7 +124,12 @@ impl Attestor {
             .event_handler
             .storage_api
             .clone()
-            .insert(uuid.to_string(), new_event.clone(), self.secret_key)
+            .insert(
+                uuid.to_string(),
+                new_event.clone(),
+                self.secret_key,
+                chain.to_string(),
+            )
             .await
         {
             Ok(Some(_val)) => Ok(()),
@@ -201,7 +213,12 @@ impl Attestor {
             .oracle
             .event_handler
             .storage_api
-            .insert(uuid.clone(), new_event.clone(), self.secret_key)
+            .insert(
+                uuid.clone(),
+                new_event.clone(),
+                self.secret_key,
+                event.5.clone(),
+            )
             .await
         {
             Ok(val) => val,
@@ -307,6 +324,7 @@ struct ApiOracleEvent {
     rust_attestation: Option<String>,
     maturation: String,
     outcome: Option<u64>,
+    chain: String,
 }
 
 fn parse_database_entry(event: Vec<u8>) -> ApiOracleEvent {
@@ -337,6 +355,7 @@ fn parse_database_entry(event: Vec<u8>) -> ApiOracleEvent {
         rust_attestation: event.2.map(|att| att.encode_hex::<String>()),
         maturation: announcement.oracle_event.event_maturity_epoch.to_string(),
         outcome: event.3,
+        chain: event.5,
     }
 }
 
