@@ -184,6 +184,16 @@ where
         &self.store
     }
 
+    pub fn get_attestors(&self) -> Result<&HashMap<XOnlyPublicKey, O>, Error> {
+        match &self.oracles {
+            // Oracles is now an optional field, so check here before continuing.
+            Some(oracles) => Ok(oracles),
+            None => Err(Error::InvalidParameters(
+                "Manager could not get attestors, oracles not initialized".to_string(),
+            )),
+        }
+    }
+
     /// Function called to pass a DlcMessage to the Manager.
     pub async fn on_dlc_message(
         &self,

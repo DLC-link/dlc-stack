@@ -113,6 +113,41 @@ async fn get_attestors(
     }
 }
 
+// async fn get_chain_from_attestors(event_id: String, attestor_urls: Vec<String>) -> String {
+//     let mut attestor_responses = vec![];
+//     for url in attestor_urls.iter() {
+//         let attestor_response = match reqwest::Client::new()
+//             .get(format!("{}/event/{}", url, event_id).as_str())
+//             .timeout(REQWEST_TIMEOUT)
+//             .send()
+//             .await
+//         {
+//             Ok(response) => response,
+//             Err(e) => {
+//                 warn!("Error getting event from attestor: {}", e);
+//                 continue;
+//             }
+//         };
+//         attestor_responses.push(attestor_response);
+//     }
+//     match &attestor_responses[0] {
+//         response => {
+//             let chain = match response.json::<HashMap<String, String>>().await {
+//                 Ok(chain) => chain,
+//                 Err(e) => {
+//                     warn!("Error parsing attestor response: {}", e);
+//                     return "error".to_string();
+//                 }
+//             };
+//             match chain.get("chain") {
+//                 Some(chain) => chain.to_string(),
+//                 None => "error".to_string(),
+//             }
+//         }
+//         e => "error".to_string(),
+//     }
+// }
+
 async fn generate_attestor_client(
     attestor_urls: Vec<String>,
 ) -> HashMap<XOnlyPublicKey, Arc<AttestorClient>> {
@@ -173,7 +208,6 @@ async fn process_request(
     wallet: Arc<DlcWallet>,
     active_network: String,
     blockchain_interface_url: String,
-    attestor_urls: Vec<String>,
 ) -> Result<Response<Body>, GenericError> {
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/health") => build_success_response(
@@ -216,8 +250,15 @@ async fn process_request(
                         ))
                     })?;
 
-                let bitcoin_contract_attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>> =
-                    generate_attestor_client(attestor_urls.clone()).await;
+                let bitcoin_contract_attestors = match manager.get_attestors() {
+                    Ok(attestors) => attestors.clone(),
+                    Err(e) => {
+                        return Err(WalletError(format!(
+                            "Error getting attestors from manager: {}",
+                            e
+                        )));
+                    }
+                };
 
                 create_new_offer(
                     manager,
@@ -403,7 +444,6 @@ async fn main() -> Result<(), GenericError> {
         let wallet = wallet.clone();
         let blockchain_interface_url = blockchain_interface_url.clone();
         let active_network = active_network.to_string();
-        let attestor_urls = attestor_urls.clone();
 
         async move {
             Ok::<_, GenericError>(service_fn(move |req| {
@@ -414,7 +454,6 @@ async fn main() -> Result<(), GenericError> {
                     wallet.to_owned(),
                     active_network.to_owned(),
                     blockchain_interface_url.to_owned(),
-                    attestor_urls.to_owned(),
                 )
             }))
         }
@@ -649,6 +688,16 @@ async fn periodic_check(
     let funded_url = format!("{}/set-status-funded", blockchain_interface_url);
     let closed_url = format!("{}/post-close-dlc", blockchain_interface_url);
 
+    let bitcoin_contract_attestors = match manager.get_attestors() {
+        Ok(attestors) => attestors.clone(),
+        Err(e) => {
+            return Err(GenericError::from(format!(
+                "Error getting attestors from manager: {}",
+                e
+            )));
+        }
+    };
+
     let updated_contracts = match manager.periodic_check().await {
         Ok(updated_contracts) => updated_contracts,
         Err(e) => {
@@ -700,6 +749,9 @@ async fn periodic_check(
             "Contract is funded, setting funded to true: {}, btc tx id: {}",
             uuid, txid
         );
+
+        // we should get the event from the attestorsClient
+
         reqwest::Client::new()
             .post(&funded_url)
             .timeout(REQWEST_TIMEOUT)

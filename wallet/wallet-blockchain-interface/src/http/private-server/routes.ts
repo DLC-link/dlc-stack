@@ -21,6 +21,20 @@ router.post('/set-status-funded', express.json(), localhostOrDockerOnly, async (
         res.status(200).send('set-status-funded called in test mode.');
         return;
     }
+    let chain: string;
+    try {
+        getAttestors().forEach(async (attestor) => {
+            const event = await fetch(`${attestor}/event/${req.body.uuid}`);
+            chain = (await event.json()).chain as string;
+            console.log();
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send(error);
+    }
+
+    // use this chain var to determine which to call...
+
     const data = await blockchainWriter.setStatusFunded(req.body.uuid as string, req.body.btcTxId as string);
     res.status(200).send(data);
 });
