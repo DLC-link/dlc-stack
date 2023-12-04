@@ -21,7 +21,7 @@ use std::time::Duration;
 use std::{collections::HashMap, env, str::FromStr, sync::Arc};
 
 use bitcoin::{PublicKey, XOnlyPublicKey};
-use dlc_link_manager::{AsyncOracle, AsyncStorage, Manager, FIFTY_YEARS};
+use dlc_link_manager::{AsyncOracle, AsyncStorage, Manager, FIFTY_YEARS, ONE_DAY_IN_SECONDS};
 use dlc_manager::{
     contract::{
         contract_input::{ContractInput, ContractInputInfo, OracleInput},
@@ -538,7 +538,7 @@ async fn create_new_offer(
     };
 
     let adjusted_refund_delay = match refund_delay {
-        0 => FIFTY_YEARS,
+        0 => FIFTY_YEARS - ONE_DAY_IN_SECONDS,
         _ => refund_delay,
     };
 
