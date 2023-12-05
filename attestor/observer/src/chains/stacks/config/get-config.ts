@@ -1,7 +1,7 @@
 import { StacksApiSocketClient } from '@stacks/blockchain-api-client';
 import { NetworkConfig } from '../models/interfaces.js';
 import { io } from 'socket.io-client';
-import { ChainConfig } from '../../../config/models.js';
+import { ChainConfig, stxPrefix } from '../../../config/models.js';
 import ConfigService from '../../../services/config.service.js';
 
 function setupSocketClient(endpoint: string): StacksApiSocketClient {
@@ -65,5 +65,5 @@ export function getConfig(config: ChainConfig): NetworkConfig {
 
   socketEndpoint = config.endpoint;
   socket = setupSocketClient(socketEndpoint);
-  return { socket, deploymentInfo: { deployer, api_base_extended, chainName: `stx-${config.network}` } };
+  return { socket, deploymentInfo: { deployer, api_base_extended, chainName: `${stxPrefix}${config.network}` } };
 }

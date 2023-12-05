@@ -2,6 +2,7 @@ import { ethers } from 'ethers';
 import { DeploymentInfo } from '../../shared/models/deployment-info.interface.js';
 import { Observer } from '../../shared/models/observer.interface.js';
 import AttestorService from '../../../services/attestor.service.js';
+import { evmPrefix } from '../../../config/models.js';
 
 export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: DeploymentInfo): Observer => {
   return {
@@ -22,7 +23,7 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
           console.log(_logMessage);
           console.log('TXID:', tx.transactionHash);
           try {
-            await AttestorService.createAnnouncement(_uuid, `evm-${deploymentInfo.network.toLowerCase()}`);
+            await AttestorService.createAnnouncement(_uuid, `${evmPrefix}${deploymentInfo.network.toLowerCase()}`);
             console.log(await AttestorService.getEvent(_uuid));
           } catch (error) {
             console.error(error);
