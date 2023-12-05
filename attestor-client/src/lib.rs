@@ -137,6 +137,34 @@ impl AttestorClient {
         })
     }
 
+    pub async fn get_chain(&self, event_id: &str) -> Result<String, DlcManagerError> {
+        debug!("Getting chain for event_id {event_id}");
+        let path = announcement_path(&self.host, event_id);
+        debug!("Getting chain at URL {path}");
+        let v = match self.get_json(&path).await {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(DlcManagerError::OracleError(format!(
+                    "Error getting announcement: {e}",
+                    e = e
+                )))
+            }
+        };
+
+        let chain = match v["chain"].as_str() {
+            //call to_string instead of as_str and watch your world crumble to pieces
+            None => {
+                return Err(DlcManagerError::OracleError(format!(
+                    "missing chain for event {}",
+                    event_id,
+                )))
+            }
+            Some(s) => s,
+        };
+
+        Ok(chain.to_string())
+    }
+
     async fn get_json(&self, path: &str) -> Result<Value, DlcManagerError> {
         self.client
             .get(path)

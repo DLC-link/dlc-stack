@@ -7,6 +7,7 @@
 use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey};
 use bytes::Buf;
 
+use futures_util::future::join_all;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{header, Body, Method, Response, Server, StatusCode};
 
@@ -250,19 +251,19 @@ async fn process_request(
                         ))
                     })?;
 
-                let bitcoin_contract_attestors = match manager.get_attestors() {
-                    Ok(attestors) => attestors.clone(),
-                    Err(e) => {
-                        return Err(WalletError(format!(
-                            "Error getting attestors from manager: {}",
+                let attestors = manager
+                    .get_attestors()
+                    .map_err(|e| {
+                        WalletError(format!(
+                            "Error parsing http input to create Offer endpoint: {}",
                             e
-                        )));
-                    }
-                };
+                        ))
+                    })?
+                    .clone();
 
                 create_new_offer(
                     manager,
-                    bitcoin_contract_attestors,
+                    attestors,
                     active_network,
                     req.uuid,
                     req.accept_collateral,
@@ -688,15 +689,15 @@ async fn periodic_check(
     let funded_url = format!("{}/set-status-funded", blockchain_interface_url);
     let closed_url = format!("{}/post-close-dlc", blockchain_interface_url);
 
-    let bitcoin_contract_attestors = match manager.get_attestors() {
-        Ok(attestors) => attestors.clone(),
-        Err(e) => {
-            return Err(GenericError::from(format!(
-                "Error getting attestors from manager: {}",
+    let attestors = manager
+        .get_attestors()
+        .map_err(|e| {
+            WalletError(format!(
+                "Error parsing http input to create Offer endpoint: {}",
                 e
-            )));
-        }
-    };
+            ))
+        })?
+        .clone();
 
     let updated_contracts = match manager.periodic_check().await {
         Ok(updated_contracts) => updated_contracts,
@@ -750,12 +751,34 @@ async fn periodic_check(
             uuid, txid
         );
 
-        // we should get the event from the attestorsClient
+        let attestors_with_uuid: Vec<((&XOnlyPublicKey, &Arc<AttestorClient>), String)> =
+            attestors.iter().map(|x| (x, uuid.clone())).collect();
+        let chains = join_all(
+            attestors_with_uuid
+                .iter()
+                .map(|((_k, v), uuid)| async move {
+                    match v.get_chain(&uuid.clone()).await {
+                        Ok(chain) => Some(chain),
+                        Err(e) => {
+                            warn!("Error getting chain from attestor: {}", e);
+                            None
+                        }
+                    }
+                }),
+        )
+        .await;
+
+        // check that all values in chains are the same
+        if chains.is_empty() || !chains.iter().all(|x| x.is_some() && x == &chains[0]) {
+            error!("Chains from attestors are not all the same, will not set contract to funded");
+            continue;
+        }
+        let chain = chains[0].clone().expect("The chain value");
 
         reqwest::Client::new()
             .post(&funded_url)
             .timeout(REQWEST_TIMEOUT)
-            .json(&json!({"uuid": uuid, "btcTxId": txid.to_string()}))
+            .json(&json!({"uuid": uuid, "btcTxId": txid.to_string(), "chain": chain}))
             .send()
             .await?;
     }
