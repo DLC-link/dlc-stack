@@ -143,7 +143,7 @@ pub fn get_contract_state_str(contract: &Contract) -> String {
         Contract::FailedSign(_) => "failed_sign",
         Contract::Rejected(_) => "rejected",
     };
-    return state.to_string();
+    state.to_string()
 }
 
 pub fn get_contract_id_string(contract_id: [u8; 32]) -> String {

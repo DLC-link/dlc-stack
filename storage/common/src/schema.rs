@@ -16,12 +16,6 @@ diesel::table! {
         event_id -> Varchar,
         content -> Text,
         key -> Varchar,
-        #[max_length = 255]
         chain -> Varchar,
     }
 }
-
-diesel::allow_tables_to_appear_in_same_query!(
-    contracts,
-    events,
-);

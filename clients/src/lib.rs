@@ -3,7 +3,7 @@
 extern crate serde;
 
 use log::{debug, error};
-use reqwest::{Client, Response, StatusCode};
+use reqwest::{Client, Response};
 use secp256k1_zkp::hashes::{sha256, Hash};
 use secp256k1_zkp::{ecdsa, Message, Secp256k1, SecretKey};
 
@@ -11,8 +11,6 @@ use serde_json::{json, Value};
 use std::fmt::{Debug, Formatter};
 use std::time::Duration;
 use std::{error, fmt};
-
-use std::collections::HashMap;
 
 pub mod async_storage_provider;
 mod utils;
@@ -186,86 +184,6 @@ pub struct EventsRequestParams {
 struct EffectedNumResponse {
     pub effected_num: u32,
 }
-
-// #[derive(Clone)]
-// pub struct MemoryApiClient {
-//     events: HashMap<String, String>,
-// }
-
-// impl Default for MemoryApiClient {
-//     fn default() -> Self {
-//         Self::new()
-//     }
-// }
-
-// impl MemoryApiClient {
-//     pub fn new() -> Self {
-//         Self {
-//             events: HashMap::new(),
-//         }
-//     }
-
-//     pub async fn get_events(&self) -> Result<Vec<Event>, ApiError> {
-//         let mut events: Vec<Event> = Vec::new();
-//         for (uuid, content) in self.events.iter() {
-//             events.push(Event {
-//                 id: 1,
-//                 event_id: uuid.to_string(),
-//                 content: content.to_string(),
-//                 key: "mykey".to_string(),
-//             });
-//         }
-//         Ok(events)
-//     }
-
-//     pub async fn get_event(&self, uuid: String) -> Result<Option<Event>, ApiError> {
-//         match self.events.get(&uuid) {
-//             Some(res) => Ok(Some(Event {
-//                 id: 1,
-//                 event_id: uuid,
-//                 content: res.to_string(),
-//                 key: "mykey".to_string(),
-//             })),
-//             None => Err(ApiError {
-//                 message: "Event not found".to_string(),
-//                 status: StatusCode::NOT_FOUND.as_u16(),
-//             }),
-//         }
-//     }
-
-//     pub async fn create_event(&mut self, event: NewEvent) -> Result<Event, ApiError> {
-//         self.events
-//             .insert(event.event_id.clone(), event.content.clone());
-//         Ok(Event {
-//             id: 1,
-//             event_id: event.event_id,
-//             content: event.content,
-//             key: "mykey".to_string(),
-//         })
-//     }
-
-//     pub async fn update_event(&mut self, uuid: String, event: UpdateEvent) -> Result<(), ApiError> {
-//         match self.events.get(&uuid) {
-//             None => Err(ApiError {
-//                 message: "Event not found".to_string(),
-//                 status: 404,
-//             }),
-//             Some(_res) => {
-//                 self.events.remove(&uuid);
-//                 self.events.insert(uuid, event.content);
-//                 Ok(())
-//             }
-//         }
-//     }
-
-//     pub async fn delete_event(&self, _uuid: String) -> Result<(), ApiError> {
-//         unimplemented!()
-//     }
-
-//     pub async fn delete_events(&self) -> Result<(), ApiError> {
-//         unimplemented!()
-//     }
-// }
 
 #[derive(Clone)]
 pub struct StorageApiClient {
