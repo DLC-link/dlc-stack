@@ -681,6 +681,34 @@ async fn get_wallet_info(
     Ok(response)
 }
 
+async fn get_chain_from_attestors(
+    attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>>,
+    uuid: String,
+) -> String {
+    let attestors_with_uuid: Vec<((&XOnlyPublicKey, &Arc<AttestorClient>), String)> =
+        attestors.iter().map(|x| (x, uuid.clone())).collect();
+    let chains = join_all(
+        attestors_with_uuid
+            .iter()
+            .map(|((_k, v), uuid)| async move {
+                match v.get_chain(&uuid.clone()).await {
+                    Ok(chain) => Some(chain),
+                    Err(e) => {
+                        warn!("Error getting chain from attestor: {}", e);
+                        None
+                    }
+                }
+            }),
+    )
+    .await;
+
+    // check that all values in chains are the same
+    if chains.is_empty() || !chains.iter().all(|x| x.is_some() && x == &chains[0]) {
+        error!("Chains from attestors are not all the same.");
+    }
+    chains[0].clone().expect("The chain value")
+}
+
 async fn periodic_check(
     manager: Arc<DlcManager<'_>>,
     store: Arc<AsyncStorageApiProvider>,
@@ -696,7 +724,8 @@ async fn periodic_check(
                 "Error parsing http input to create Offer endpoint: {}",
                 e
             ))
-        })?
+        })
+        .expect("getting attestors from manager")
         .clone();
 
     let updated_contracts = match manager.periodic_check().await {
@@ -751,30 +780,7 @@ async fn periodic_check(
             uuid, txid
         );
 
-        let attestors_with_uuid: Vec<((&XOnlyPublicKey, &Arc<AttestorClient>), String)> =
-            attestors.iter().map(|x| (x, uuid.clone())).collect();
-        let chains = join_all(
-            attestors_with_uuid
-                .iter()
-                .map(|((_k, v), uuid)| async move {
-                    match v.get_chain(&uuid.clone()).await {
-                        Ok(chain) => Some(chain),
-                        Err(e) => {
-                            warn!("Error getting chain from attestor: {}", e);
-                            None
-                        }
-                    }
-                }),
-        )
-        .await;
-
-        // check that all values in chains are the same
-        if chains.is_empty() || !chains.iter().all(|x| x.is_some() && x == &chains[0]) {
-            error!("Chains from attestors are not all the same, will not set contract to funded");
-            continue;
-        }
-        let chain = chains[0].clone().expect("The chain value");
-
+        let chain = get_chain_from_attestors(attestors.clone(), uuid.clone()).await;
         reqwest::Client::new()
             .post(&funded_url)
             .timeout(REQWEST_TIMEOUT)
@@ -785,10 +791,12 @@ async fn periodic_check(
 
     for (uuid, txid) in newly_closed_uuids {
         debug!("Contract is closed, firing post-close url: {}", uuid);
+
+        let chain = get_chain_from_attestors(attestors.clone(), uuid.clone()).await;
         reqwest::Client::new()
             .post(&closed_url)
             .timeout(REQWEST_TIMEOUT)
-            .json(&json!({"uuid": uuid, "btcTxId": txid.to_string()}))
+            .json(&json!({"uuid": uuid, "btcTxId": txid.to_string(), "chain": chain}))
             .send()
             .await?;
     }
