@@ -33,6 +33,7 @@ use std::string::ToString;
 pub const NB_CONFIRMATIONS: u32 = 6;
 /// The upper bound for the delay refund verification check, 10 years.
 pub const FIFTY_YEARS: u32 = 86400 * 365 * 50;
+pub const ONE_DAY_IN_SECONDS: u32 = 86400;
 /// The nSequence value used for CETs in DLC channels
 pub const CET_NSEQUENCE: u32 = 288;
 /// Timeout in seconds when waiting for a peer's reply, after which a DLC channel
