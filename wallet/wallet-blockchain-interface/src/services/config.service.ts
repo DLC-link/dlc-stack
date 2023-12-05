@@ -9,7 +9,6 @@ interface NodeConfig {
     settings: {
         'solidity-branch': string;
         // 'storage-api-endpoint': string;
-        'test-mode-enabled'?: boolean;
         'router-wallet-address': string;
         'public-server-port': number;
         'private-server-port': number;

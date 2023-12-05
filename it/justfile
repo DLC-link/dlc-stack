@@ -4,7 +4,7 @@ default:
   just --list
 
 run-wallet:
-  cd ../wallet && ATTESTOR_CONFIG=local just run
+  cd ../wallet && ATTESTOR_CONFIG=local TEST_MODE_ENABLED=true just run
 
 run-attestors:
   cd ../attestor && just run-multiple

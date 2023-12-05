@@ -6,7 +6,7 @@ import ConfigService from '../../services/config.service.js';
 
 const blockchainWriter = await BlockchainInterfaceService.getBlockchainWriter();
 const router = express.Router();
-const TESTMODE: boolean = ConfigService.getSettings()['test-mode-enabled'] ?? false;
+const TESTMODE: boolean = ConfigService.getEnv('TEST_MODE_ENABLED') == 'true';
 
 router.post('/set-status-funded', express.json(), localhostOrDockerOnly, async (req, res) => {
     console.log(`[WBI] POST /set-status-funded with UUID: ${req.body.uuid} and BTC TX ID: ${req.body.btcTxId}`);

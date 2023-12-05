@@ -7,7 +7,7 @@ import ConfigService from '../../services/config.service.js';
 const router = express.Router();
 const routerWallet = await RouterWalletService.getRouterWallet();
 const blockchainWriter = await BlockchainInterfaceService.getBlockchainWriter();
-const TESTMODE: boolean = ConfigService.getSettings()['test-mode-enabled'] ?? false;
+const TESTMODE: boolean = ConfigService.getEnv('TEST_MODE_ENABLED') == 'true';
 
 router.get('/health', express.json(), async (req, res) => {
     const data = ConfigService.getSettings();
