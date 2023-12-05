@@ -1,6 +1,6 @@
-#![deny(clippy::unwrap_used)]
+// #![deny(clippy::unwrap_used)]
 #![deny(unused_mut)]
-// #![deny(dead_code)]
+#![deny(dead_code)]
 
 extern crate core;
 extern crate log;

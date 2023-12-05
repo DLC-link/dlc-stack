@@ -21,7 +21,7 @@ use std::time::Duration;
 use std::{collections::HashMap, env, str::FromStr, sync::Arc};
 
 use bitcoin::{PublicKey, XOnlyPublicKey};
-use dlc_link_manager::{AsyncOracle, AsyncStorage, Manager, FIFTY_YEARS, ONE_DAY_IN_SECONDS};
+use dlc_link_manager::{AsyncOracle, AsyncStorage, Manager, ONE_DAY_IN_SECONDS};
 use dlc_manager::{
     contract::{
         contract_input::{ContractInput, ContractInputInfo, OracleInput},
@@ -537,12 +537,14 @@ async fn create_new_offer(
         contract_infos: vec![contract_info],
     };
 
+    const TEN_DAYS: u32 = ONE_DAY_IN_SECONDS * 10;
     let adjusted_refund_delay = match refund_delay {
-        0 => FIFTY_YEARS - ONE_DAY_IN_SECONDS,
+        // 0 => FIFTY_YEARS - ONE_DAY_IN_SECONDS,
+        0 => TEN_DAYS,
+        TEN_DAYS..=u32::MAX => TEN_DAYS,
         _ => refund_delay,
     };
 
-    //had to make this mutable because of the borrow, not sure why
     let man = manager;
 
     let offer = man
