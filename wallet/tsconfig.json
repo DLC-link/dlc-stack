@@ -7,7 +7,7 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "NodeNext",
     "outDir": "./dist",
-    "rootDir": ".",
+    "rootDir": "./wallet-blockchain-interface",
     "skipLibCheck": true                                 /* Skip type checking all .d.ts files. */
   }
 }

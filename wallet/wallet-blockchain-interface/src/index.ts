@@ -3,13 +3,14 @@ import publicServer from './http/public-server/server.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import ConfigService from './services/config.service.js';
 
 async function main() {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     let options;
 
-    const TLS_ENABLED = process.env.TLS_ENABLED === 'true';
+    const TLS_ENABLED = ConfigService.getSettings()['tls-enabled'] ?? false;
 
     if (TLS_ENABLED) {
         options = {

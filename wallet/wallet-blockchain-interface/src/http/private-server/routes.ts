@@ -2,10 +2,11 @@ import express from 'express';
 import BlockchainInterfaceService from '../../services/blockchain-interface.service.js';
 import { localhostOrDockerOnly } from '../middlewares.js';
 import { getAttestors } from '../../config/attestor-lists.js';
+import ConfigService from '../../services/config.service.js';
 
 const blockchainWriter = await BlockchainInterfaceService.getBlockchainWriter();
 const router = express.Router();
-const TESTMODE: boolean = process.env.TEST_MODE_ENABLED === 'true';
+const TESTMODE: boolean = ConfigService.getSettings()['test-mode-enabled'] ?? false;
 
 router.post('/set-status-funded', express.json(), localhostOrDockerOnly, async (req, res) => {
     console.log(`[WBI] POST /set-status-funded with UUID: ${req.body.uuid} and BTC TX ID: ${req.body.btcTxId}`);
@@ -17,25 +18,20 @@ router.post('/set-status-funded', express.json(), localhostOrDockerOnly, async (
         res.status(400).send('Missing BTC TX ID');
         return;
     }
+    if (!req.body.chain) {
+        res.status(400).send('Missing chain');
+        return;
+    }
     if (TESTMODE) {
         res.status(200).send('set-status-funded called in test mode.');
         return;
     }
-    let chain: string;
-    try {
-        getAttestors().forEach(async (attestor) => {
-            const event = await fetch(`${attestor}/event/${req.body.uuid}`);
-            chain = (await event.json()).chain as string;
-            console.log();
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).send(error);
-    }
 
-    // use this chain var to determine which to call...
-
-    const data = await blockchainWriter.setStatusFunded(req.body.uuid as string, req.body.btcTxId as string);
+    const data = await blockchainWriter.setStatusFunded(
+        req.body.uuid as string,
+        req.body.btcTxId as string,
+        req.body.chain as string
+    );
     res.status(200).send(data);
 });
 
@@ -55,6 +51,10 @@ router.post('/post-close-dlc', express.json(), localhostOrDockerOnly, async (req
         res.status(400).send('Missing BTC TX ID');
         return;
     }
+    if (!req.body.chain) {
+        res.status(400).send('Missing chain');
+        return;
+    }
     const { uuid, btcTxId } = req.body;
     console.log('[WBI] POST /post-close-dlc with UUID, BTC TX ID:', uuid, btcTxId);
 
@@ -62,7 +62,7 @@ router.post('/post-close-dlc', express.json(), localhostOrDockerOnly, async (req
         res.status(200).send('post-close-dlc called in test mode.');
         return;
     }
-    const data = await blockchainWriter.postCloseDLC(uuid as string, btcTxId as string);
+    const data = await blockchainWriter.postCloseDLC(uuid as string, btcTxId as string, req.body.chain as string);
     res.status(200).send(data);
 });
 

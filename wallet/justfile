@@ -19,10 +19,10 @@ create-cert:
 # wallet-blockchain-interface
 
 build-wbi:
-  cd ./wallet-blockchain-interface && npm i && npm run build
+  npm i && npm run build
 
 wbi: build-wbi
-  cd ./wallet-blockchain-interface && npm run start
+  npm run start
 
 
 ##############################

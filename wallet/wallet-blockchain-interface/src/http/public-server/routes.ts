@@ -1,18 +1,17 @@
 import express from 'express';
-import readEnvConfigs from '../../config/read-env-configs.js';
 import RouterWalletService from '../../services/router-wallet.service.js';
 import BlockchainInterfaceService from '../../services/blockchain-interface.service.js';
 import { BigNumber } from 'ethers';
-import { getAttestors } from '../../config/attestor-lists.js';
+import ConfigService from '../../services/config.service.js';
 
 const router = express.Router();
 const routerWallet = await RouterWalletService.getRouterWallet();
 const blockchainWriter = await BlockchainInterfaceService.getBlockchainWriter();
-const TESTMODE: boolean = process.env.TEST_MODE_ENABLED === 'true';
+const TESTMODE: boolean = ConfigService.getSettings()['test-mode-enabled'] ?? false;
 
 router.get('/health', express.json(), async (req, res) => {
-    const data = readEnvConfigs();
-    res.status(200).send({ chain: data.chain, version: data.version });
+    const data = ConfigService.getSettings();
+    res.status(200).send({ data });
 });
 
 router.get('/wallet-health', express.json(), async (req, res) => {

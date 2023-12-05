@@ -114,40 +114,41 @@ async fn get_attestors(
     }
 }
 
-// async fn get_chain_from_attestors(event_id: String, attestor_urls: Vec<String>) -> String {
-//     let mut attestor_responses = vec![];
-//     for url in attestor_urls.iter() {
-//         let attestor_response = match reqwest::Client::new()
-//             .get(format!("{}/event/{}", url, event_id).as_str())
-//             .timeout(REQWEST_TIMEOUT)
-//             .send()
-//             .await
-//         {
-//             Ok(response) => response,
-//             Err(e) => {
-//                 warn!("Error getting event from attestor: {}", e);
-//                 continue;
-//             }
-//         };
-//         attestor_responses.push(attestor_response);
-//     }
-//     match &attestor_responses[0] {
-//         response => {
-//             let chain = match response.json::<HashMap<String, String>>().await {
-//                 Ok(chain) => chain,
-//                 Err(e) => {
-//                     warn!("Error parsing attestor response: {}", e);
-//                     return "error".to_string();
-//                 }
-//             };
-//             match chain.get("chain") {
-//                 Some(chain) => chain.to_string(),
-//                 None => "error".to_string(),
-//             }
-//         }
-//         e => "error".to_string(),
-//     }
-// }
+async fn get_chain_from_attestors(
+    attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>>,
+    uuid: String,
+) -> Result<String, GenericError> {
+    let attestors_with_uuid: Vec<((&XOnlyPublicKey, &Arc<AttestorClient>), String)> =
+        attestors.iter().map(|x| (x, uuid.clone())).collect();
+    let chains = join_all(
+        attestors_with_uuid
+            .iter()
+            .map(|((_k, v), uuid)| async move {
+                match v.get_chain(&uuid.clone()).await {
+                    Ok(chain) => Some(chain),
+                    Err(e) => {
+                        error!("Error getting chain from attestor: {}", e);
+                        None
+                    }
+                }
+            }),
+    )
+    .await;
+
+    // check that all values in chains are the same
+    if chains.is_empty() || !chains.iter().all(|x| x.as_ref() == chains[0].as_ref()) {
+        error!("Chains from attestors are not all the same.");
+        return Err("Chains from attestors are not all the same.".into());
+    }
+    match &chains[0] {
+        Some(chain) => {
+            let json_chain = serde_json::to_string(chain)
+                .map_err(|e| format!("Failed to serialize chain to JSON: {}", e))?;
+            Ok(json_chain)
+        }
+        None => Err("Failed to get chain from attestors".into()),
+    }
+}
 
 async fn generate_attestor_client(
     attestor_urls: Vec<String>,
@@ -215,6 +216,23 @@ async fn process_request(
             json!({"data": [{"status": "healthy", "message": ""}]}).to_string(),
         ),
         (&Method::GET, "/info") => get_wallet_info(dlc_store, wallet).await,
+        (&Method::GET, path) if path.starts_with("/get_chain/") => {
+            info!("Getting chain for event id {}", path);
+            let event_id = path.trim_start_matches("/get_chain/").to_string();
+            let attestors = manager
+                .get_attestors()
+                .map_err(|e| WalletError(format!("Error getting attestors from manager: {}", e)))
+                .expect("getting attestors from manager")
+                .clone();
+            let chain = match get_chain_from_attestors(attestors, event_id).await {
+                Ok(chain) => chain,
+                Err(e) => {
+                    error!("Error getting chain from attestors: {}", e);
+                    return build_error_response(e.to_string());
+                }
+            };
+            build_success_response(chain)
+        }
         (&Method::GET, "/periodic_check") => {
             let result =
                 async { periodic_check(manager, dlc_store, blockchain_interface_url).await };
@@ -681,34 +699,6 @@ async fn get_wallet_info(
     Ok(response)
 }
 
-async fn get_chain_from_attestors(
-    attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>>,
-    uuid: String,
-) -> String {
-    let attestors_with_uuid: Vec<((&XOnlyPublicKey, &Arc<AttestorClient>), String)> =
-        attestors.iter().map(|x| (x, uuid.clone())).collect();
-    let chains = join_all(
-        attestors_with_uuid
-            .iter()
-            .map(|((_k, v), uuid)| async move {
-                match v.get_chain(&uuid.clone()).await {
-                    Ok(chain) => Some(chain),
-                    Err(e) => {
-                        warn!("Error getting chain from attestor: {}", e);
-                        None
-                    }
-                }
-            }),
-    )
-    .await;
-
-    // check that all values in chains are the same
-    if chains.is_empty() || !chains.iter().all(|x| x.is_some() && x == &chains[0]) {
-        error!("Chains from attestors are not all the same.");
-    }
-    chains[0].clone().expect("The chain value")
-}
-
 async fn periodic_check(
     manager: Arc<DlcManager<'_>>,
     store: Arc<AsyncStorageApiProvider>,
@@ -780,25 +770,39 @@ async fn periodic_check(
             uuid, txid
         );
 
-        let chain = get_chain_from_attestors(attestors.clone(), uuid.clone()).await;
-        reqwest::Client::new()
-            .post(&funded_url)
-            .timeout(REQWEST_TIMEOUT)
-            .json(&json!({"uuid": uuid, "btcTxId": txid.to_string(), "chain": chain}))
-            .send()
-            .await?;
+        match get_chain_from_attestors(attestors.clone(), uuid.clone()).await {
+            Ok(chain) => {
+                reqwest::Client::new()
+                    .post(&funded_url)
+                    .timeout(REQWEST_TIMEOUT)
+                    .json(&json!({"uuid": uuid, "btcTxId": txid.to_string(), "chain": chain}))
+                    .send()
+                    .await?
+            }
+            Err(e) => {
+                error!("Failed to get chain from attestors: {}", e);
+                return Err(e);
+            }
+        };
     }
 
     for (uuid, txid) in newly_closed_uuids {
         debug!("Contract is closed, firing post-close url: {}", uuid);
 
-        let chain = get_chain_from_attestors(attestors.clone(), uuid.clone()).await;
-        reqwest::Client::new()
-            .post(&closed_url)
-            .timeout(REQWEST_TIMEOUT)
-            .json(&json!({"uuid": uuid, "btcTxId": txid.to_string(), "chain": chain}))
-            .send()
-            .await?;
+        match get_chain_from_attestors(attestors.clone(), uuid.clone()).await {
+            Ok(chain) => {
+                reqwest::Client::new()
+                    .post(&closed_url)
+                    .timeout(REQWEST_TIMEOUT)
+                    .json(&json!({"uuid": uuid, "btcTxId": txid.to_string(), "chain": chain}))
+                    .send()
+                    .await?
+            }
+            Err(e) => {
+                error!("Failed to get chain from attestors: {}", e);
+                return Err(e);
+            }
+        };
     }
     Ok("Success running periodic check".to_string())
 }

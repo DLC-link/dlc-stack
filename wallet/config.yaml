@@ -1,0 +1,64 @@
+settings:
+    # The dlc-solidity branch contract deployment infos will be fetched from
+    solidity-branch: dev
+    router-wallet-address: http://127.0.0.1:8085
+    public-server-port: 3003
+    private-server-port: 3001
+    tls-enabled: false
+
+# network determines which version of our contracts will be pulled from dlc-solidity
+evm-chains:
+    # - network: mainnet
+    #   version: 1
+    #   endpoint: https://mainnet.infura.io/v3/
+    #   api_key: ${INFURA_API_KEY}
+    #   private_key: ${MAINNET_PRIVATE_KEY}
+
+    - network: sepolia
+      version: 1
+      # endpoint: http://localhost:8545
+      endpoint: https://sepolia.infura.io/v3/
+      api_key: ${INFURA_API_KEY}
+      private_key: ${SEPOLIA_PRIVATE_KEY}
+
+    - network: goerli
+      version: 1
+      endpoint: https://goerli.infura.io/v3/
+      api_key: ${INFURA_API_KEY}
+      private_key: ${GOERLI_PRIVATE_KEY}
+
+    # - network: localhost
+    #   version: 1
+    #   endpoint: http://localhost:8545
+    #   private_key: ${LOCALHOST_PRIVATE_KEY}
+
+    # OKX testnet
+    - network: x1test
+      version: 1
+      endpoint: https://x1testrpc.okx.com
+      private_key: ${X1TEST_PRIVATE_KEY}
+
+stx-chains:
+    # - network: mainnet
+    #   version: 1
+    #   deployer: ''
+    #   endpoint: https://api.hiro.so
+    #   private_key: ${STX_MAINNET_PRIVATE_KEY}
+
+    # - network: testnet
+    #   version: 1
+    #   deployer: ST1JHQ5GPQT249ZWG6V4AWETQW5DYA5RHJB0JSMQ3
+    #   endpoint: https://api.testnet.hiro.so
+    #   private_key: ${STX_TESTNET_PRIVATE_KEY}
+
+    - network: mocknet
+      version: 1
+      deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      endpoint: https://stx-btc1.dlc.link:3999
+      private_key: ${STX_MOCKNET_PRIVATE_KEY}
+
+    # - network: local
+    #   version: 1
+    #   deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+    #   endpoint: ws://localhost:3999
+    #   private_key: ${STX_LOCAL_PRIVATE_KEY}

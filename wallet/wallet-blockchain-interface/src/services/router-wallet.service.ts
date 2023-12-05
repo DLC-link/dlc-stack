@@ -1,5 +1,5 @@
-import { getEnv } from '../config/read-env-configs.js';
 import fetch from 'cross-fetch';
+import ConfigService from './config.service.js';
 
 export default class RouterWalletService {
     private static routerWallet: RouterWalletService;
@@ -9,7 +9,8 @@ export default class RouterWalletService {
     }
 
     public static async getRouterWallet(): Promise<RouterWalletService> {
-        if (!this.routerWallet) this.routerWallet = new RouterWalletService(getEnv('ROUTER_WALLET_ADDRESS'));
+        if (!this.routerWallet)
+            this.routerWallet = new RouterWalletService(ConfigService.getSettings()['router-wallet-address']);
         return this.routerWallet;
     }
 
@@ -58,6 +59,17 @@ export default class RouterWalletService {
                 body: JSON.stringify(body),
                 headers: { 'Content-Type': 'application/json' },
             });
+            return res;
+        } catch (error) {
+            console.error(error);
+            return error;
+        }
+    }
+
+    public async getChainForUUID(uuid: string): Promise<Response | any> {
+        try {
+            const address = this._address + `/get_chain/${uuid}`;
+            const res = await fetch(address);
             return res;
         } catch (error) {
             console.error(error);

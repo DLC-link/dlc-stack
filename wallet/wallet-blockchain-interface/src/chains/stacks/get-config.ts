@@ -12,11 +12,10 @@ import {
     stringAsciiCV,
 } from '@stacks/transactions';
 import type { TxBroadcastResult } from '@stacks/transactions';
-import { ConfigSet } from '../../config/models.js';
+import { ChainConfig } from '../../config/models.js';
 import { WrappedContract } from '../shared/models/wrapped-contract.interface.js';
 import { hexToBytes, uuidToCV } from './helper-functions.js';
 import { StacksNetwork } from '@stacks/network';
-import { getEnv } from '../../config/read-env-configs.js';
 import getNetworkInfo from './get-network-config.js';
 import StacksNonceService from '../../services/stacks-nonce.service.js';
 
@@ -36,18 +35,18 @@ async function getCallbackContract(uuid: string, contractName: string, deployer:
     return parsePrincipalString(callbackContract) as ContractPrincipal;
 }
 
-export default async (config: ConfigSet): Promise<WrappedContract> => {
-    console.log(`[Stacks] Loading contract config for ${config.chain}...`);
-    const walletKey = getEnv('PRIVATE_KEY');
+export default async (config: ChainConfig): Promise<WrappedContract> => {
+    console.log(`[Stacks] Loading contract config for ${config.network}...`);
+    const walletKey = config.private_key;
     const contractName = 'dlc-manager-v1';
 
-    const { network, deployer } = await getNetworkInfo(config);
+    const { stacksNetwork, deployer, walletAddress } = await getNetworkInfo(config);
 
     return {
         setStatusFunded: async (uuid, btcTxId) => {
             try {
                 console.warn('btcTxId has been supplied, but it is not yet supported on Stacks Blockchain');
-                const cbPrincipal = await getCallbackContract(uuid, contractName, deployer, network);
+                const cbPrincipal = await getCallbackContract(uuid, contractName, deployer, stacksNetwork);
 
                 const txOptions2: SignedContractCallOptions = {
                     contractAddress: deployer,
@@ -59,15 +58,15 @@ export default async (config: ConfigSet): Promise<WrappedContract> => {
                     ],
                     senderKey: walletKey,
                     validateWithAbi: true,
-                    network: network,
+                    network: stacksNetwork,
                     fee: 100000,
                     anchorMode: 1,
-                    nonce: await StacksNonceService.getNonce(),
+                    nonce: await StacksNonceService.getNonce(stacksNetwork, walletAddress),
                 };
 
                 const transaction2 = await makeContractCall(txOptions2);
                 console.log('Transaction payload:', transaction2.payload);
-                const broadcastResponse: TxBroadcastResult = await broadcastTransaction(transaction2, network);
+                const broadcastResponse: TxBroadcastResult = await broadcastTransaction(transaction2, stacksNetwork);
                 console.log('Broadcast response: ', broadcastResponse);
                 return broadcastResponse as any;
             } catch (error) {
@@ -78,7 +77,12 @@ export default async (config: ConfigSet): Promise<WrappedContract> => {
 
         postCloseDLC: async (uuid, btcTxId) => {
             try {
-                const callbackContractPrincipal = await getCallbackContract(uuid, contractName, deployer, network);
+                const callbackContractPrincipal = await getCallbackContract(
+                    uuid,
+                    contractName,
+                    deployer,
+                    stacksNetwork
+                );
                 const functionName = 'post-close';
 
                 async function populateTxOptions() {
@@ -96,16 +100,16 @@ export default async (config: ConfigSet): Promise<WrappedContract> => {
                         ],
                         senderKey: walletKey,
                         validateWithAbi: true,
-                        network: network,
+                        network: stacksNetwork,
                         fee: 100000, //0.1STX
                         anchorMode: 1,
-                        nonce: await StacksNonceService.getNonce(),
+                        nonce: await StacksNonceService.getNonce(stacksNetwork, walletAddress),
                     };
                 }
 
                 const transaction = await makeContractCall(await populateTxOptions());
                 console.log('Transaction payload:', transaction.payload);
-                const broadcastResponse = await broadcastTransaction(transaction, network);
+                const broadcastResponse = await broadcastTransaction(transaction, stacksNetwork);
                 console.log('Broadcast response: ', broadcastResponse);
                 return broadcastResponse as any;
             } catch (error) {

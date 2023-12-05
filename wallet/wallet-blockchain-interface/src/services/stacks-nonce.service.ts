@@ -1,6 +1,5 @@
-import readEnvConfigs from '../config/read-env-configs.js';
 import { getNonce } from '@stacks/transactions';
-import getNetworkConfig from '../chains/stacks/get-network-config.js';
+import { StacksNetwork } from '@stacks/network';
 
 // Stacks requires us to do some magic regarding transaction nonces.
 // https://github.com/stacks-network/stacks-blockchain/issues/2376
@@ -9,8 +8,8 @@ export default class StacksNonceService {
 
     private constructor() {}
 
-    public static async getNonce(): Promise<number> {
-        const blockChainNonce = await this.getNonceFromBlockchain();
+    public static async getNonce(stacksNetwork: StacksNetwork, walletAddress: string): Promise<number> {
+        const blockChainNonce = await this.getNonceFromBlockchain(stacksNetwork, walletAddress);
         if (!this.nonce || blockChainNonce > this.nonce) {
             console.log(`[StacksNonceService] Syncing nonce from blockchain to ${blockChainNonce}...`);
             this.nonce = blockChainNonce;
@@ -21,8 +20,7 @@ export default class StacksNonceService {
         return this.nonce;
     }
 
-    private static async getNonceFromBlockchain(): Promise<number> {
-        let { network, walletAddress } = await getNetworkConfig(readEnvConfigs());
-        return Number(await getNonce(walletAddress, network));
+    private static async getNonceFromBlockchain(stacksNetwork: StacksNetwork, walletAddress: string): Promise<number> {
+        return Number(await getNonce(walletAddress, stacksNetwork));
     }
 }

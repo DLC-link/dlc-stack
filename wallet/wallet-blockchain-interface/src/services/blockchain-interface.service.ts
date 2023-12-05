@@ -1,13 +1,15 @@
-import readEnvConfigs from '../config/read-env-configs.js';
 import getETHConfig from '../chains/ethereum/get-config.js';
 import getStacksConfig from '../chains/stacks/get-config.js';
 import { WrappedContract } from '../chains/shared/models/wrapped-contract.interface.js';
 import { TransactionReceipt } from '@ethersproject/abstract-provider';
 import { TxBroadcastResult } from '@stacks/transactions';
+import { getAttestors } from '../config/attestor-lists.js';
+import ConfigService from './config.service.js';
+import { evmPrefix, stxPrefix } from '../config/models.js';
+import RouterWalletService from './router-wallet.service.js';
 
 export default class BlockchainInterfaceService {
     private static blockchainWriter: BlockchainInterfaceService;
-    private static contractConfig: WrappedContract;
 
     private constructor() {}
 
@@ -16,45 +18,56 @@ export default class BlockchainInterfaceService {
         return this.blockchainWriter;
     }
 
-    public async readConfig(): Promise<WrappedContract> {
-        let configSet = readEnvConfigs();
+    public async getWrappedContract(chain: string): Promise<WrappedContract> {
+        const config = ConfigService.getConfig();
+        const chainSplit = chain.split('-');
 
-        switch (configSet.chain) {
-            case 'ETH_MAINNET':
-            case 'ETH_SEPOLIA':
-            case 'ETH_GOERLI':
-            case 'ETH_LOCAL':
-            case 'OKX_TESTNET':
-                return await getETHConfig(configSet);
-            case 'STACKS_MAINNET':
-            case 'STACKS_TESTNET':
-            case 'STACKS_MOCKNET':
-            case 'STACKS_LOCAL':
-                return await getStacksConfig(configSet);
+        switch (`${chainSplit[0]}-`) {
+            case evmPrefix:
+                if (!config['evm-chains']) throw new Error(`[WBI] No evm-chains found in config.`);
+                const contractConfig = config['evm-chains'].find((config) => config.network == `${chainSplit[1]}`);
+                if (!contractConfig) throw new Error(`[WBI] No config found for chain ${chain}`);
+                return await getETHConfig(contractConfig);
+
+            case stxPrefix:
+                if (!config['stx-chains']) throw new Error(`[WBI] No stx-chains found in config.`);
+                const stxConfig = config['stx-chains'].find((config) => config.network == `${chainSplit[1]}`);
+                if (!stxConfig) throw new Error(`[WBI] No config found for chain ${chain}`);
+                return await getStacksConfig(stxConfig);
+
             default:
-                throw new Error(`${configSet.chain} is not a valid chain.`);
+                throw new Error(`[WBI] ${chain} is not a valid chain.`);
         }
     }
 
-    public async getWrappedContract(): Promise<WrappedContract> {
-        if (!BlockchainInterfaceService.contractConfig) {
-            BlockchainInterfaceService.contractConfig = await this.readConfig();
-        }
-        return BlockchainInterfaceService.contractConfig;
-    }
-
-    public async setStatusFunded(uuid: string, btcTxId: string): Promise<TransactionReceipt | TxBroadcastResult> {
-        const contractConfig = await this.getWrappedContract();
+    public async setStatusFunded(
+        uuid: string,
+        btcTxId: string,
+        chain: string
+    ): Promise<TransactionReceipt | TxBroadcastResult> {
+        const contractConfig = await this.getWrappedContract(chain);
         return await contractConfig.setStatusFunded(uuid, btcTxId);
     }
 
-    public async postCloseDLC(uuid: string, btcTxId: string): Promise<TransactionReceipt | TxBroadcastResult> {
-        const contractConfig = await this.getWrappedContract();
+    public async postCloseDLC(
+        uuid: string,
+        btcTxId: string,
+        chain: string
+    ): Promise<TransactionReceipt | TxBroadcastResult> {
+        const contractConfig = await this.getWrappedContract(chain);
         return await contractConfig.postCloseDLC(uuid, btcTxId);
     }
 
     public async getDLCInfo(uuid: string): Promise<any> {
-        const contractConfig = await this.getWrappedContract();
+        let res = await (await RouterWalletService.getRouterWallet()).getChainForUUID(uuid);
+        let chain = await res.json();
+        // if (!chain) {
+        //     console.log(`[WBI] Chain not found for UUID ${uuid}. Looking up chain from attestors.`);
+        //     chain = (await (await fetch(`${getAttestors()[0]}/event/${uuid}`)).json())['chain'];
+        // }
+        if (!chain) throw new Error(`Could not find chain for UUID ${uuid}`);
+        console.log(`[WBI] Chain found for UUID ${uuid}: ${chain}`);
+        const contractConfig = await this.getWrappedContract(chain);
         return await contractConfig.getDLCInfo(uuid);
     }
 }

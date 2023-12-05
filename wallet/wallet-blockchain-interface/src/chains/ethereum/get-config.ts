@@ -1,12 +1,14 @@
-import { ConfigSet } from '../../config/models.js';
+import { ChainConfig } from '../../config/models.js';
 import fetch from 'cross-fetch';
 import { ethers } from 'ethers';
 import { DeploymentInfo } from '../shared/models/deployment-info.interface.js';
 import fs from 'fs';
 import { WrappedContract } from '../shared/models/wrapped-contract.interface.js';
+import ConfigService from '../../services/config.service.js';
 
-async function fetchDeploymentInfo(subchain: string, version: string, branch: string): Promise<DeploymentInfo> {
+async function fetchDeploymentInfo(subchain: string, version: string): Promise<DeploymentInfo> {
     const contract = 'DLCManager';
+    const branch = ConfigService.getSettings()['solidity-branch'] || 'master';
     try {
         const response = await fetch(
             `https://raw.githubusercontent.com/DLC-link/dlc-solidity/${branch}/deploymentFiles/${subchain}/v${version}/${contract}.json`
@@ -27,41 +29,16 @@ async function getLocalDeploymentInfo(path: string, contract: string, version: s
     }
 }
 
-export default async (config: ConfigSet): Promise<WrappedContract> => {
-    let deploymentInfo: DeploymentInfo = {} as DeploymentInfo;
-    let provider: ethers.providers.JsonRpcProvider;
-    let wallet: ethers.Wallet;
+export default async (config: ChainConfig): Promise<WrappedContract> => {
+    const deploymentInfo: DeploymentInfo =
+        config.network === 'localhost'
+            ? await getLocalDeploymentInfo('./observer/deploymentFiles/localhost', 'DLCManager', config.version)
+            : await fetchDeploymentInfo(config.network, config.version);
 
-    switch (config.chain) {
-        case 'ETH_MAINNET':
-            deploymentInfo = await fetchDeploymentInfo('mainnet', config.version, config.branch);
-            provider = new ethers.providers.JsonRpcProvider(`https://mainnet.infura.io/v3/${config.apiKey}`);
-            wallet = new ethers.Wallet(config.privateKey, provider);
-            break;
-        case 'ETH_SEPOLIA':
-            deploymentInfo = await fetchDeploymentInfo('sepolia', config.version, config.branch);
-            provider = new ethers.providers.JsonRpcProvider(`https://sepolia.infura.io/v3/${config.apiKey}`);
-            wallet = new ethers.Wallet(config.privateKey, provider);
-            break;
-        case 'ETH_GOERLI':
-            deploymentInfo = await fetchDeploymentInfo('goerli', config.version, config.branch);
-            provider = new ethers.providers.JsonRpcProvider(`https://goerli.infura.io/v3/${config.apiKey}`);
-            wallet = new ethers.Wallet(config.privateKey, provider);
-            break;
-        case 'ETH_LOCAL':
-            deploymentInfo = await getLocalDeploymentInfo('./deploymentFiles/localhost', 'DlcManager', config.version); // TODO:
-            provider = new ethers.providers.JsonRpcProvider(`http://127.0.0.1:8545`);
-            wallet = new ethers.Wallet(config.privateKey, provider);
-            break;
-        case 'OKX_TESTNET':
-            deploymentInfo = await fetchDeploymentInfo('x1test', config.version, config.branch);
-            provider = new ethers.providers.JsonRpcProvider(`https://x1testrpc.okx.com/`);
-            wallet = new ethers.Wallet(config.privateKey, provider);
-            break;
-        default:
-            throw new Error(`Chain ${config.chain} is not supported.`);
-            break;
-    }
+    const provider: ethers.providers.JsonRpcProvider = new ethers.providers.JsonRpcProvider(
+        `${config.endpoint}${config.api_key ?? ''}`
+    );
+    const wallet: ethers.Wallet = new ethers.Wallet(config.private_key, provider);
 
     const contract = new ethers.Contract(
         deploymentInfo.contract.address,
