@@ -1,31 +1,24 @@
 version: '3.9'
 services:
-  wallet-blockchain-interface:
-    container_name: wallet-blockchain-interface
-    hostname: wallet-blockchain-interface
-    image: public.ecr.aws/dlc-link/dlc-blockchain-interface:latest
+  router-wallet:
+    container_name: router-wallet
+    hostname: router-wallet
+    image: wallet:new
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - ./supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
     ports:
-      - "${WBI_PORT:-3000}:3000"
-      - "${WBI_PUBLIC_PORT:-3003}:3003"
+      - 3001:3001
+      - 3003:3003
+      - 8085:8085
     environment:
-      - "PORT=3000"
-      - "MOCKNET_ADDRESS=${MOCKNET_ADDRESS:-dev-oracle.dlc.link}"
-      - "CHAIN=${CHAIN:-STACKS_MOCKNET}"
-      - "VERSION=${VERSION:-1}"
-      - "API_KEY=${API_KEY}"
-      - "PRIVATE_KEY=${PRIVATE_KEY}"
-      - "ROUTER_WALLET_ADDRESS=http://protocol-wallet:8085"
+      - "INFURA_API_KEY=${INFURA_API_KEY}"
+      - "SEPOLIA_PRIVATE_KEY=${SEPOLIA_PRIVATE_KEY}"
+      - "GOERLI_PRIVATE_KEY=${GOERLI_PRIVATE_KEY}"
+      - "X1TEST_PRIVATE_KEY=${X1TEST_PRIVATE_KEY}"
+      - "STX_MOCKNET_PRIVATE_KEY=${STX_MOCKNET_PRIVATE_KEY}"
       - "ATTESTOR_CONFIG=${ATTESTOR_CONFIG:-devnet}"
-    restart: on-failure
-
-  protocol-wallet:
-    container_name: protocol-wallet
-    hostname: protocol-wallet
-    image: public.ecr.aws/dlc-link/dlc-protocol-wallet:latest
-    ports:
-      - "${WALLET_PORT:-8085}:8085"
-    environment:
-      # NOTE: these will overwrite envs set in a .env file
+      - "TEST_MODE_ENABLED=${TEST_MODE_ENABLED:-false}"
       # For DLC.Link Bitcoin Mocknet
       - "ELECTRUM_API_URL=https://devnet.dlc.link/electrs"
       - "BITCOIN_NETWORK=regtest"
@@ -39,11 +32,9 @@ services:
       - "RUST_LOG=warn,dlc_protocol_wallet=debug"
       - "RUST_BACKTRACE=full"
       - "CONTRACT_CLEANUP_ENABLED=${CONTRACT_CLEANUP_ENABLED:-false}"
-      - "BLOCKCHAIN_INTERFACE_URL=http://wallet-blockchain-interface:3000"
+      - "BLOCKCHAIN_INTERFACE_URL=http://localhost:3001"
       - "XPRIV=${XPRIV}"
       - "FINGERPRINT=${FINGERPRINT}"
-    depends_on:
-      - wallet-blockchain-interface
     restart: on-failure
     healthcheck:
       test: curl --fail http://localhost:8085/info || exit 1
