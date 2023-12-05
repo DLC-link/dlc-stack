@@ -116,7 +116,7 @@ services:
       - 'RUST_LOG=warn,dlc_protocol_wallet=debug'
       - 'RUST_BACKTRACE=full'
       - 'CONTRACT_CLEANUP_ENABLED=false'
-      - 'BLOCKCHAIN_INTERFACE_URL=http://localhost:3001'
+      - 'BLOCKCHAIN_INTERFACE_URL=http://172.20.128.2:3001'
       - 'XPRIV=${XPRIV}'
       - 'FINGERPRINT=${FINGERPRINT}'
       - 'WALLET_IP=172.20.128.2'
@@ -130,7 +130,7 @@ services:
       static-network:
         ipv4_address: 172.20.128.2
     healthcheck:
-      test: curl --fail http://router-wallet:3003/info || exit 1
+      test: curl --fail http://172.20.128.2:8085/info || exit 1
       interval: 3s
       timeout: 10s
       retries: 10
