@@ -28,14 +28,15 @@ RUN npm run build
 
 
 # Combine both services
-FROM cimg/rust:1.71.0-node
-USER root
+FROM debian:bullseye-slim
 
 # Install required packages
-RUN apt-get update && apt-get install -y openssl libpq-dev ca-certificates curl supervisor && apt-get clean
-
-COPY --from=build /usr/lib/aarch64-linux-gnu/libssl.so.1.1 /usr/lib/aarch64-linux-gnu/libssl.so.1.1
-COPY --from=build /usr/lib/aarch64-linux-gnu/libcrypto.so.1.1 /usr/lib/aarch64-linux-gnu/libcrypto.so.1.1
+RUN apt-get update && apt-get install -y openssl libpq-dev ca-certificates curl supervisor gnupg
+RUN mkdir -p /etc/apt/keyrings
+RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
+# Install Node.js and npm
+RUN apt-get update && apt-get install nodejs -y && apt-get clean
 
 COPY --from=build /app/dlc-protocol-wallet/target/release/dlc-protocol-wallet /app/dlc-protocol-wallet
 COPY --from=BI-build /app/blockchain-interface /app/blockchain-interface
