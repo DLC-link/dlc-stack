@@ -99,65 +99,46 @@ services:
       static-network:
         ipv4_address: 172.20.128.7
 
-  blockchain-interface:
-    container_name: blockchain-interface
-    hostname: blockchain-interface
-    build:
-      context: .
-      dockerfile: ./wallet/wallet-blockchain-interface/Dockerfile
-    ports:
-      - 3000:3000
-      - 3003:3003
-    environment:
-      - 'PORT=3000'
-      - 'TEST_MODE_ENABLED=true'
-      - 'BRANCH=${SOLIDITY_BRANCH:-dev}'
-      - 'ROUTER_WALLET_ADDRESS=http://router-wallet:8085'
-      - 'CHAIN=${CHAIN_1:-STACKS_MOCKNET}'
-      - 'VERSION=${VERSION_1:-1}'
-      - 'API_KEY=${API_KEY_1:-abcdef1234567890}'
-      - 'PRIVATE_KEY=6a1a754ba863d7bab14adbbc3f8ebb090af9e871ace621d3e5ab634e1422885e01'
-      - 'MOCKNET_ADDRESS=stx-btc1.dlc.link'
-      - 'ATTESTOR_CONFIG=docker'
-    depends_on:
-      - dlc-link-attestor-1
-      - dlc-link-attestor-2
-      - dlc-link-attestor-3
-    restart: on-failure
-    networks:
-      static-network:
-        ipv4_address: 172.20.128.3
-
   router-wallet:
     container_name: router-wallet
     hostname: router-wallet
     build:
       context: .
       dockerfile: ./wallet/Dockerfile
+    volumes:
+      - ./it/wallet-config.yaml:/app/config.yaml
+      - ./it/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
     ports:
+      - 3001:3001
+      - 3003:3003
       - 8085:8085
     environment:
+      - 'STX_MOCKNET_PRIVATE_KEY=6a1a754ba863d7bab14adbbc3f8ebb090af9e871ace621d3e5ab634e1422885e01'
+      - 'ATTESTOR_CONFIG=docker'
+      - 'TEST_MODE_ENABLED=true'
       # For Internal DLC.Link Bitcoin Mocknet
       - 'ELECTRUM_API_URL=https://devnet.dlc.link/electrs'
       # For Bitcoin Testnet
       # - "ELECTRUM_API_URL=https://blockstream.info/testnet/api"
       # For Bitcoin Mainnet
       # ELECTRUM_API_URL="https://blockstream.info/api"
-      - 'BITCOIN_CHECK_INTERVAL_SECONDS=15'
+      - 'BITCOIN_CHECK_INTERVAL_SECONDS=10'
       - 'BITCOIN_NETWORK=regtest'
       - 'RUST_LOG=info,dlc_protocol_wallet=debug,dlc_clients=info,dlc_manager=debug,electrs_blockchain_provider=debug,storage_api=debug'
       - 'RUST_BACKTRACE=full'
       - 'API_KEY=asd'
       - 'CONTRACT_CLEANUP_ENABLED=false'
       - 'STORAGE_API_ENDPOINT=http://storageapi:8100'
-      - 'BLOCKCHAIN_INTERFACE_URL=http://blockchain-interface:3000'
+      - 'BLOCKCHAIN_INTERFACE_URL=http://router-wallet:3001'
       - 'XPRIV=${XPRIV:-tprv8ZgxMBicQKsPf84Xd96WTXpNrc83cjkhcLsscPZkykkytiuTKdoKzspDnwQKtmtYAx86rFoDqXSxeY9Y6FRAJezYqb1pTzdGyVCr6hDhw9y}'
       - 'FINGERPRINT=${FINGERPRINT:-28ed60b3}'
       - 'WALLET_IP=172.20.128.2'
     depends_on:
       - postgresdlc
       - storageapi
-      - blockchain-interface
+      - dlc-link-attestor-1
+      - dlc-link-attestor-2
+      - dlc-link-attestor-3
     restart: on-failure
     networks:
       static-network:

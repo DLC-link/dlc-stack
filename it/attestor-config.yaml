@@ -3,53 +3,9 @@ settings:
   storage-api-endpoint: http://storageapi:8100
   dev-endpoints-enabled: true
 
-# Chain configurations
-# Uncomment/edit the chains you want to use
-#
-#  - network: <network name> (required) - see supported chains in ./observer/src/config/models.ts
-#    version: <contract version> (optional) - currently only version is default: 1
-#    endpoint: <chain endpoint> (optional) - RPC/WS endpoint for the chain, see ./observer/src/config/network-configs.ts for defaults
-#    api_key: <api key> (optional) - API key for the provider, see ./observer/src/config/network-configs.ts for defaults
-
-# Supported evm-chains: mainnet, sepolia, goerli, localhost, x1test
 evm-chains:
-  # - network: mainnet
-  #   version: 1
-  #   endpoint: wss://mainnet.infura.io/ws/v3/
-  #   api_key: ${INFURA_API_KEY}
-
-  # - network: sepolia
-  #   version: 1
-  #   endpoint: http://localhost:8545
-  #   # api_key: ${INFURA_API_KEY}
-
-  # - network: goerli
-  #   version: 1
-  #   endpoint: wss://goerli.infura.io/ws/v3/
-  #   api_key: ${INFURA_API_KEY}
-
-  # - network: localhost
-  #   version: '1'
-  #   endpoint: http://localhost:8545
-
-  # # OKX testnet
-  # - network: x1test
-  #   version: 1
-  #   endpoint: wss://x1testws.okx.com
 
 stx-chains:
-  # - network: mainnet
-  #   version: 1
-  #   endpoint: wss://api.hiro.so/
-
-  # - network: testnet
-  #   version: 1
-  #   endpoint: wss://api.testnet.hiro.so/
-
   - network: mocknet
     version: 1
     endpoint: ws://stx-btc1.dlc.link:3999
-
-  # - network: local
-  #   version: 1
-  #   endpoint: ws://localhost:3999
