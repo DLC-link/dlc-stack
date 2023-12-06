@@ -32,7 +32,11 @@ async function getLocalDeploymentInfo(path: string, contract: string, version: s
 export default async (config: ChainConfig): Promise<WrappedContract> => {
     const deploymentInfo: DeploymentInfo =
         config.network === 'localhost'
-            ? await getLocalDeploymentInfo('./observer/deploymentFiles/localhost', 'DLCManager', config.version)
+            ? await getLocalDeploymentInfo(
+                  './wallet-blockchain-interface/deploymentFiles/localhost',
+                  'DLCManager',
+                  config.version
+              )
             : await fetchDeploymentInfo(config.network, config.version);
 
     const provider: ethers.providers.JsonRpcProvider = new ethers.providers.JsonRpcProvider(
