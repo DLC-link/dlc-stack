@@ -41,7 +41,7 @@ RUN apt-get update && apt-get install nodejs -y && apt-get clean
 COPY --from=build /app/dlc-protocol-wallet/target/release/dlc-protocol-wallet /app/dlc-protocol-wallet
 COPY --from=BI-build /app/blockchain-interface /app/blockchain-interface
 
-COPY ./wallet/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./wallet/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 WORKDIR /app
 
