@@ -6,7 +6,7 @@ services:
     image: wallet:new
     volumes:
       - ./config.yaml:/app/config.yaml
-      - ./supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
+      - ./docker/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
     ports:
       - 3001:3001
       - 3003:3003

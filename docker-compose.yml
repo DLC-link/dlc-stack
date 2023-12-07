@@ -104,7 +104,7 @@ services:
     hostname: router-wallet
     build:
       context: .
-      dockerfile: ./wallet/Dockerfile
+      dockerfile: ./wallet/docker/Dockerfile
     volumes:
       - ./it/wallet-config.yaml:/app/config.yaml
       - ./it/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf

@@ -219,11 +219,15 @@ async fn process_request(
         (&Method::GET, path) if path.starts_with("/get_chain/") => {
             info!("Getting chain for event id {}", path);
             let event_id = path.trim_start_matches("/get_chain/").to_string();
-            let attestors = manager
-                .get_attestors()
-                .map_err(|e| WalletError(format!("Error getting attestors from manager: {}", e)))
-                .expect("getting attestors from manager")
-                .clone();
+            let attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>> =
+                match manager.oracles.clone() {
+                    Some(oracles) => oracles,
+                    None => {
+                        error!("No attestors from manager");
+                        return build_error_response("No attestors from manager".to_string());
+                    }
+                };
+
             let chain = match get_chain_from_attestors(attestors, event_id).await {
                 Ok(chain) => chain,
                 Err(e) => {
@@ -256,6 +260,14 @@ async fn process_request(
                 total_outcomes: u64,
                 refund_delay: u32,
             }
+            let attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>> =
+                match manager.oracles.clone() {
+                    Some(oracles) => oracles,
+                    None => {
+                        error!("No attestors from manager");
+                        return build_error_response("No attestors from manager".to_string());
+                    }
+                };
             let result = async {
                 let whole_body = hyper::body::aggregate(req)
                     .await
@@ -268,16 +280,6 @@ async fn process_request(
                             e
                         ))
                     })?;
-
-                let attestors = manager
-                    .get_attestors()
-                    .map_err(|e| {
-                        WalletError(format!(
-                            "Error parsing http input to create Offer endpoint: {}",
-                            e
-                        ))
-                    })?
-                    .clone();
 
                 create_new_offer(
                     manager,
@@ -709,16 +711,12 @@ async fn periodic_check(
     let funded_url = format!("{}/set-status-funded", blockchain_interface_url);
     let closed_url = format!("{}/post-close-dlc", blockchain_interface_url);
 
-    let attestors = manager
-        .get_attestors()
-        .map_err(|e| {
-            WalletError(format!(
-                "Error parsing http input to create Offer endpoint: {}",
-                e
-            ))
-        })
-        .expect("getting attestors from manager")
-        .clone();
+    let attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>> = match manager.oracles.clone() {
+        Some(oracles) => oracles,
+        None => {
+            return Err("No attestors from manager".into());
+        }
+    };
 
     let updated_contracts = match manager.periodic_check().await {
         Ok(updated_contracts) => updated_contracts,
