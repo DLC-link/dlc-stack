@@ -217,25 +217,23 @@ async fn process_request(
         ),
         (&Method::GET, "/info") => get_wallet_info(dlc_store, wallet).await,
         (&Method::GET, path) if path.starts_with("/get_chain/") => {
-            info!("Getting chain for event id {}", path);
             let event_id = path.trim_start_matches("/get_chain/").to_string();
-            let attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>> =
-                match manager.oracles.clone() {
-                    Some(oracles) => oracles,
-                    None => {
-                        error!("No attestors from manager");
-                        return build_error_response("No attestors from manager".to_string());
-                    }
-                };
+            info!("Getting chain for event id {}", event_id);
+            let result = async {
+                let attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>> = manager
+                    .oracles
+                    .clone()
+                    .ok_or(WalletError("No attestors from Manager".to_string()))?;
 
-            let chain = match get_chain_from_attestors(attestors, event_id).await {
-                Ok(chain) => chain,
+                get_chain_from_attestors(attestors, event_id).await
+            };
+            match result.await {
+                Ok(chain) => build_success_response(chain),
                 Err(e) => {
                     error!("Error getting chain from attestors: {}", e);
                     return build_error_response(e.to_string());
                 }
-            };
-            build_success_response(chain)
+            }
         }
         (&Method::GET, "/periodic_check") => {
             let result =
