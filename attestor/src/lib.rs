@@ -346,7 +346,7 @@ impl Default for Filters {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct ApiOracleEvent {
     event_id: String,
     uuid: String,
@@ -377,7 +377,7 @@ fn parse_database_entry(event: Vec<u8>) -> Result<ApiOracleEvent, JsValue> {
 
             match OracleAttestation::read(&mut attestation_cursor) {
                 Ok(att) => Some(format!("{:?}", att)),
-                Err(_) => Some("[WASM-ATTESTOR] Error decoding attestatoin".to_string()),
+                Err(_) => Some("[WASM-ATTESTOR] Error decoding attestation".to_string()),
             }
         }
     };
