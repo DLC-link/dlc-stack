@@ -299,7 +299,7 @@ dependencies = [
  "getrandom",
  "hex",
  "js-sys",
- "lightning",
+ "lightning 0.0.116",
  "log",
  "secp256k1-zkp",
  "serde",
@@ -321,7 +321,7 @@ dependencies = [
  "dlc-link-manager",
  "dlc-manager",
  "dlc-messages",
- "lightning",
+ "lightning 0.0.116",
  "log",
  "reqwest",
  "secp256k1-zkp",
@@ -808,7 +808,6 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/dlc-link/rust-dlc?rev=bd71461#bd71461b137eb402a13d4f3affd555d0b79ae233"
 dependencies = [
  "bitcoin 0.29.2",
  "miniscript 9.0.2",
@@ -847,7 +846,7 @@ dependencies = [
  "dlc-messages",
  "dlc-trie",
  "futures",
- "lightning",
+ "lightning 0.0.116",
  "log",
  "rand_chacha",
  "secp256k1-zkp",
@@ -858,14 +857,13 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/dlc-link/rust-dlc?rev=bd71461#bd71461b137eb402a13d4f3affd555d0b79ae233"
 dependencies = [
  "async-trait",
  "bitcoin 0.29.2",
  "dlc",
  "dlc-messages",
  "dlc-trie",
- "lightning",
+ "lightning 0.0.116",
  "log",
  "secp256k1-zkp",
  "serde",
@@ -874,11 +872,10 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/dlc-link/rust-dlc?rev=bd71461#bd71461b137eb402a13d4f3affd555d0b79ae233"
 dependencies = [
  "bitcoin 0.29.2",
  "dlc",
- "lightning",
+ "lightning 0.0.116",
  "secp256k1-zkp",
  "serde",
 ]
@@ -906,7 +903,7 @@ dependencies = [
  "http",
  "http-body 1.0.0-rc.2",
  "hyper",
- "lightning",
+ "lightning 0.0.113",
  "log",
  "pretty_env_logger",
  "reqwest",
@@ -987,7 +984,7 @@ dependencies = [
  "esplora-async-blockchain-provider-js-wallet",
  "getrandom",
  "js-interface-wallet",
- "lightning",
+ "lightning 0.0.113",
  "log",
  "reqwest",
  "secp256k1-zkp",
@@ -1002,7 +999,6 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/dlc-link/rust-dlc?rev=bd71461#bd71461b137eb402a13d4f3affd555d0b79ae233"
 dependencies = [
  "bitcoin 0.29.2",
  "dlc",
@@ -1017,7 +1013,7 @@ dependencies = [
  "bitcoin 0.29.2",
  "dlc",
  "dlc-manager",
- "lightning",
+ "lightning 0.0.116",
  "log",
  "secp256k1-zkp",
 ]
@@ -1106,7 +1102,7 @@ dependencies = [
  "dlc-manager",
  "futures",
  "js-interface-wallet",
- "lightning",
+ "lightning 0.0.113",
  "log",
  "reqwest",
  "serde",
@@ -1122,7 +1118,7 @@ dependencies = [
  "dlc-manager",
  "futures",
  "js-interface-wallet",
- "lightning",
+ "lightning 0.0.113",
  "log",
  "reqwest",
  "serde",
@@ -1601,7 +1597,7 @@ dependencies = [
  "bitcoin 0.29.2",
  "dlc",
  "dlc-manager",
- "lightning",
+ "lightning 0.0.113",
  "miniscript 10.0.0",
  "rust-bitcoin-coin-selection",
  "secp256k1-zkp",
@@ -1639,6 +1635,15 @@ name = "lightning"
 version = "0.0.113"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "087add70f81d2fdc6d4409bc0cef69e11ad366ef1d0068550159bd22b3ac8664"
+dependencies = [
+ "bitcoin 0.29.2",
+]
+
+[[package]]
+name = "lightning"
+version = "0.0.116"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90a0f2155316f1570446a0447c993480673f840748c8ed25bbc59dfc442ac770"
 dependencies = [
  "bitcoin 0.29.2",
 ]

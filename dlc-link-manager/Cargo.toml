@@ -10,12 +10,12 @@ version = "0.4.0"
 
 [dependencies]
 bitcoin = {version = "0.29.2", features = ["serde"]}
-dlc = { git = "https://github.com/dlc-link/rust-dlc", rev= "bd71461", features = ["use-serde"] }
-dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", rev= "bd71461", features = ["use-serde"] }
-dlc-messages = { git = "https://github.com/dlc-link/rust-dlc", rev= "bd71461", features = ["use-serde"]}
-dlc-trie = { git = "https://github.com/dlc-link/rust-dlc", rev= "bd71461", features = ["use-serde"]}
+dlc = { path = "../../../rust-dlc/dlc", features = ["use-serde"] }
+dlc-manager = { path = "../../../rust-dlc/dlc-manager", features = ["use-serde"] }
+dlc-messages = { path = "../../../rust-dlc/dlc-messages", features = ["use-serde"]}
+dlc-trie = { path = "../../../rust-dlc/dlc-trie", features = ["use-serde"]}
 futures = {version = "0.3.28"}
-lightning = {version = "0.0.113"}
+lightning = {version = "0.0.116"}
 log = "0.4.14"
 rand_chacha = {version = "0.3.1", optional = true}
 secp256k1-zkp = {version = "0.7.0", features = ["bitcoin_hashes", "rand", "rand-std"]}

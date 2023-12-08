@@ -7,11 +7,11 @@ version = "0.1.0"
 
 [dependencies]
 chrono = {version = "0.4.19", features = ["serde"]}
-dlc = { git = "https://github.com/dlc-link/rust-dlc", rev= "bd71461", features = ["use-serde"] }
+dlc = { path = "../../../rust-dlc/dlc", features = ["use-serde"] }
 dlc-link-manager = { path = "../dlc-link-manager" }
-dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", rev= "bd71461", features = ["use-serde"] }
-dlc-messages = { git = "https://github.com/dlc-link/rust-dlc", rev= "bd71461", features = ["use-serde"] }
-lightning = {version = "0.0.113"}
+dlc-manager = { path = "../../../rust-dlc/dlc-manager", features = ["use-serde"] }
+dlc-messages = { path = "../../../rust-dlc/dlc-messages", features = ["use-serde"] }
+lightning = {version = "0.0.116"}
 log = "0.4.14"
 reqwest = {version = "0.11.16", default-features = false, features = ["json"] }
 secp256k1-zkp = {version = "0.7.0"}

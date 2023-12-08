@@ -24,25 +24,25 @@ evm-chains:
 
   # This is how a setup looks that uses a local node,
   # but the 'sepolia' contracts from dlc-solidity
-  - network: sepolia
-    version: 1
-    endpoint: http://localhost:8545
-    # endpoint: wss://sepolia.infura.io/ws/v3/
-    # api_key: ${INFURA_API_KEY}
-
-  - network: goerli
-    version: 1
-    endpoint: wss://goerli.infura.io/ws/v3/
-    api_key: ${INFURA_API_KEY}
-
-  # - network: localhost
-  #   version: '1'
+  # - network: sepolia
+  #   version: 1
   #   endpoint: http://localhost:8545
+  #   # endpoint: wss://sepolia.infura.io/ws/v3/
+  #   # api_key: ${INFURA_API_KEY}
 
-  # OKX testnet
-  - network: x1test
-    version: 1
-    endpoint: wss://x1testws.okx.com
+  # - network: goerli
+  #   version: 1
+  #   endpoint: wss://goerli.infura.io/ws/v3/
+  #   api_key: ${INFURA_API_KEY}
+
+  # # - network: localhost
+  # #   version: '1'
+  # #   endpoint: http://localhost:8545
+
+  # # OKX testnet
+  # - network: x1test
+  #   version: 1
+  #   endpoint: wss://x1testws.okx.com
 
 stx-chains:
   # - network: mainnet

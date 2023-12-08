@@ -227,8 +227,7 @@ impl AsyncOracle for AttestorClient {
             Ok(v) => v,
             Err(e) => {
                 return Err(DlcManagerError::OracleError(format!(
-                    "Error getting announcement: {e}",
-                    e = e
+                    "Error getting announcement {event_id}: {e}"
                 )))
             }
         };
