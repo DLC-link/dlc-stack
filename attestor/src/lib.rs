@@ -124,12 +124,7 @@ impl Attestor {
             .event_handler
             .storage_api
             .clone()
-            .insert(
-                uuid.to_string(),
-                new_event.clone(),
-                self.secret_key,
-                chain.to_string(),
-            )
+            .insert(uuid.to_string(), new_event.clone(), self.secret_key)
             .await
         {
             Ok(Some(_val)) => Ok(()),
@@ -213,12 +208,7 @@ impl Attestor {
             .oracle
             .event_handler
             .storage_api
-            .insert(
-                uuid.clone(),
-                new_event.clone(),
-                self.secret_key,
-                event.5.clone(),
-            )
+            .insert(uuid.clone(), new_event.clone(), self.secret_key)
             .await
         {
             Ok(val) => val,

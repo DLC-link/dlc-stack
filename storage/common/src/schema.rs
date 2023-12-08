@@ -16,6 +16,5 @@ diesel::table! {
         event_id -> Varchar,
         content -> Text,
         key -> Varchar,
-        chain -> Varchar,
     }
 }

@@ -136,7 +136,6 @@ pub struct NewEvent {
     pub event_id: String,
     pub content: String,
     pub key: String,
-    pub chain: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -145,7 +144,6 @@ pub struct Event {
     pub event_id: String,
     pub content: String,
     pub key: String,
-    pub chain: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -153,7 +151,6 @@ pub struct UpdateEvent {
     pub event_id: String,
     pub content: String,
     pub key: String,
-    pub chain: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
