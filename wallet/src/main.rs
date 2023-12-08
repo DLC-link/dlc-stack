@@ -260,15 +260,12 @@ async fn process_request(
                 total_outcomes: u64,
                 refund_delay: u32,
             }
-            let attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>> =
-                match manager.oracles.clone() {
-                    Some(oracles) => oracles,
-                    None => {
-                        error!("No attestors from manager");
-                        return build_error_response("No attestors from manager".to_string());
-                    }
-                };
             let result = async {
+                let attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>> = manager
+                    .oracles
+                    .clone()
+                    .ok_or(WalletError("No attestors from Manager".to_string()))?;
+
                 let whole_body = hyper::body::aggregate(req)
                     .await
                     .map_err(|e| WalletError(format!("Error aggregating body: {}", e)))?;
