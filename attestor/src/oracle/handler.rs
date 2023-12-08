@@ -61,7 +61,7 @@ impl StorageApiConn {
         {
             Ok(event) => event,
             Err(err) => {
-                clog!("Error getting event: {:?}", err);
+                clog!("[WASM-ATTESTOR] Error getting event: {:?}", err);
                 return Err(OracleError::StorageApiError(err));
             }
         };
@@ -109,7 +109,7 @@ impl StorageApiConn {
 
         match event {
             Some(event) => {
-                let res = base64::decode(event.content).unwrap();
+                let res = base64::decode(event.content).map_err(OracleError::Base64DecodeError)?;
                 Ok(Some(res))
             }
             None => Ok(None),
@@ -130,10 +130,11 @@ impl StorageApiConn {
                 secret_key,
             )
             .await
-            .unwrap();
+            .map_err(OracleError::StorageApiError)?;
+
         let mut result: Vec<(String, Vec<u8>)> = vec![];
         for event in events {
-            let content = base64::decode(event.content).unwrap();
+            let content = base64::decode(event.content).map_err(OracleError::Base64DecodeError)?;
             result.push((event.event_id, content));
         }
         Ok(Some(result))

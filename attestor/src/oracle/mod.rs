@@ -15,7 +15,7 @@ pub struct DbValue(
     pub Option<Vec<u8>>,        // attestation?
     pub Option<u64>,            // outcome?
     pub String,                 // uuid
-    pub String,                 // chain name
+    pub Option<String>,         // chain name
 );
 
 #[derive(Clone)]
