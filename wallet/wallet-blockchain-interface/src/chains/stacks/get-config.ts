@@ -45,7 +45,6 @@ export default async (config: ChainConfig): Promise<WrappedContract> => {
     return {
         setStatusFunded: async (uuid, btcTxId) => {
             try {
-                console.warn('btcTxId has been supplied, but it is not yet supported on Stacks Blockchain');
                 const cbPrincipal = await getCallbackContract(uuid, contractName, deployer, stacksNetwork);
 
                 const txOptions2: SignedContractCallOptions = {
@@ -54,6 +53,7 @@ export default async (config: ChainConfig): Promise<WrappedContract> => {
                     functionName: 'set-status-funded',
                     functionArgs: [
                         uuidToCV(uuid),
+                        stringAsciiCV(btcTxId),
                         contractPrincipalCV(addressToString(cbPrincipal.address), cbPrincipal.contractName.content),
                     ],
                     senderKey: walletKey,
