@@ -50,8 +50,9 @@ export class DlcManagerV1 implements ContractConfig {
           const _creator = printEvent['creator']?.value;
           const _callbackContract = printEvent['callback-contract']?.value;
           const _protocolWallet = printEvent['protocol-wallet']?.value;
-          const _attestors = printEvent['attestors']?.value.flatMap((res: any) => res.value.dns.value);
-          const _logMessage = `[${this._contractFullName}] New DLC Request @ ${currentTime} \n\t uuid: ${_uuid} | creator: ${_creator} | callbackContract: ${_callbackContract} | protocol-wallet: ${_protocolWallet} | attestors: ${_attestors} \n`;
+          const _refundDelay = printEvent['refund-delay']?.value;
+          const _valueLocked = printEvent['value-locked']?.value;
+          const _logMessage = `[${this._contractFullName}] New DLC Request @ ${currentTime} \n\t uuid: ${_uuid} | creator: ${_creator} | callbackContract: ${_callbackContract} | protocol-wallet: ${_protocolWallet} | value-locked: ${_valueLocked} | refund-delay: ${_refundDelay} \n`;
           console.log(_logMessage);
           try {
             await AttestorService.createAnnouncement(_uuid, this._deploymentInfo.chainName);

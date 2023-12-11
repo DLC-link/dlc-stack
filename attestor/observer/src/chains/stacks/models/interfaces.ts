@@ -68,7 +68,9 @@ export type ArgumentName =
   | 'contract-address'
   | 'attestors'
   | 'actual-closing-time'
-  | 'event-source';
+  | 'event-source'
+  | 'refund-delay'
+  | 'value-locked';
 
 export type UnwrappedPrintEvent = {
   [arg in ArgumentName]?: {

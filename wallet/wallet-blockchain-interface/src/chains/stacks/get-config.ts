@@ -121,6 +121,20 @@ export default async (config: ChainConfig): Promise<WrappedContract> => {
         getDLCInfo: async (uuid) => {
             try {
                 console.log('Getting DLC info...');
+                const functionName = 'get-dlc';
+                const txOptions = {
+                    contractAddress: deployer,
+                    contractName: contractName,
+                    functionName: functionName,
+                    functionArgs: [uuidToCV(uuid)],
+                    senderAddress: deployer,
+                    network: stacksNetwork,
+                };
+                const transaction: any = await callReadOnlyFunction(txOptions);
+                const dlcInfo = cvToValue(transaction.value);
+                dlcInfo.refundDelay = parseInt(dlcInfo['refund-delay'].value);
+                dlcInfo.valueLocked = parseInt(dlcInfo['value-locked'].value);
+                return dlcInfo;
             } catch (error) {
                 console.log(error);
                 return error;

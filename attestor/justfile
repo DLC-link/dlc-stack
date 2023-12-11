@@ -11,6 +11,9 @@ run: build
 
 run-multiple:
   just build && wait
+  # ATTESTOR_XPRIV=$ATTESTOR_XPRIV_1 npm run run:1 &
+  # ATTESTOR_XPRIV=$ATTESTOR_XPRIV_2 npm run run:2 &
+  # ATTESTOR_XPRIV=$ATTESTOR_XPRIV_3 npm run run:3 && fg
   npm run run:1 &
   npm run run:2 &
   npm run run:3 && fg
