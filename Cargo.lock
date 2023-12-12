@@ -976,6 +976,7 @@ dependencies = [
  "bitcoin 0.29.2",
  "chrono",
  "console_error_panic_hook",
+ "dlc",
  "dlc-clients",
  "dlc-link-manager",
  "dlc-manager",
