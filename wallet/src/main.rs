@@ -23,7 +23,6 @@ use std::{collections::HashMap, env, str::FromStr, sync::Arc};
 
 use bitcoin::{Address, PublicKey, XOnlyPublicKey};
 
-use dlc::ProtocolFee;
 use dlc_link_manager::{AsyncOracle, AsyncStorage, Manager, ONE_DAY_IN_SECONDS};
 use dlc_manager::{
     contract::{
@@ -616,6 +615,9 @@ async fn create_new_offer(
                 .parse()
                 .expect("To be able to parse the static counterparty id to a pubkey"),
             adjusted_refund_delay,
+            100,
+            Address::from_str("bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3")
+                .expect("A valid btc address"),
         )
         .await
         .map_err(|e| WalletError(e.to_string()))?;
@@ -632,12 +634,6 @@ async fn accept_offer(
             STATIC_COUNTERPARTY_NODE_ID
                 .parse()
                 .expect("To be able to parse the static counterparty id to a pubkey"),
-            Some(ProtocolFee {
-                percentage_denominator: 10,
-                address: Address::from_str("bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3")
-                    .expect("A valid bitcoin address for this network"),
-            }),
-            // None,
         )
         .await?;
 

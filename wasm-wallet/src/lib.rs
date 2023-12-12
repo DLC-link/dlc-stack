@@ -7,7 +7,6 @@
 extern crate console_error_panic_hook;
 extern crate log;
 
-use bitcoin::Address;
 use bitcoin::{Network, PrivateKey};
 use dlc_messages::{Message, OfferDlc, SignDlc};
 use secp256k1_zkp::UpstreamError;
@@ -22,7 +21,6 @@ use core::panic;
 use std::fmt;
 use std::{io::Cursor, str::FromStr, sync::Arc};
 
-use dlc::ProtocolFee;
 use dlc_manager::{contract::Contract, ContractId, SystemTimeProvider};
 
 use dlc_link_manager::{AsyncStorage, Manager};
@@ -254,24 +252,12 @@ impl JsDLCInterface {
                 .parse()
                 .map_err(|e: UpstreamError| WalletError(e.to_string()))?;
             self.manager
-                .on_dlc_message(
-                    &Message::Offer(dlc_offer_message.clone()),
-                    counterparty,
-                    None,
-                )
+                .on_dlc_message(&Message::Offer(dlc_offer_message.clone()), counterparty)
                 .await
                 .map_err(to_wallet_error)?;
             let (_contract_id, _public_key, accept_msg) = self
                 .manager
-                .accept_contract_offer(
-                    &temporary_contract_id,
-                    Some(ProtocolFee {
-                        percentage_denominator: 10,
-                        address: Address::from_str("bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3")
-                            .expect("A valid bitcoin address for this network"),
-                    }),
-                    // None,
-                )
+                .accept_contract_offer(&temporary_contract_id)
                 .await
                 .map_err(to_wallet_error)?;
             serde_json::to_string(&accept_msg).map_err(to_wallet_error)
@@ -298,7 +284,6 @@ impl JsDLCInterface {
                     STATIC_COUNTERPARTY_NODE_ID
                         .parse()
                         .map_err(to_wallet_error)?,
-                    None,
                 )
                 .await
                 .map_err(to_wallet_error)?;

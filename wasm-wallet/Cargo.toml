@@ -18,7 +18,6 @@ bitcoin = { version = "0.29.2", features = ["serde"] }
 chrono = { version = "0.4.19", features = ["serde"] }
 dlc-clients = { path = "../clients" }
 dlc-link-manager = { path = "../dlc-link-manager" }
-dlc = { path = "../../../rust-dlc/dlc", features = ["use-serde"] }
 dlc-manager = { path = "../../../rust-dlc/dlc-manager", features = ["use-serde"] }
 dlc-messages = { path = "../../../rust-dlc/dlc-messages", features = ["use-serde"]}
 dlc-trie = { path = "../../../rust-dlc/dlc-trie", features = ["use-serde"]}

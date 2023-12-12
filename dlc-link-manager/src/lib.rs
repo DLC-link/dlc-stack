@@ -18,7 +18,6 @@ use crate::dlc_manager::{Blockchain, Time, Wallet};
 
 use bitcoin::{Address, Transaction, Txid};
 
-use dlc::ProtocolFee;
 use dlc_manager::ContractId;
 use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
 use dlc_messages::{AcceptDlc, Message as DlcMessage, OfferDlc, SignDlc};
@@ -191,17 +190,13 @@ where
         &self,
         msg: &DlcMessage,
         counter_party: PublicKey,
-        protocol_fee: Option<ProtocolFee>,
     ) -> Result<Option<DlcMessage>, Error> {
         match msg {
             DlcMessage::Offer(o) => {
                 self.on_offer_message(o, counter_party).await?;
                 Ok(None)
             }
-            DlcMessage::Accept(a) => Ok(Some(
-                self.on_accept_message(a, &counter_party, protocol_fee)
-                    .await?,
-            )),
+            DlcMessage::Accept(a) => Ok(Some(self.on_accept_message(a, &counter_party).await?)),
             DlcMessage::Sign(s) => {
                 self.on_sign_message(s, &counter_party).await?;
                 Ok(None)
@@ -217,6 +212,8 @@ where
         contract_input: &ContractInput,
         counter_party: PublicKey,
         refund_delay: u32,
+        fee_percentage_denominator: u64,
+        fee_address: Address,
     ) -> Result<OfferDlc, Error> {
         let manager_oracles = match &self.oracles {
             // Oracles is now an optional field, so check here before continuing.
@@ -293,6 +290,8 @@ where
             &self.wallet,
             &self.blockchain,
             &self.time,
+            fee_percentage_denominator,
+            fee_address,
         )?;
 
         offered_contract.validate()?;
@@ -306,7 +305,6 @@ where
     pub async fn accept_contract_offer(
         &self,
         contract_id: &ContractId,
-        protocol_fee: Option<ProtocolFee>,
     ) -> Result<(ContractId, PublicKey, AcceptDlc), Error> {
         let offered_contract =
             get_contract_in_state!(self, contract_id, Offered, None as Option<PublicKey>)?;
@@ -318,7 +316,6 @@ where
             &offered_contract,
             &self.wallet,
             &self.blockchain,
-            protocol_fee,
         )?;
 
         self.wallet.import_address(&Address::p2wsh(
@@ -371,7 +368,6 @@ where
         &self,
         accept_msg: &AcceptDlc,
         counter_party: &PublicKey,
-        protocol_fee: Option<ProtocolFee>,
     ) -> Result<DlcMessage, Error> {
         let offered_contract = get_contract_in_state!(
             self,
@@ -385,7 +381,6 @@ where
             &offered_contract,
             accept_msg,
             &self.wallet,
-            protocol_fee,
         ) {
             Ok(contract) => contract,
             Err(e) => {
