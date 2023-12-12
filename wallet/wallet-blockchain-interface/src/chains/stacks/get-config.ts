@@ -18,6 +18,7 @@ import { hexToBytes, uuidToCV } from './helper-functions.js';
 import { StacksNetwork } from '@stacks/network';
 import getNetworkInfo from './get-network-config.js';
 import StacksNonceService from '../../services/stacks-nonce.service.js';
+import { BigNumber } from 'ethers';
 
 async function getCallbackContract(uuid: string, contractName: string, deployer: string, network: StacksNetwork) {
     const functionName = 'get-callback-contract';
@@ -132,8 +133,8 @@ export default async (config: ChainConfig): Promise<WrappedContract> => {
                 };
                 const transaction: any = await callReadOnlyFunction(txOptions);
                 const dlcInfo = cvToValue(transaction.value);
-                dlcInfo.refundDelay = parseInt(dlcInfo['refund-delay'].value);
-                dlcInfo.valueLocked = parseInt(dlcInfo['value-locked'].value);
+                dlcInfo.refundDelay = BigNumber.from(parseInt(dlcInfo['refund-delay'].value));
+                dlcInfo.valueLocked = BigNumber.from(parseInt(dlcInfo['value-locked'].value));
                 return dlcInfo;
             } catch (error) {
                 console.log(error);
