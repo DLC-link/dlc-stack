@@ -47,16 +47,20 @@ evm-chains:
 stx-chains:
   # - network: mainnet
   #   version: 1
+  #   deployer:
   #   endpoint: wss://api.hiro.so/
 
   # - network: testnet
   #   version: 1
+  #   deployer: ST1JHQ5GPQT249ZWG6V4AWETQW5DYA5RHJB0JSMQ3
   #   endpoint: wss://api.testnet.hiro.so/
 
-  - network: mocknet
-    version: 1
-    endpoint: ws://stx-btc1.dlc.link:3999
-
-  # - network: local
+  # - network: mocknet
   #   version: 1
-  #   endpoint: ws://localhost:3999
+  #   deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+  #   endpoint: ws://stx-btc1.dlc.link:3999
+
+  - network: local
+    version: 1
+    deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+    endpoint: ws://localhost:3999

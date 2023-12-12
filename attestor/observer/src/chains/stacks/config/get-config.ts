@@ -2,7 +2,6 @@ import { StacksApiSocketClient } from '@stacks/blockchain-api-client';
 import { NetworkConfig } from '../models/interfaces.js';
 import { io } from 'socket.io-client';
 import { ChainConfig, stxPrefix } from '../../../config/models.js';
-import ConfigService from '../../../services/config.service.js';
 
 function setupSocketClient(endpoint: string): StacksApiSocketClient {
   const _socket = io(endpoint, {
@@ -41,29 +40,14 @@ export function getConfig(config: ChainConfig): NetworkConfig {
   let deployer: string;
   let api_base_extended: string;
 
-  switch (config.network) {
-    case 'mainnet':
-      deployer = '';
-      api_base_extended = 'https://api.hiro.so/extended/v1';
-      break;
-    case 'testnet':
-      deployer = 'ST1JHQ5GPQT249ZWG6V4AWETQW5DYA5RHJB0JSMQ3';
-      api_base_extended = 'https://api.testnet.hiro.so/extended/v1';
-      break;
-    case 'mocknet':
-      deployer = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
-      api_base_extended = `http://${ConfigService.getSettings()['mocknet-address']}:3999/extended/v1`;
-      break;
-    case 'local':
-      deployer = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
-      api_base_extended = 'http://localhost:3999/extended/v1';
-      break;
-    default:
-      throw new Error(`${config.network} is not a valid chain.`);
-      break;
-  }
-
+  if (!config.deployer) throw new Error('No deployer address provided');
+  deployer = config.deployer;
   socketEndpoint = config.endpoint;
+  api_base_extended = `${config.endpoint.replace('wss', 'https').replace('ws', 'http')}/extended/v1`;
+
   socket = setupSocketClient(socketEndpoint);
-  return { socket, deploymentInfo: { deployer, api_base_extended, chainName: `${stxPrefix}${config.network}` } };
+  return {
+    socket,
+    deploymentInfo: { deployer, api_base_extended, chainName: `${stxPrefix}${config.network}` },
+  };
 }

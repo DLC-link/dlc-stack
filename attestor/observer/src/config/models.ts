@@ -2,6 +2,7 @@ export interface ChainConfig {
   network: Chain;
   version: string;
   api_key?: string;
+  deployer?: string;
   endpoint: string;
 }
 
