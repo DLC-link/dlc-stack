@@ -28,7 +28,7 @@ const offererGetsAllOutcome = 100;
 // NOTE: we no longer send this amount in the offer, but it is hardcoded in the WBI testmode as well.
 // ../wallet/wallet-blockchain-interface/src/http/public-server/routes.ts
 // If you change it, you need to change it in both places.
-const acceptCollateral = 10000;
+const acceptCollateral = 1000000;
 
 async function createEvent(attestorURL, uuid, time = '') {
   try {

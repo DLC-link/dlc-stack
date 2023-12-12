@@ -14,18 +14,18 @@ evm-chains:
     #   api_key: ${INFURA_API_KEY}
     #   private_key: ${MAINNET_PRIVATE_KEY}
 
-    - network: sepolia
-      version: 1
-      # endpoint: http://localhost:8545
-      endpoint: https://sepolia.infura.io/v3/
-      api_key: ${INFURA_API_KEY}
-      private_key: ${SEPOLIA_PRIVATE_KEY}
+    # - network: sepolia
+    #   version: 1
+    #   # endpoint: http://localhost:8545
+    #   endpoint: https://sepolia.infura.io/v3/
+    #   api_key: ${INFURA_API_KEY}
+    #   private_key: ${SEPOLIA_PRIVATE_KEY}
 
-    - network: goerli
-      version: 1
-      endpoint: https://goerli.infura.io/v3/
-      api_key: ${INFURA_API_KEY}
-      private_key: ${GOERLI_PRIVATE_KEY}
+    # - network: goerli
+    #   version: 1
+    #   endpoint: https://goerli.infura.io/v3/
+    #   api_key: ${INFURA_API_KEY}
+    #   private_key: ${GOERLI_PRIVATE_KEY}
 
     # - network: localhost
     #   version: 1
@@ -33,10 +33,10 @@ evm-chains:
     #   private_key: ${LOCALHOST_PRIVATE_KEY}
 
     # OKX testnet
-    - network: x1test
-      version: 1
-      endpoint: https://x1testrpc.okx.com
-      private_key: ${X1TEST_PRIVATE_KEY}
+    # - network: x1test
+    #   version: 1
+    #   endpoint: https://x1testrpc.okx.com
+    #   private_key: ${X1TEST_PRIVATE_KEY}
 
 stx-chains:
     # - network: mainnet
