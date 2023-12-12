@@ -1,4 +1,4 @@
-// #![deny(clippy::unwrap_used)]
+#![deny(clippy::unwrap_used)]
 #![deny(unused_mut)]
 #![deny(dead_code)]
 
@@ -52,16 +52,19 @@ pub struct Attestor {
 
 #[wasm_bindgen]
 impl Attestor {
-    pub async fn new(storage_api_endpoint: String, x_secret_key_str: String) -> Attestor {
+    pub async fn new(
+        storage_api_endpoint: String,
+        x_secret_key_str: String,
+    ) -> Result<Attestor, JsValue> {
         clog!(
             "[WASM-ATTESTOR]: Creating new attestor with storage_api_endpoint: {}",
             storage_api_endpoint
         );
         let secp = Secp256k1::new();
         let xpriv_key = ExtendedPrivKey::from_str(&x_secret_key_str)
-            .expect("Unable to decode xpriv env variable");
-        let external_derivation_path =
-            DerivationPath::from_str("m/44h/0h/0h/0").expect("A valid derivation path");
+            .map_err(|_| JsValue::from_str("Unable to decode xpriv env variable"))?;
+        let external_derivation_path = DerivationPath::from_str("m/44h/0h/0h/0")
+            .map_err(|_| JsValue::from_str("A valid derivation path"))?;
         let derived_ext_xpriv = xpriv_key
             .derive_priv(
                 &secp,
@@ -70,11 +73,16 @@ impl Attestor {
                     ChildNumber::Normal { index: 0 },
                 ]),
             )
-            .expect("Should be able to derive the private key path during wallet setup");
+            .map_err(|_| {
+                JsValue::from_str(
+                    "Should be able to derive the private key path during wallet setup",
+                )
+            })?;
         let secret_key = derived_ext_xpriv.private_key;
         let key_pair = KeyPair::from_secret_key(&secp, &secret_key);
-        let oracle = Oracle::new(key_pair, secp, storage_api_endpoint).unwrap();
-        Attestor { oracle, secret_key }
+        let oracle = Oracle::new(key_pair, secp, storage_api_endpoint)
+            .map_err(|_| JsValue::from_str("Error creating Oracle"))?;
+        Ok(Attestor { oracle, secret_key })
     }
 
     pub async fn get_health() -> Result<JsValue, JsValue> {
@@ -90,8 +98,7 @@ impl Attestor {
         chain: &str,
     ) -> Result<(), JsValue> {
         let maturation = OffsetDateTime::parse(maturation, &Rfc3339)
-            .map_err(AttestorError::DatetimeParseError)
-            .unwrap();
+            .map_err(|_| JsValue::from_str("Unable to parse maturation time"))?;
 
         clog!(
             "[WASM-ATTESTOR] Creating event for uuid: {} and maturation_time : {} on chain: {}",
@@ -106,7 +113,7 @@ impl Attestor {
             maturation,
             uuid.to_string(),
         )
-        .unwrap();
+        .map_err(|_| JsValue::from_str("Error building announcement"))?;
 
         let db_value = DbValue(
             Some(outstanding_sk_nonces),
@@ -114,22 +121,19 @@ impl Attestor {
             None,
             None,
             uuid.to_string(),
-            chain.to_string(),
+            Some(chain.to_string()),
         );
 
-        let new_event = serde_json::to_string(&db_value).unwrap().into_bytes();
+        let new_event = serde_json::to_string(&db_value)
+            .map_err(|_| JsValue::from_str("Error serializing new_event to JSON"))?
+            .into_bytes();
 
         match &self
             .oracle
             .event_handler
             .storage_api
             .clone()
-            .insert(
-                uuid.to_string(),
-                new_event.clone(),
-                self.secret_key,
-                chain.to_string(),
-            )
+            .insert(uuid.to_string(), new_event.clone(), self.secret_key)
             .await
         {
             Ok(Some(_val)) => Ok(()),
@@ -175,11 +179,28 @@ impl Attestor {
                 return Err(JsError::new(&error_message));
             }
         };
-        event = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).unwrap();
+        event = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).map_err(|e| {
+            let message = format!(
+                "[WASM-ATTESTOR] Error deserializing event from StorageAPI: {:?}",
+                e
+            );
+            clog!("{}", message);
+            JsError::new(&message)
+        })?;
 
-        let outstanding_sk_nonces = event.clone().0.unwrap();
+        let outstanding_sk_nonces = match event.clone().0 {
+            Some(value) => value,
+            None => return Err(JsError::new("Error: event is None")),
+        };
 
-        let announcement = OracleAnnouncement::read(&mut Cursor::new(&event.1)).unwrap();
+        let announcement = OracleAnnouncement::read(&mut Cursor::new(&event.1)).map_err(|e| {
+            let message = format!(
+                "[WASM-ATTESTOR] Error reading announcement from StorageAPI: {:?}",
+                e
+            );
+            clog!("{}", message);
+            JsError::new(&message)
+        })?;
 
         let num_digits_to_sign = match announcement.oracle_event.event_descriptor {
             dlc_messages::oracle_msgs::EventDescriptor::DigitDecompositionEvent(e) => e.nb_digits,
@@ -207,18 +228,15 @@ impl Attestor {
         event.3 = Some(outcome);
         event.2 = Some(attestation.encode());
 
-        let new_event = serde_json::to_string(&event).unwrap().into_bytes();
+        let new_event = serde_json::to_string(&event)
+            .map_err(|_| JsError::new("[WASM-ATTESTOR] Error serializing new_event to JSON"))?
+            .into_bytes();
 
         let res = match self
             .oracle
             .event_handler
             .storage_api
-            .insert(
-                uuid.clone(),
-                new_event.clone(),
-                self.secret_key,
-                event.5.clone(),
-            )
+            .insert(uuid.clone(), new_event.clone(), self.secret_key)
             .await
         {
             Ok(val) => val,
@@ -243,7 +261,7 @@ impl Attestor {
         Ok(())
     }
 
-    pub async fn get_events(&self) -> JsValue {
+    pub async fn get_events(&self) -> Result<JsValue, JsValue> {
         let events = self
             .oracle
             .event_handler
@@ -251,18 +269,25 @@ impl Attestor {
             .clone()
             .get_all(self.secret_key)
             .await
-            .unwrap()
-            .unwrap();
+            .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error getting all events"))?;
 
-        let events: Vec<ApiOracleEvent> = events
+        let events = match events {
+            Some(value) => value,
+            None => return Err(JsValue::from_str("[WASM-ATTESTOR] Error: events is None")),
+        };
+
+        let events: Result<Vec<ApiOracleEvent>, JsValue> = events
             .iter()
             .map(|event| parse_database_entry(event.clone().1))
             .collect();
 
-        serde_wasm_bindgen::to_value(&events).unwrap()
+        let events = events?;
+
+        serde_wasm_bindgen::to_value(&events)
+            .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error serializing events to JSON"))
     }
 
-    pub async fn get_event(&self, uuid: String) -> JsValue {
+    pub async fn get_event(&self, uuid: String) -> Result<JsValue, JsValue> {
         let result = self
             .oracle
             .event_handler
@@ -270,11 +295,18 @@ impl Attestor {
             .clone()
             .get(uuid, self.secret_key)
             .await
-            .unwrap();
+            .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error getting event"))?;
 
         match result {
-            Some(event) => serde_wasm_bindgen::to_value(&parse_database_entry(event)).unwrap(),
-            None => JsValue::NULL,
+            Some(event) => {
+                let parsed_event = parse_database_entry(event).map_err(|_| {
+                    JsValue::from_str("[WASM-ATTESTOR] Error parsing database entry")
+                })?;
+                serde_wasm_bindgen::to_value(&parsed_event).map_err(|_| {
+                    JsValue::from_str("[WASM-ATTESTOR] Error serializing event to JSON")
+                })
+            }
+            None => Ok(JsValue::NULL),
         }
     }
 
@@ -314,7 +346,7 @@ impl Default for Filters {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct ApiOracleEvent {
     event_id: String,
     uuid: String,
@@ -324,14 +356,18 @@ struct ApiOracleEvent {
     rust_attestation: Option<String>,
     maturation: String,
     outcome: Option<u64>,
-    chain: String,
+    chain: Option<String>,
 }
 
-fn parse_database_entry(event: Vec<u8>) -> ApiOracleEvent {
-    let event: DbValue = serde_json::from_str(&String::from_utf8_lossy(&event)).unwrap();
+fn parse_database_entry(event: Vec<u8>) -> Result<ApiOracleEvent, JsValue> {
+    let event_str = String::from_utf8_lossy(&event);
+    let event: DbValue = serde_json::from_str(&event_str)
+        .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error parsing event from string"))?;
 
     let announcement_vec = event.1.clone();
-    let announcement = OracleAnnouncement::read(&mut Cursor::new(&announcement_vec)).unwrap();
+    let mut cursor = Cursor::new(&announcement_vec);
+    let announcement = OracleAnnouncement::read(&mut cursor)
+        .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error reading OracleAnnouncement"))?;
 
     let db_att = event.2.clone();
     let decoded_att_json = match db_att {
@@ -341,22 +377,25 @@ fn parse_database_entry(event: Vec<u8>) -> ApiOracleEvent {
 
             match OracleAttestation::read(&mut attestation_cursor) {
                 Ok(att) => Some(format!("{:?}", att)),
-                Err(_) => Some("[WASM-ATTESTOR] Error decoding attestatoin".to_string()),
+                Err(_) => Some("[WASM-ATTESTOR] Error decoding attestation".to_string()),
             }
         }
     };
 
-    ApiOracleEvent {
+    let rust_announcement_json = serde_json::to_string(&announcement)
+        .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error serializing announcement to JSON"))?;
+
+    Ok(ApiOracleEvent {
         event_id: announcement.oracle_event.event_id.clone(),
         uuid: event.4,
-        rust_announcement_json: serde_json::to_string(&announcement).unwrap(),
+        rust_announcement_json,
         rust_announcement: event.1.encode_hex::<String>(),
         rust_attestation_json: decoded_att_json,
         rust_attestation: event.2.map(|att| att.encode_hex::<String>()),
         maturation: announcement.oracle_event.event_maturity_epoch.to_string(),
         outcome: event.3,
         chain: event.5,
-    }
+    })
 }
 
 pub fn generate_nonces_for_event(
@@ -373,7 +412,10 @@ pub fn generate_nonces_for_event(
         .collect();
     let key_pairs: Vec<_> = priv_nonces
         .iter()
-        .map(|x| KeyPair::from_seckey_slice(secp, x.as_ref()).unwrap())
+        .map(|x| {
+            KeyPair::from_seckey_slice(secp, x.as_ref())
+                .expect("[WASM-ATTESTOR] Failed to generate keypair from secret key")
+        })
         .collect();
 
     let nonces = key_pairs
@@ -401,7 +443,10 @@ pub fn build_announcement(
     let (oracle_nonces, sk_nonces) = generate_nonces_for_event(secp, &event_descriptor);
     let oracle_event = OracleEvent {
         oracle_nonces,
-        event_maturity_epoch: maturation.unix_timestamp().try_into().unwrap(),
+        event_maturity_epoch: maturation
+            .unix_timestamp()
+            .try_into()
+            .expect("[WASM-ATTESTOR] Failed to convert maturation to event_maturity_epoch"),
         event_descriptor: event_descriptor.clone(),
         event_id: event_id.to_string(),
     };

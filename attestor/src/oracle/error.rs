@@ -8,4 +8,6 @@ pub type Result<T> = std::result::Result<T, OracleError>;
 pub enum OracleError {
     /// storage api error: {0}
     StorageApiError(#[from] ApiError),
+    /// base64 decode error: {0}
+    Base64DecodeError(#[from] base64::DecodeError),
 }

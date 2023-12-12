@@ -19,6 +19,8 @@ export default class BlockchainInterfaceService {
     }
 
     public async getWrappedContract(chain: string): Promise<WrappedContract> {
+        if (chain.startsWith('"')) chain = chain.slice(1, -1);
+
         const config = ConfigService.getConfig();
         const chainSplit = chain.split('-');
 

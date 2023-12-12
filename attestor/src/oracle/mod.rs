@@ -10,12 +10,12 @@ pub use error::Result;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DbValue(
-    pub Option<Vec<SecretKey>>, // outstanding_sk_nonces?
-    pub Vec<u8>,                // announcement
-    pub Option<Vec<u8>>,        // attestation?
-    pub Option<u64>,            // outcome?
-    pub String,                 // uuid
-    pub String,                 // chain name
+    pub Option<Vec<SecretKey>>,           // outstanding_sk_nonces?
+    pub Vec<u8>,                          // announcement
+    pub Option<Vec<u8>>,                  // attestation?
+    pub Option<u64>,                      // outcome?
+    pub String,                           // uuid
+    #[serde(default)] pub Option<String>, // chain name
 );
 
 #[derive(Clone)]
