@@ -94,8 +94,8 @@ const local = {
 
 // Local services with just script, but regtest bitcoin
 const local_just = {
-  testWalletPrivateKey: process.env.TEST_WALLET_PKEY,
-  testWalletAddress: process.env.TEST_WALLET_ADDRESS,
+  testWalletPrivateKey: someFundedRegtestWallets[randomIndex].privateKey,
+  testWalletAddress: someFundedRegtestWallets[randomIndex].address,
   bitcoinNetwork: 'regtest',
   bitcoinNetworkURL: 'https://devnet.dlc.link/electrs',
   protocolWalletURL: 'http://127.0.0.1:3003',
