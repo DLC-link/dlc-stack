@@ -763,15 +763,57 @@ where
         Ok(Contract::Closed(closed_contract))
     }
 
+    async fn get_json(&self, path: &str) -> Result<serde_json::Value, Error> {
+        reqwest::get(path)
+            .await
+            .map_err(|x| Error::WalletError(Box::new(x)))?
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|x| Error::WalletError(Box::new(x)))
+    }
+
+    async fn get_unixtime(&self) -> Result<u64, Error> {
+        debug!("Getting time");
+        let path = "https://worldtimeapi.org/api/timezone/Etc/UTC";
+        debug!("Getting time at URL {path}");
+        let v = match self.get_json(path).await {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(Error::WalletError(
+                    format!("Error getting unixtime: {e}").into(),
+                ))
+            }
+        };
+
+        let unixtime = match v["unixtime"].as_str() {
+            //call to_string instead of as_str and watch your world crumble to pieces
+            None => return Err(Error::WalletError("unable to get unixtime".into())),
+            Some(s) => s,
+        };
+        let unixtime = match unixtime.parse::<u64>() {
+            Err(e) => {
+                return Err(Error::WalletError(
+                    format!("unable to parse unixtime: {e}").into(),
+                ))
+            }
+            Ok(u) => u,
+        };
+
+        Ok(unixtime)
+    }
+
     async fn check_refund(&self, contract: &SignedContract) -> Result<(), Error> {
         // TODO(tibo): should check for confirmation of refund before updating state
+        // use reqwest to fetch the current time
+
+        let unixtime = self.get_unixtime().await?;
         if contract
             .accepted_contract
             .dlc_transactions
             .refund
             .lock_time
             .0 as u64
-            <= self.time.unix_time_now()
+            <= unixtime
         {
             let accepted_contract = &contract.accepted_contract;
             let refund = accepted_contract.dlc_transactions.refund.clone();
