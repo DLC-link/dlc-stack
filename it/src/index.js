@@ -25,7 +25,7 @@ const successfulAttesting = process.env.SUCCESSFUL_ATTESTING == 'true';
 const acceptorGetsAllOutcome = 0;
 const offererGetsAllOutcome = 100;
 const protocol_fee_percent = 0.01;
-const btcFeeBasisPoints = protocol_fee_percent * 100;
+const btcFeeBasisPoints = protocol_fee_percent * 10000;
 const btcFeeRecipient = 'bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3';
 
 // NOTE: we no longer send this amount in the offer, but it is hardcoded in the WBI testmode as well.
