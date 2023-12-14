@@ -287,14 +287,8 @@ impl JsDLCInterface {
     }
 
     pub async fn periodic_check(&self) -> Result<(), JsError> {
-        let updated_contracts = self.manager.periodic_check().await;
-        match updated_contracts {
-            Ok(_updated_contracts) => Ok(()),
-            Err(e) => {
-                log_to_console!("Error in periodic check: {}", e);
-                Err(JsError::new(&format!("Error in periodic check: {}", e)))
-            }
-        }
+        self.manager.periodic_check().await?;
+        Ok(())
     }
 
     pub async fn accept_offer(&self, offer_json: String) -> Result<String, JsError> {
