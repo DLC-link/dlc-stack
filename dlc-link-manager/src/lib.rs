@@ -89,6 +89,13 @@ pub trait AsyncBlockchain {
     async fn get_transaction_async(&self, tx_id: &Txid) -> Result<Transaction, Error>;
 }
 
+fn calculate_denominator_from_basis_points(basis_points: u64) -> u64 {
+    if basis_points == 0 {
+        return 0;
+    }
+    ((100.0 / basis_points as f64) * 100.0) as u64
+}
+
 /// Used to create and update DLCs.
 pub struct Manager<W: Deref, B: Deref, S: Deref, O: Deref, T: Deref>
 where
@@ -212,7 +219,7 @@ where
         contract_input: &ContractInput,
         counter_party: PublicKey,
         refund_delay: u32,
-        fee_percentage_denominator: u64,
+        protocol_fee_basis_points: u64,
         fee_address: Address,
     ) -> Result<OfferDlc, Error> {
         let manager_oracles = match &self.oracles {
@@ -290,7 +297,7 @@ where
             &self.wallet,
             &self.blockchain,
             &self.time,
-            fee_percentage_denominator,
+            calculate_denominator_from_basis_points(protocol_fee_basis_points),
             fee_address,
         )?;
 
@@ -801,86 +808,32 @@ where
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use dlc_messages::Message;
-//     use mocks::{
-//         dlc_manager::{manager::Manager, Oracle},
-//         memory_storage_provider::MemoryStorage,
-//         mock_blockchain::MockBlockchain,
-//         mock_oracle_provider::MockOracle,
-//         mock_time::MockTime,
-//         mock_wallet::MockWallet,
-//     };
-//     use secp256k1_zkp::PublicKey;
-//     use std::{collections::HashMap, rc::Rc};
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_calculate_denominator_from_basis_points() {
+        let basis_points = 100;
+        let denominator = super::calculate_denominator_from_basis_points(basis_points);
+        assert_eq!(denominator, 100);
 
-//     type TestManager = Manager<
-//         Rc<MockWallet>,
-//         Rc<MockBlockchain>,
-//         Rc<MemoryStorage>,
-//         Rc<MockOracle>,
-//         Rc<MockTime>,
-//         Rc<MockBlockchain>,
-//     >;
+        let basis_points = 10;
+        let denominator = super::calculate_denominator_from_basis_points(basis_points);
+        assert_eq!(denominator, 1000);
 
-//     fn get_manager() -> TestManager {
-//         let blockchain = Rc::new(MockBlockchain::new());
-//         let store = Rc::new(MemoryStorage::new());
-//         let wallet = Rc::new(MockWallet::new(
-//             &blockchain,
-//             &(0..100).map(|x| x as u64 * 1000000).collect::<Vec<_>>(),
-//         ));
+        let basis_points = 50;
+        let denominator = super::calculate_denominator_from_basis_points(basis_points);
+        assert_eq!(denominator, 200);
 
-//         let oracle_list = (0..5).map(|_| MockOracle::new()).collect::<Vec<_>>();
-//         let oracles: HashMap<bitcoin::XOnlyPublicKey, _> = oracle_list
-//             .into_iter()
-//             .map(|x| (x.get_public_key(), Rc::new(x)))
-//             .collect();
-//         let time = Rc::new(MockTime {});
+        let basis_points = 200;
+        let denominator = super::calculate_denominator_from_basis_points(basis_points);
+        assert_eq!(denominator, 50);
 
-//         mocks::mock_time::set_time(0);
+        let basis_points = 1000;
+        let denominator = super::calculate_denominator_from_basis_points(basis_points);
+        assert_eq!(denominator, 10);
 
-//         Manager::new(wallet, blockchain.clone(), store, oracles, time, blockchain).unwrap()
-//     }
-
-//     fn pubkey() -> PublicKey {
-//         "0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166"
-//             .parse()
-//             .unwrap()
-//     }
-
-//     #[test]
-//     fn reject_offer_with_existing_contract_id() {
-//         let offer_message = Message::Offer(
-//             serde_json::from_str(include_str!("../test_inputs/offer_contract.json")).unwrap(),
-//         );
-
-//         let mut manager = get_manager();
-
-//         manager
-//             .on_dlc_message(&offer_message, pubkey())
-//             .expect("To accept the first offer message");
-
-//         manager
-//             .on_dlc_message(&offer_message, pubkey())
-//             .expect_err("To reject the second offer message");
-//     }
-
-//     #[test]
-//     fn reject_channel_offer_with_existing_channel_id() {
-//         let offer_message = Message::OfferChannel(
-//             serde_json::from_str(include_str!("../test_inputs/offer_channel.json")).unwrap(),
-//         );
-
-//         let mut manager = get_manager();
-
-//         manager
-//             .on_dlc_message(&offer_message, pubkey())
-//             .expect("To accept the first offer message");
-
-//         manager
-//             .on_dlc_message(&offer_message, pubkey())
-//             .expect_err("To reject the second offer message");
-//     }
-// }
+        let basis_points = 0;
+        let denominator = super::calculate_denominator_from_basis_points(basis_points);
+        assert_eq!(denominator, 0);
+    }
+}
