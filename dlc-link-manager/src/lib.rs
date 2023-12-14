@@ -773,9 +773,7 @@ where
     }
 
     async fn get_unixtime(&self) -> Result<u64, Error> {
-        debug!("Getting time");
         let path = "https://worldtimeapi.org/api/timezone/Etc/UTC";
-        debug!("Getting time at URL {path}");
         let v = match self.get_json(path).await {
             Ok(v) => v,
             Err(e) => {
@@ -785,18 +783,10 @@ where
             }
         };
 
-        let unixtime = match v["unixtime"].as_str() {
+        let unixtime = match v["unixtime"].as_u64() {
             //call to_string instead of as_str and watch your world crumble to pieces
             None => return Err(Error::WalletError("unable to get unixtime".into())),
             Some(s) => s,
-        };
-        let unixtime = match unixtime.parse::<u64>() {
-            Err(e) => {
-                return Err(Error::WalletError(
-                    format!("unable to parse unixtime: {e}").into(),
-                ))
-            }
-            Ok(u) => u,
         };
 
         Ok(unixtime)
