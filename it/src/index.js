@@ -214,7 +214,6 @@ async function setupDLC(dlcManager, uuid, time, overrides = {}) {
   //Fetching Funding TX Details to check if the broadcast was successful
   console.log('[IT] Fetching Funding TX Details');
   let fund_tx_details = await fetchTxDetails(txID);
-  console.log('[IT] DLC Funding TX:', fund_tx_details);
 
   //Check if the funding transaction has the protocol_fee output
   const vouts = fund_tx_details.vout;
@@ -387,25 +386,25 @@ async function main() {
 
   // --- Refund tests
 
-  // //Start third test
-  // console.log('[IT] ##################### STARTING REFUND TEST #####################');
-  // const testUUID3 = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
-  // // Create a DLC that will refund. Attestation maturity is 20 seconds in the future, and refund delay is 20 second after that.
-  // let setupDetails3 = await setupDLC(dlcManager, testUUID3, new Date().getTime() + 20000, { refundDelay: 20 });
+  //Start third test
+  console.log('[IT] ##################### STARTING REFUND TEST #####################');
+  const testUUID3 = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
+  // Create a DLC that will refund. Attestation maturity is 20 seconds in the future, and refund delay is 20 second after that.
+  let setupDetails3 = await setupDLC(dlcManager, testUUID3, new Date().getTime() + 20000, { refundDelay: 20 });
 
-  // //Waiting for funding transaction confirmations
-  // confirmedBroadcastTransaction = await waitForConfirmations(setupDetails3.blockchainHeightAtBroadcast, 6);
-  // if (confirmedBroadcastTransaction) {
-  //   console.log('[IT] Funding transaction confirmed');
-  // }
+  //Waiting for funding transaction confirmations
+  confirmedBroadcastTransaction = await waitForConfirmations(setupDetails3.blockchainHeightAtBroadcast, 6);
+  if (confirmedBroadcastTransaction) {
+    console.log('[IT] Funding transaction confirmed');
+  }
 
-  // //Check if the contract is in the Confirmed state
-  // assert(
-  //   await retry(async () => checkIfContractIsInState(setupDetails3.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
-  //   `[IT] Contract state is not updated in the Router Wallet to Confirmed`
-  // );
+  //Check if the contract is in the Confirmed state
+  assert(
+    await retry(async () => checkIfContractIsInState(setupDetails3.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
+    `[IT] Contract state is not updated in the Router Wallet to Confirmed`
+  );
 
-  // await verify_refund_tx(dlcManager, setupDetails3.contractID);
+  await verify_refund_tx(dlcManager, setupDetails3.contractID);
 
   console.log('##############################################');
   console.log('DLC Integration Test Completed Successfully!');
