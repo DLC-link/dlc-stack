@@ -607,12 +607,14 @@ async fn create_new_offer(
         _ => refund_delay,
     };
 
-    let fee_address = if btc_fee_basis_points > 0 {
-        Address::from_str(&btc_fee_recipient).map_err(|e| WalletError(e.to_string()))?
+    let fee_address_string: String = if btc_fee_basis_points > 0 {
+        btc_fee_recipient
     } else {
-        Address::from_str("bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3")
-            .map_err(|e| WalletError(e.to_string()))?
+        "bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3".to_string()
     };
+
+    let fee_address: Address = Address::from_str(&fee_address_string)
+        .map_err(|e| WalletError(format!("Error parsing fee address: {}", e)))?;
 
     let man = manager;
 
