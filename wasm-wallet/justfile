@@ -4,8 +4,10 @@ pack:
     wasm-pack build ./node-manager --dev --target web
 
 pack-mac:
-    AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang wasm-pack build 
+    AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang wasm-pack build
     # AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang wasm-pack build --dev --target web
+
+build: pack-mac
 
 test:
     cargo test --package websocket-tcp-proxy

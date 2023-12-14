@@ -292,7 +292,7 @@ dependencies = [
  "bitcoin 0.29.2",
  "console_error_panic_hook",
  "displaydoc",
- "dlc 0.4.0 (git+https://github.com/dlc-link/rust-dlc?rev=c55e128)",
+ "dlc",
  "dlc-clients",
  "dlc-messages",
  "futures",
@@ -317,7 +317,7 @@ name = "attestor-client"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "dlc 0.4.0 (git+https://github.com/dlc-link/rust-dlc?rev=c55e128)",
+ "dlc",
  "dlc-link-manager",
  "dlc-manager",
  "dlc-messages",
@@ -808,17 +808,6 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-dependencies = [
- "bitcoin 0.29.2",
- "miniscript 9.0.2",
- "secp256k1-sys 0.6.1",
- "secp256k1-zkp",
- "serde",
-]
-
-[[package]]
-name = "dlc"
-version = "0.4.0"
 source = "git+https://github.com/dlc-link/rust-dlc?rev=c55e128#c55e128dfe14ea714d62564a793467d19a5fac4a"
 dependencies = [
  "bitcoin 0.29.2",
@@ -853,7 +842,7 @@ name = "dlc-link-manager"
 version = "0.4.0"
 dependencies = [
  "bitcoin 0.29.2",
- "dlc 0.4.0 (git+https://github.com/dlc-link/rust-dlc?rev=c55e128)",
+ "dlc",
  "dlc-manager",
  "dlc-messages",
  "futures",
@@ -872,9 +861,9 @@ source = "git+https://github.com/dlc-link/rust-dlc?rev=c55e128#c55e128dfe14ea714
 dependencies = [
  "async-trait",
  "bitcoin 0.29.2",
- "dlc 0.4.0 (git+https://github.com/dlc-link/rust-dlc?rev=c55e128)",
+ "dlc",
  "dlc-messages",
- "dlc-trie 0.4.0 (git+https://github.com/dlc-link/rust-dlc?rev=c55e128)",
+ "dlc-trie",
  "lightning",
  "log",
  "secp256k1-zkp",
@@ -887,7 +876,7 @@ version = "0.4.0"
 source = "git+https://github.com/dlc-link/rust-dlc?rev=c55e128#c55e128dfe14ea714d62564a793467d19a5fac4a"
 dependencies = [
  "bitcoin 0.29.2",
- "dlc 0.4.0 (git+https://github.com/dlc-link/rust-dlc?rev=c55e128)",
+ "dlc",
  "lightning",
  "secp256k1-zkp",
  "serde",
@@ -902,12 +891,12 @@ dependencies = [
  "bitcoin 0.29.2",
  "bytes",
  "chrono",
- "dlc 0.4.0 (git+https://github.com/dlc-link/rust-dlc?rev=c55e128)",
+ "dlc",
  "dlc-clients",
  "dlc-link-manager",
  "dlc-manager",
  "dlc-messages",
- "dlc-trie 0.4.0 (git+https://github.com/dlc-link/rust-dlc?rev=c55e128)",
+ "dlc-trie",
  "dlc-wallet",
  "env_logger 0.9.3",
  "esplora-async-blockchain-provider-router-wallet",
@@ -993,7 +982,6 @@ dependencies = [
  "dlc-link-manager",
  "dlc-manager",
  "dlc-messages",
- "dlc-trie 0.4.0",
  "esplora-async-blockchain-provider-js-wallet",
  "getrandom",
  "js-interface-wallet",
@@ -1012,20 +1000,10 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-dependencies = [
- "bitcoin 0.29.2",
- "dlc 0.4.0",
- "secp256k1-zkp",
- "serde",
-]
-
-[[package]]
-name = "dlc-trie"
-version = "0.4.0"
 source = "git+https://github.com/dlc-link/rust-dlc?rev=c55e128#c55e128dfe14ea714d62564a793467d19a5fac4a"
 dependencies = [
  "bitcoin 0.29.2",
- "dlc 0.4.0 (git+https://github.com/dlc-link/rust-dlc?rev=c55e128)",
+ "dlc",
  "secp256k1-zkp",
  "serde",
 ]
@@ -1035,7 +1013,7 @@ name = "dlc-wallet"
 version = "0.1.0"
 dependencies = [
  "bitcoin 0.29.2",
- "dlc 0.4.0 (git+https://github.com/dlc-link/rust-dlc?rev=c55e128)",
+ "dlc",
  "dlc-manager",
  "lightning",
  "log",
@@ -1619,7 +1597,7 @@ version = "0.1.0"
 dependencies = [
  "bdk",
  "bitcoin 0.29.2",
- "dlc 0.4.0 (git+https://github.com/dlc-link/rust-dlc?rev=c55e128)",
+ "dlc",
  "dlc-manager",
  "lightning",
  "miniscript 10.0.0",

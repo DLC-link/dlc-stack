@@ -20,7 +20,6 @@ dlc-clients = { path = "../clients" }
 dlc-link-manager = { path = "../dlc-link-manager" }
 dlc-manager = { git = "https://github.com/dlc-link/rust-dlc", rev = "c55e128", features = ["use-serde"] }
 dlc-messages = { git = "https://github.com/dlc-link/rust-dlc", rev = "c55e128", features = ["use-serde"] }
-dlc-trie = { path = "../../../rust-dlc/dlc-trie", features = ["use-serde"]}
 getrandom = { version = "0.2", features = ["js"] }
 lightning = { version = "0.0.116" }
 log = "0.4.17"
