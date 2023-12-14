@@ -71,7 +71,6 @@ const STATIC_COUNTERPARTY_NODE_ID: &str =
     "02fc8e97419286cf05e5d133f41ff6d51f691dda039e9dc007245a421e2c7ec61c";
 
 const REQWEST_TIMEOUT: Duration = Duration::from_secs(30);
-const PROTOCOL_FEE_BASIS_POINTS: u64 = 100;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -259,6 +258,8 @@ async fn process_request(
                 offer_collateral: u64,
                 total_outcomes: u64,
                 refund_delay: u32,
+                btc_fee_recipient: String,
+                btc_fee_basis_points: u64,
             }
             let result = async {
                 let attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>> = manager
@@ -287,6 +288,8 @@ async fn process_request(
                     req.offer_collateral,
                     req.total_outcomes,
                     req.refund_delay,
+                    req.btc_fee_recipient,
+                    req.btc_fee_basis_points,
                 )
                 .await
             };
@@ -554,6 +557,8 @@ async fn create_new_offer(
     offer_collateral: u64,
     total_outcomes: u64,
     refund_delay: u32,
+    btc_fee_recipient: String,
+    btc_fee_basis_points: u64,
 ) -> Result<String, WalletError> {
     let active_network = bitcoin::Network::from_str(&active_network)
         .map_err(|e| WalletError(format!("Unknown Network in offer creation: {}", e)))?;
@@ -602,6 +607,15 @@ async fn create_new_offer(
         _ => refund_delay,
     };
 
+    let fee_address_string = if btc_fee_basis_points > 0 {
+        btc_fee_recipient
+    } else {
+        "bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3".to_string()
+    };
+
+    let fee_address = Address::from_str(&fee_address_string)
+        .map_err(|e| WalletError(format!("Error parsing fee address: {}", e)))?;
+
     let man = manager;
 
     let offer = man
@@ -611,9 +625,8 @@ async fn create_new_offer(
                 .parse()
                 .expect("To be able to parse the static counterparty id to a pubkey"),
             adjusted_refund_delay,
-            PROTOCOL_FEE_BASIS_POINTS,
-            Address::from_str("bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3")
-                .expect("A valid btc address"),
+            btc_fee_basis_points,
+            fee_address,
         )
         .await
         .map_err(|e| WalletError(e.to_string()))?;

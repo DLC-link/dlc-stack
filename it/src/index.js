@@ -25,6 +25,8 @@ const successfulAttesting = process.env.SUCCESSFUL_ATTESTING == 'true';
 const acceptorGetsAllOutcome = 0;
 const offererGetsAllOutcome = 100;
 const protocol_fee_percent = 0.01;
+const btcFeeBasisPoints = protocol_fee_percent * 10000;
+const btcFeeRecipient = 'bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3';
 
 // NOTE: we no longer send this amount in the offer, but it is hardcoded in the WBI testmode as well.
 // ../wallet/wallet-blockchain-interface/src/http/public-server/routes.ts
@@ -63,6 +65,8 @@ async function fetchOfferFromProtocolWallet(uuid, overrides = {}) {
     uuid,
     acceptCollateral,
     refundDelay: 86400 * 7,
+    btcFeeRecipient: btcFeeRecipient,
+    btcFeeBasisPoints: btcFeeBasisPoints,
   };
 
   body = { ...body, ...overrides };
@@ -221,7 +225,7 @@ async function setupDLC(dlcManager, uuid, time, overrides = {}) {
   for (let i = 0; i < vouts.length; i++) {
     if (
       vouts[i].value === acceptCollateral * protocol_fee_percent &&
-      vouts[i].scriptpubkey_address === 'bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3'
+      vouts[i].scriptpubkey_address === btcFeeRecipient
     ) {
       flag = true;
     }

@@ -34,24 +34,33 @@ router.post('/offer', express.json(), async (req, res) => {
 
     let valueLocked: BigNumber;
     let refundDelay: BigNumber;
+    let btcFeeRecipient: string;
+    let btcFeeBasisPoints: BigNumber;
+
     let offerRequest: {
         uuid: string;
         acceptCollateral: number;
         offerCollateral: number;
         totalOutcomes: number;
         refundDelay: number;
+        btcFeeRecipient: string;
+        btcFeeBasisPoints: number;
     };
 
     if (TESTMODE) {
         console.log('[WBI] Test mode enabled. Using default collateral.');
         valueLocked = BigNumber.from(req.body.acceptCollateral);
         refundDelay = BigNumber.from(req.body.refundDelay);
+        btcFeeRecipient = req.body.btcFeeRecipient;
+        btcFeeBasisPoints = BigNumber.from(req.body.btcFeeBasisPoints);
     } else {
         try {
             const dlcInfo = await blockchainWriter.getDLCInfo(uuid);
             console.log('[WBI] DLC Info:', dlcInfo);
             valueLocked = dlcInfo.valueLocked as BigNumber;
             refundDelay = dlcInfo.refundDelay as BigNumber;
+            btcFeeRecipient = dlcInfo.btcFeeRecipient as string;
+            btcFeeBasisPoints = dlcInfo.btcFeeBasisPoints as BigNumber;
         } catch (error) {
             console.log(error);
             res.status(500).send(error);
@@ -65,6 +74,8 @@ router.post('/offer', express.json(), async (req, res) => {
         offerCollateral: 0,
         totalOutcomes: 100,
         refundDelay: refundDelay.toNumber(),
+        btcFeeRecipient,
+        btcFeeBasisPoints: btcFeeBasisPoints.toNumber(),
     };
 
     console.log('[WBI] Offer Request:', offerRequest);
