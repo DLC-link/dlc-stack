@@ -607,6 +607,13 @@ async fn create_new_offer(
         _ => refund_delay,
     };
 
+    let fee_address: Address = match btc_fee_basis_points {
+        0 => Address::from_str("bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3")
+            .map_err(|e| WalletError(format!("Error parsing fee address: {}", e.to_string())))?,
+        _ => Address::from_str(&btc_fee_recipient)
+            .map_err(|e| WalletError(format!("Error parsing fee address: {}", e)))?,
+    };
+
     let man = manager;
 
     let offer = man
@@ -617,7 +624,7 @@ async fn create_new_offer(
                 .expect("To be able to parse the static counterparty id to a pubkey"),
             adjusted_refund_delay,
             btc_fee_basis_points,
-            Address::from_str(&btc_fee_recipient).expect("A valid btc address"),
+            fee_address,
         )
         .await
         .map_err(|e| WalletError(e.to_string()))?;
