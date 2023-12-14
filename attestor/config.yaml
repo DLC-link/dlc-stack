@@ -23,26 +23,26 @@ evm-chains:
   #   api_key: ${INFURA_API_KEY}
 
   # This is how a setup looks that uses a local node,
-  # # but the 'sepolia' contracts from dlc-solidity
-  # - network: sepolia
-  #   version: 1
+  # but the 'sepolia' contracts from dlc-solidity
+  - network: sepolia
+    version: 1
+    endpoint: http://localhost:8545
+    # endpoint: wss://sepolia.infura.io/ws/v3/
+    # api_key: ${INFURA_API_KEY}
+
+  - network: goerli
+    version: 1
+    endpoint: wss://goerli.infura.io/ws/v3/
+    api_key: ${INFURA_API_KEY}
+
+  # - network: localhost
+  #   version: '1'
   #   endpoint: http://localhost:8545
-  #   # endpoint: wss://sepolia.infura.io/ws/v3/
-  #   # api_key: ${INFURA_API_KEY}
 
-  # - network: goerli
-  #   version: 1
-  #   endpoint: wss://goerli.infura.io/ws/v3/
-  #   api_key: ${INFURA_API_KEY}
-
-  # # - network: localhost
-  # #   version: '1'
-  # #   endpoint: http://localhost:8545
-
-  # # OKX testnet
-  # - network: x1test
-  #   version: 1
-  #   endpoint: wss://x1testws.okx.com
+  # OKX testnet
+  - network: x1test
+    version: 1
+    endpoint: wss://x1testws.okx.com
 
 stx-chains:
   # - network: mainnet
@@ -55,12 +55,12 @@ stx-chains:
   #   deployer: ST1JHQ5GPQT249ZWG6V4AWETQW5DYA5RHJB0JSMQ3
   #   endpoint: wss://api.testnet.hiro.so/
 
-  - network: mocknet
-    version: 1
-    deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-    endpoint: ws://stx-btc1.dlc.link:3999
-
-  # - network: local
+  # - network: mocknet
   #   version: 1
   #   deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-  #   endpoint: ws://localhost:3999
+  #   endpoint: ws://stx-btc1.dlc.link:3999
+
+  - network: local
+    version: 1
+    deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+    endpoint: ws://localhost:3999

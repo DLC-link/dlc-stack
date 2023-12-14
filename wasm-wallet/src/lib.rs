@@ -193,9 +193,9 @@ impl JsDLCInterface {
         ];
 
         let testnet_attestor_urls: Vec<String> = vec![
-            "https://devnet.dlc.link/attestor-1".to_string(),
-            "https://devnet.dlc.link/attestor-2".to_string(),
-            "https://devnet.dlc.link/attestor-3".to_string(),
+            "https://testnet.dlc.link/attestor-1".to_string(),
+            "https://testnet.dlc.link/attestor-2".to_string(),
+            "https://testnet.dlc.link/attestor-3".to_string(),
         ];
 
         let attestor_urls = match active_network {
@@ -254,8 +254,6 @@ impl JsDLCInterface {
 
     // public async function for fetching all the contracts on the manager
     pub async fn get_contracts(&self) -> Result<JsValue, JsError> {
-        log_to_console!("get_contracts");
-        // let mut errors: Vec<WalletError> = vec![];
         let contracts: Vec<JsContract> = self
             .manager
             .get_store()
