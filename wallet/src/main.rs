@@ -71,6 +71,7 @@ const STATIC_COUNTERPARTY_NODE_ID: &str =
     "02fc8e97419286cf05e5d133f41ff6d51f691dda039e9dc007245a421e2c7ec61c";
 
 const REQWEST_TIMEOUT: Duration = Duration::from_secs(30);
+const PROTOCOL_FEE_BASIS_POINTS: u64 = 100;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -610,7 +611,7 @@ async fn create_new_offer(
                 .parse()
                 .expect("To be able to parse the static counterparty id to a pubkey"),
             adjusted_refund_delay,
-            100,
+            PROTOCOL_FEE_BASIS_POINTS,
             Address::from_str("bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3")
                 .expect("A valid btc address"),
         )
