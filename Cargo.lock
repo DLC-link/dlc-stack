@@ -973,7 +973,7 @@ dependencies = [
 
 [[package]]
 name = "dlc-tools"
-version = "1.0.3"
+version = "1.1.1"
 dependencies = [
  "attestor-client",
  "base64 0.13.1",

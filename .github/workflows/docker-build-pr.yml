@@ -131,11 +131,13 @@ jobs:
           ECR_REPOSITORY: dlc-integration-test
           IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f it/Dockerfile .
+          DLC_TOOLS_VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "dlc-tools") | .version')
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:$DLC_TOOLS_VERSION -f it/Dockerfile .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$DLC_TOOLS_VERSION
 
   run-test:
-    name: Run integration tests
+    name: Run integration tests with latest dlc-tools
     runs-on: ubuntu-latest
     needs: [build-storageapi, build-attestor, build-wallet, build-it]
     steps:
@@ -161,7 +163,66 @@ jobs:
           XPRIV: ${{ secrets.XPRIV }}
           FINGERPRINT: ${{ secrets.FINGERPRINT }}
         run: |
-          cd it && IMAGE_TAG=$IMAGE_TAG XPRIV=$XPRIV FINGERPRINT=$FINGERPRINT docker compose --profile it up -d
+          cd it && IMAGE_TAG=$IMAGE_TAG IT_IMAGE_TAG=$IMAGE_TAG XPRIV=$XPRIV FINGERPRINT=$FINGERPRINT docker compose --profile it up -d
+      - name: Wait for the test container to complete
+        run: |
+          while true; do
+            status=$(docker ps -a -f name=integration-test --format '{{.Status}}')
+            exit_code=$(echo $status | awk '{print $2}' | tr -d '()')
+
+            if [[ "$status" =~ "Exited" ]]; then
+              if [[ "$exit_code" == "0" ]]; then
+                echo "Test succeeded"
+                break
+              elif [[ "$exit_code" != "" ]]; then
+                echo "Test failed with exit code $exit_code"
+                docker logs integration-test
+                exit 1
+              fi
+            else
+              echo "Waiting for test to complete, current status: $status"
+              docker logs --since=5s integration-test
+            fi
+            sleep 5
+          done
+
+      - name: Retrieve test logs
+        run: |
+          docker logs integration-test
+
+      - name: Remove containers
+        run: docker compose down
+
+  run-test-leather:
+    name: Run integration tests with release dlc-tools
+    runs-on: ubuntu-latest
+    needs: [build-storageapi, build-attestor, build-wallet, build-it]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Set outputs
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Run test
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: dlc-integration-test
+          IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
+          XPRIV: ${{ secrets.XPRIV }}
+          FINGERPRINT: ${{ secrets.FINGERPRINT }}
+        run: |
+          LATEST_RELEASE_TAG=$(curl --silent "https://api.github.com/repos/leather-wallet/extension/releases/latest" | jq -r .tag_name)
+          DLC_TOOLS_VERSION=$(curl -s https://raw.githubusercontent.com/leather-wallet/extension/$LATEST_RELEASE_TAG/package.json | jq -r '.dependencies["@dlc-link/dlc-tools"]')
+          cd it && IMAGE_TAG=$IMAGE_TAG IT_IMAGE_TAG=$DLC_TOOLS_VERSION XPRIV=$XPRIV FINGERPRINT=$FINGERPRINT docker compose --profile it up -d
       - name: Wait for the test container to complete
         run: |
           while true; do
