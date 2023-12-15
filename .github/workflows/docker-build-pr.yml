@@ -131,8 +131,7 @@ jobs:
           ECR_REPOSITORY: dlc-integration-test
           IMAGE_TAG: test-${{ steps.vars.outputs.sha_short }}
         run: |
-          DLC_TOOLS_VERSION=1.0.9
-          # DLC_TOOLS_VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "dlc-tools") | .version')
+          DLC_TOOLS_VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "dlc-tools") | .version')
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:$DLC_TOOLS_VERSION -f it/Dockerfile .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$DLC_TOOLS_VERSION
