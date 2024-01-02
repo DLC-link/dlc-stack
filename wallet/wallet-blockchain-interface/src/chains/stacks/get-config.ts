@@ -60,7 +60,6 @@ export default async (config: ChainConfig): Promise<WrappedContract> => {
                     senderKey: walletKey,
                     validateWithAbi: true,
                     network: stacksNetwork,
-                    fee: 100000,
                     anchorMode: 1,
                     nonce: await StacksNonceService.getNonce(stacksNetwork, walletAddress),
                 };
@@ -102,7 +101,6 @@ export default async (config: ChainConfig): Promise<WrappedContract> => {
                         senderKey: walletKey,
                         validateWithAbi: true,
                         network: stacksNetwork,
-                        fee: 100000, //0.1STX
                         anchorMode: 1,
                         nonce: await StacksNonceService.getNonce(stacksNetwork, walletAddress),
                     };
@@ -135,6 +133,8 @@ export default async (config: ChainConfig): Promise<WrappedContract> => {
                 const dlcInfo = cvToValue(transaction.value);
                 dlcInfo.refundDelay = BigNumber.from(parseInt(dlcInfo['refund-delay'].value));
                 dlcInfo.valueLocked = BigNumber.from(parseInt(dlcInfo['value-locked'].value));
+                dlcInfo.btcFeeRecipient = dlcInfo['btc-fee-recipient'].value;
+                dlcInfo.btcFeeBasisPoints = BigNumber.from(parseInt(dlcInfo['btc-fee-basis-points'].value));
                 return dlcInfo;
             } catch (error) {
                 console.log(error);
