@@ -60,7 +60,7 @@ stx-chains:
     # - network: mocknet
     #   version: 1
     #   deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-    #   endpoint: https://stx-btc1.dlc.link:3999
+    #   endpoint: http://stx-btc1.dlc.link:3999
     #   private_key: ${STX_MOCKNET_PRIVATE_KEY}
 
     # - network: local

@@ -20,7 +20,7 @@ export class DlcManagerV1 implements ContractConfig {
   private _eventSources = this._functionNames.map((name) => `dlclink:${name}:${this._eventSourceAPIVersion}`);
 
   constructor(socket: StacksApiSocketClient, deploymentInfo: DeploymentInfo) {
-    this._contractFullName = `${deploymentInfo.deployer}.dlc-manager-v1`;
+    this._contractFullName = `${deploymentInfo.deployer}.dlc-manager-v1-1`;
     this._socket = socket;
     this._deploymentInfo = deploymentInfo;
   }
@@ -52,7 +52,9 @@ export class DlcManagerV1 implements ContractConfig {
           const _protocolWallet = printEvent['protocol-wallet']?.value;
           const _refundDelay = printEvent['refund-delay']?.value;
           const _valueLocked = printEvent['value-locked']?.value;
-          const _logMessage = `[${this._contractFullName}] New DLC Request @ ${currentTime} \n\t uuid: ${_uuid} | creator: ${_creator} | callbackContract: ${_callbackContract} | protocol-wallet: ${_protocolWallet} | value-locked: ${_valueLocked} | refund-delay: ${_refundDelay} \n`;
+          const _btcFeeRecipient = printEvent['btc-fee-recipient']?.value;
+          const _btcFeeBasisPoints = printEvent['btc-fee-basis-points']?.value;
+          const _logMessage = `[${this._contractFullName}] New DLC Request @ ${currentTime} \n\t uuid: ${_uuid} | creator: ${_creator} | callbackContract: ${_callbackContract} | protocol-wallet: ${_protocolWallet} | value-locked: ${_valueLocked} | refund-delay: ${_refundDelay} | btc-fee-recipient: ${_btcFeeRecipient} | btc-fee-basis-points: ${_btcFeeBasisPoints} \n`;
           console.log(_logMessage);
           try {
             await AttestorService.createAnnouncement(_uuid, this._deploymentInfo.chainName);

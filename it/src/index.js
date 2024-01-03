@@ -171,9 +171,11 @@ async function getBlockchainHeight() {
 async function setupDLC(dlcManager, uuid, time, overrides = {}) {
   let startingBalance = await checkBalance(dlcManager, '[START TEST]');
 
-  //Creating Events
-  console.log('Creating Event');
-  const events = await Promise.all(attestorList.map((attestorURL) => createEvent(attestorURL, uuid, time)));
+  if (process.env.HANDLE_ATTESTORS == 'true') {
+    //Creating Events
+    console.log('Creating Event');
+    const events = await Promise.all(attestorList.map((attestorURL) => createEvent(attestorURL, uuid, time)));
+  }
 
   //Fetching Offer
   console.log('Fetching Offer from Protocol Wallet');
@@ -221,16 +223,12 @@ async function setupDLC(dlcManager, uuid, time, overrides = {}) {
 
   //Check if the funding transaction has the protocol_fee output
   const vouts = fund_tx_details.vout;
-  let flag = false;
-  for (let i = 0; i < vouts.length; i++) {
-    if (
-      vouts[i].value === acceptCollateral * protocol_fee_percent &&
-      vouts[i].scriptpubkey_address === btcFeeRecipient
-    ) {
-      flag = true;
-    }
-  }
-  assert(flag, '[IT] Funding transaction does not have the protocol_fee output');
+  assert(
+    vouts.some(
+      (vout) => vout.value === acceptCollateral * protocol_fee_percent && vout.scriptpubkey_address === btcFeeRecipient
+    ),
+    '[IT] Funding transaction does not have the protocol_fee output'
+  );
 
   //Waiting for funding transaction confirmations
   let confirmedBroadcastTransaction = await waitForConfirmations(blockchainHeightAtBroadcast, 1);

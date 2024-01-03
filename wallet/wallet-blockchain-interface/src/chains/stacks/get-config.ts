@@ -39,7 +39,7 @@ async function getCallbackContract(uuid: string, contractName: string, deployer:
 export default async (config: ChainConfig): Promise<WrappedContract> => {
     console.log(`[Stacks] Loading contract config for ${config.network}...`);
     const walletKey = config.private_key;
-    const contractName = 'dlc-manager-v1';
+    const contractName = 'dlc-manager-v1-1';
 
     const { stacksNetwork, deployer, walletAddress } = await getNetworkInfo(config);
 
