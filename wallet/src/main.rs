@@ -279,6 +279,15 @@ async fn process_request(
                         ))
                     })?;
 
+                let contract = dlc_store.get_contract_by_uuid(req.uuid.clone()).await;
+
+                if let Ok(Some(Contract::Signed(_))) = contract {
+                    return Err(WalletError(format!(
+                        "Contract with uuid {} is already signed",
+                        req.uuid.clone()
+                    )));
+                }
+
                 create_new_offer(
                     manager,
                     attestors,

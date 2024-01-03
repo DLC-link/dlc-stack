@@ -61,6 +61,28 @@ impl AsyncStorageApiProvider {
         }
         Ok(contracts)
     }
+
+    pub async fn get_contract_by_uuid(&self, uuid: String) -> Result<Option<DlcContract>, Error> {
+        let contract_res = self
+            .client
+            .get_contract(
+                ContractRequestParams {
+                    key: self.public_key.clone(),
+                    uuid,
+                },
+                self.secret_key,
+            )
+            .await
+            .map_err(to_storage_error)?;
+        match contract_res {
+            Some(res) => {
+                let bytes = base64::decode(res.content).map_err(to_storage_error)?;
+                let contract = deserialize_contract(&bytes).map_err(to_storage_error)?;
+                Ok(Some(contract))
+            }
+            _ => Ok(None),
+        }
+    }
 }
 
 impl AsyncStorage for AsyncStorageApiProvider {
