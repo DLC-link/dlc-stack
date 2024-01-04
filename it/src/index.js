@@ -366,6 +366,11 @@ async function main() {
     `[IT] Contract state is not updated in the Router Wallet to Confirmed`
   );
 
+  //Fetching Offer
+  console.log('[IT] Checking if it is possible to fetch an offer with the same UUID again');
+  const offerResponseSecondTry = await fetchOfferFromProtocolWallet(testUUID, {  });
+
+  assert(offerResponseSecondTry.status === 400, '[IT] Offer should have failed, because the UUID is already used in a signed contract');
   // //Waiting for funding transaction confirmations
   // confirmedBroadcastTransaction = await waitForConfirmations(setupDetails2.blockchainHeightAtBroadcast, 6);
   // if (confirmedBroadcastTransaction) {

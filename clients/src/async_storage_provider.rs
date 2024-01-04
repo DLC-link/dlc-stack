@@ -62,26 +62,42 @@ impl AsyncStorageApiProvider {
         Ok(contracts)
     }
 
-    pub async fn get_contract_by_uuid(&self, uuid: String) -> Result<Option<DlcContract>, Error> {
-        let contract_res = self
-            .client
-            .get_contract(
-                ContractRequestParams {
-                    key: self.public_key.clone(),
-                    uuid,
-                },
-                self.secret_key,
-            )
-            .await
-            .map_err(to_storage_error)?;
-        match contract_res {
-            Some(res) => {
-                let bytes = base64::decode(res.content).map_err(to_storage_error)?;
-                let contract = deserialize_contract(&bytes).map_err(to_storage_error)?;
-                Ok(Some(contract))
+    pub async fn check_if_signed_contract_exists_by_uuid(
+        &self,
+        uuid: String,
+    ) -> Result<Option<DlcContract>, Error> {
+        let contracts = self.get_contracts().await?;
+
+        let contract = contracts.into_iter().find(|c| match c {
+            DlcContract::Signed(c) | DlcContract::Confirmed(c) => {
+                let oracle_event_id = c
+                    .accepted_contract
+                    .offered_contract
+                    .contract_info
+                    .first()
+                    .and_then(|info| info.oracle_announcements.first())
+                    .map(|announcement| announcement.oracle_event.event_id.clone())
+                    .unwrap_or_default();
+
+                oracle_event_id == uuid
             }
-            _ => Ok(None),
-        }
+            DlcContract::PreClosed(c) => {
+                let oracle_event_id = c
+                    .signed_contract
+                    .accepted_contract
+                    .offered_contract
+                    .contract_info
+                    .first()
+                    .and_then(|info| info.oracle_announcements.first())
+                    .map(|announcement| announcement.oracle_event.event_id.clone())
+                    .unwrap_or_default();
+
+                oracle_event_id == uuid
+            }
+            _ => false,
+        });
+
+        Ok(contract)
     }
 }
 

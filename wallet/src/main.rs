@@ -279,11 +279,16 @@ async fn process_request(
                         ))
                     })?;
 
-                let contract = dlc_store.get_contract_by_uuid(req.uuid.clone()).await;
+                let signed_contract = dlc_store
+                    .check_if_signed_contract_exists_by_uuid(req.uuid.clone())
+                    .await
+                    .map_err(|e| {
+                        WalletError(format!("Error checking if contract exists: {}", e))
+                    })?;
 
-                if let Ok(Some(Contract::Signed(_))) = contract {
+                if signed_contract.is_some() {
                     return Err(WalletError(format!(
-                        "Contract with uuid {} is already signed",
+                        "Couldn't create offer, signed contract with uuid {} already exists",
                         req.uuid.clone()
                     )));
                 }
