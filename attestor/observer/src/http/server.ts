@@ -6,8 +6,8 @@ import swStats from 'swagger-stats';
 
 export default () => {
   const app = express();
-  app.use(routes);
   app.use(swStats.getMiddleware());
+  app.use(routes);
 
   const server = http.createServer(app);
 
