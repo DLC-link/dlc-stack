@@ -14,6 +14,7 @@ COPY ./dlc-link-manager/ /app/dlc-link-manager
 
 COPY ./attestor/observer/src /app/attestor/observer/src
 COPY ./attestor/package.json /app/attestor/package.json
+COPY ./attestor/package-lock.json /app/attestor/package-lock.json
 COPY ./attestor/tsconfig.json /app/attestor/tsconfig.json
 COPY ./attestor/src /app/attestor/src
 COPY ./attestor/Cargo.toml /app/attestor/Cargo.toml
@@ -28,7 +29,7 @@ RUN jq '. + {type: "module", main: "attestor.js"} | del(.module)' ./pkg/package.
   mv temp.json ./pkg/package.json && \
   echo 'import { webcrypto } from "node:crypto"; globalThis.crypto = webcrypto;' >> ./pkg/attestor_bg.js
 
-RUN npm install && \
+RUN npm ci && \
   npx tsc -p . && \
   sudo npm ci attestor
 
