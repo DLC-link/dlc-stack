@@ -3,7 +3,8 @@ import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from 'tiny-secp256k1';
 import ConfigService from './config.service.js';
-import { metricsCounters } from '../config/prom-metrics.models.js';
+import { PrefixedChain } from '../config/models.js';
+import { createAttestorMetricsCounters } from '../config/prom-metrics.models.js';
 
 function getOrGenerateSecretFromConfig(): string {
   let secretKey: string;
@@ -26,6 +27,7 @@ function createMaturationDate() {
   return maturationDate.toISOString();
 }
 
+const attestorMetricsCounter = createAttestorMetricsCounters();
 export default class AttestorService {
   private static attestor: Attestor;
 
@@ -53,16 +55,16 @@ export default class AttestorService {
       health.get('data').forEach((element: Iterable<readonly [PropertyKey, any]>) => {
         health_response.push(Object.fromEntries(element));
       });
-      metricsCounters.getHealthSuccessCounter.inc();
+      attestorMetricsCounter.getHealthSuccessCounter.inc();
       return JSON.stringify({ data: health_response });
     } catch (error) {
       console.error(error);
-      metricsCounters.getHealthErrorCounter.inc();
+      attestorMetricsCounter.getHealthErrorCounter.inc();
       return error;
     }
   }
 
-  public static async createAnnouncement(uuid: string, chain: string, maturation?: string) {
+  public static async createAnnouncement(uuid: string, chain: PrefixedChain, maturation?: string) {
     const attestor = await this.getAttestor();
 
     console.log('createAnnouncement with UUID:', uuid, 'and maturation:', maturation);
@@ -71,10 +73,10 @@ export default class AttestorService {
 
     try {
       await attestor.create_event(uuid, _maturation, chain);
-      metricsCounters.createAnnouncementSuccessCounter.inc();
+      attestorMetricsCounter.createAnnouncementSuccessCounter.inc();
     } catch (error) {
       console.error(error);
-      metricsCounters.createAnnouncementErrorCounter.inc();
+      attestorMetricsCounter.createAnnouncementErrorCounter.inc();
       return error;
     }
     return { uuid: uuid, maturation: _maturation };
@@ -89,10 +91,10 @@ export default class AttestorService {
 
     try {
       await attestor.attest(uuid, formattedOutcome);
-      metricsCounters.createAttestationSuccessCounter.inc();
+      attestorMetricsCounter.createAttestationSuccessCounter.inc();
     } catch (error) {
       console.error(error);
-      metricsCounters.createAttestationErrorCounter.inc();
+      attestorMetricsCounter.createAttestationErrorCounter.inc();
       return error;
     }
 
@@ -103,11 +105,11 @@ export default class AttestorService {
     const attestor = await this.getAttestor();
     try {
       const event = await attestor.get_event(uuid);
-      metricsCounters.getEventSuccessCounter.inc();
+      attestorMetricsCounter.getEventSuccessCounter.inc();
       return event;
     } catch (error) {
       console.error(error);
-      metricsCounters.getEventErrorCounter.inc();
+      attestorMetricsCounter.getEventErrorCounter.inc();
       return null;
     }
   }
@@ -116,11 +118,11 @@ export default class AttestorService {
     const attestor = await this.getAttestor();
     try {
       const events = await attestor.get_events();
-      metricsCounters.getAllEventsSuccessCounter.inc();
+      attestorMetricsCounter.getAllEventsSuccessCounter.inc();
       return events;
     } catch (error) {
       console.error(error);
-      metricsCounters.getAllEventsErrorCounter.inc();
+      attestorMetricsCounter.getAllEventsErrorCounter.inc();
       return null;
     }
   }
@@ -129,11 +131,11 @@ export default class AttestorService {
     const attestor = await this.getAttestor();
     try {
       const publicKey = await attestor.get_pubkey();
-      metricsCounters.getPublicKeySuccessCounter.inc();
+      attestorMetricsCounter.getPublicKeySuccessCounter.inc();
       return publicKey;
     } catch (error) {
       console.error(error);
-      metricsCounters.getPublicKeyErrorCounter.inc();
+      attestorMetricsCounter.getPublicKeyErrorCounter.inc();
       return null;
     }
   }

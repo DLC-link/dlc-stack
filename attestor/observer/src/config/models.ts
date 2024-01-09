@@ -15,6 +15,8 @@ export type StacksChain = 'mainnet' | 'testnet' | 'mocknet' | 'local';
 
 export type Chain = EthChain | StacksChain | L2Chains;
 
+export type PrefixedChain = `${'evm-' | 'stx-'}${Chain}`;
+
 export const validChains: Chain[] = [
   'mainnet',
   'sepolia',

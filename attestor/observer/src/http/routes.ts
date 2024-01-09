@@ -4,6 +4,7 @@ dotenv.config();
 import AttestorService from '../services/attestor.service.js';
 import ConfigService from '../services/config.service.js';
 import chalk from 'chalk';
+import { PrefixedChain } from '../config/models.js';
 
 const router = express.Router();
 
@@ -42,7 +43,7 @@ if (ConfigService.getSettings()['dev-endpoints-enabled']) {
     if (req.query.time) {
       time = req.query.time;
     }
-    chain = (req.query.chain as string) ?? 'stx-mocknet';
+    chain = (req.query.chain as PrefixedChain) ?? 'stx-mocknet';
     if (!req.params.uuid) {
       res.status(400).send('Missing UUID');
       return;

@@ -3,6 +3,11 @@ import type { ContractCallTransaction } from '@stacks/stacks-blockchain-api-type
 import { ContractConfig, DeploymentInfo, FunctionName } from '../../models/interfaces.js';
 import unwrapper from '../../utilities/unwrappers.js';
 import AttestorService from '../../../../services/attestor.service.js';
+import { PrefixedChain } from '../../../../config/models.js';
+import {
+  BlockchainObserverMetricsCounters,
+  createBlockchainObserverMetricsCounters,
+} from '../../../../config/prom-metrics.models.js';
 
 export class DlcManagerV1 implements ContractConfig {
   private _contractFullName: string;
@@ -18,11 +23,13 @@ export class DlcManagerV1 implements ContractConfig {
   ];
   private _eventSourceAPIVersion = 'v1';
   private _eventSources = this._functionNames.map((name) => `dlclink:${name}:${this._eventSourceAPIVersion}`);
+  private observerMetricsCounter: BlockchainObserverMetricsCounters;
 
   constructor(socket: StacksApiSocketClient, deploymentInfo: DeploymentInfo) {
     this._contractFullName = `${deploymentInfo.deployer}.dlc-manager-v1-1`;
     this._socket = socket;
     this._deploymentInfo = deploymentInfo;
+    this.observerMetricsCounter = createBlockchainObserverMetricsCounters(this._deploymentInfo.chainName as PrefixedChain);
   }
 
   async init() {
@@ -38,7 +45,7 @@ export class DlcManagerV1 implements ContractConfig {
     console.log(`[Stacks] Received tx: ${tx.tx_id}`);
     const unwrappedEvents = unwrapper(tx, this._eventSources, this._contractFullName);
     if (!unwrappedEvents.length) return;
-
+    const chainName = this._deploymentInfo.chainName as PrefixedChain;
     unwrappedEvents.forEach(async (event) => {
       const { printEvent, eventSource } = event;
       if (!printEvent || !eventSource) return;
@@ -46,6 +53,7 @@ export class DlcManagerV1 implements ContractConfig {
 
       switch (eventSource.event) {
         case 'create-dlc': {
+          this.observerMetricsCounter.createDLCEventCounter.inc();
           const _uuid = printEvent['uuid']?.value;
           const _creator = printEvent['creator']?.value;
           const _callbackContract = printEvent['callback-contract']?.value;
@@ -57,7 +65,7 @@ export class DlcManagerV1 implements ContractConfig {
           const _logMessage = `[${this._contractFullName}] New DLC Request @ ${currentTime} \n\t uuid: ${_uuid} | creator: ${_creator} | callbackContract: ${_callbackContract} | protocol-wallet: ${_protocolWallet} | value-locked: ${_valueLocked} | refund-delay: ${_refundDelay} | btc-fee-recipient: ${_btcFeeRecipient} | btc-fee-basis-points: ${_btcFeeBasisPoints} \n`;
           console.log(_logMessage);
           try {
-            await AttestorService.createAnnouncement(_uuid, this._deploymentInfo.chainName);
+            await AttestorService.createAnnouncement(_uuid, chainName);
             console.log(await AttestorService.getEvent(_uuid));
           } catch (error) {
             console.error(error);
@@ -66,6 +74,7 @@ export class DlcManagerV1 implements ContractConfig {
         }
 
         case 'close-dlc': {
+          this.observerMetricsCounter.closeDLCEventCounter.inc();
           const _uuid = printEvent['uuid']?.value;
           const _outcome = printEvent['outcome']?.value;
           const _creator = printEvent['creator']?.value;
@@ -81,11 +90,13 @@ export class DlcManagerV1 implements ContractConfig {
         }
 
         case 'post-close-dlc': {
+          this.observerMetricsCounter.postCloseDLCEventCounter.inc();
           console.log(`[Stacks] Received post-close-dlc event`);
           break;
         }
 
         case 'set-status-funded': {
+          this.observerMetricsCounter.setStatusFundedEventCounter.inc();
           const _uuid = printEvent['uuid']?.value;
           console.log(`[${this._contractFullName}] ${currentTime} Status set to funded for ${_uuid}`);
           break;

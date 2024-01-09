@@ -1,76 +1,99 @@
 import { Counter } from 'prom-client';
+import { PrefixedChain } from './models.js';
 
- const getHealthSuccessCounter = new Counter({
-  name: 'get_health_success_counter',
-  help: 'Number of health checks requested succesfully',
-});
+const createAttestorMetricsCounter = (name: string, help: string) =>
+  new Counter({ name: `${'attestor_js'}_${name}`, help });
 
- const getHealthErrorCounter = new Counter({
-  name: 'get_health_error_counter',
-  help: 'Number of errors when requesting health checks',
-});
+export function createAttestorMetricsCounters() {
+  return {
+    getHealthSuccessCounter: createAttestorMetricsCounter(
+      'get_health_success_counter',
+      'Number of health checks requested successfully'
+    ),
+    getHealthErrorCounter: createAttestorMetricsCounter(
+      'get_health_error_counter',
+      'Number of errors when requesting health checks'
+    ),
+    getEventSuccessCounter: createAttestorMetricsCounter(
+      'get_event_success_counter',
+      'Number of events requested successfully'
+    ),
+    getEventErrorCounter: createAttestorMetricsCounter(
+      'get_event_error_counter',
+      'Number of errors when requesting events'
+    ),
+    getAllEventsSuccessCounter: createAttestorMetricsCounter(
+      'get_all_events_success_counter',
+      'Number of all events requested successfully'
+    ),
+    getAllEventsErrorCounter: createAttestorMetricsCounter(
+      'get_all_events_error_counter',
+      'Number of errors when requesting all events'
+    ),
+    getPublicKeySuccessCounter: createAttestorMetricsCounter(
+      'get_public_key_success_counter',
+      'Number of public keys requested successfully'
+    ),
+    getPublicKeyErrorCounter: createAttestorMetricsCounter(
+      'get_public_key_error_counter',
+      'Number of errors when requesting public keys'
+    ),
+    createAnnouncementSuccessCounter: createAttestorMetricsCounter(
+      'create_announcement_success_counter',
+      'Number of announcements created successfully'
+    ),
+    createAnnouncementErrorCounter: createAttestorMetricsCounter(
+      'create_announcement_error_counter',
+      'Number of errors when creating announcements'
+    ),
+    createAttestationSuccessCounter: createAttestorMetricsCounter(
+      'create_attestation_success_counter',
+      'Number of attestations created successfully'
+    ),
+    createAttestationErrorCounter: createAttestorMetricsCounter(
+      'create_attestation_error_counter',
+      'Number of errors when creating attestations'
+    ),
+  };
+}
 
- const getEventSuccessCounter = new Counter({
-  name: 'get_event_success_counter',
-  help: 'Number of events requested succesfully',
-});
+const createBlockchainObserverMetricsCounter = (network: PrefixedChain, name: string, help: string, version?: string) => {
+  const formattedNetwork = network.replace(/-/g, '_');
+  return new Counter({ name: `${'blockchain'}_${formattedNetwork}_${version ?? '1'}_${name}`, help });
+};
 
- const getEventErrorCounter = new Counter({
-  name: 'get_event_error_counter',
-  help: 'Number of errors when requesting events',
-});
+export interface BlockchainObserverMetricsCounters {
+  createDLCEventCounter: Counter<string>;
+  setStatusFundedEventCounter: Counter<string>;
+  closeDLCEventCounter: Counter<string>;
+  postCloseDLCEventCounter: Counter<string>;
+}
 
- const getAllEventsSuccessCounter = new Counter({
-  name: 'get_all_events_success_counter',
-  help: 'Number of all events requested succesfully',
-});
-
- const getAllEventsErrorCounter = new Counter({
-  name: 'get_all_events_error_counter',
-  help: 'Number of errors when requesting all events',
-});
-
- const getPublicKeySuccessCounter = new Counter({
-  name: 'get_public_key_success_counter',
-  help: 'Number of public keys requested succesfully',
-});
-
- const getPublicKeyErrorCounter = new Counter({
-  name: 'get_public_key_error_counter',
-  help: 'Number of errors when requesting public keys',
-});
-
- const createAnnouncementSuccessCounter = new Counter({
-  name: 'create_announcement_success_counter',
-  help: 'Number of announcements created succesfully',
-});
-
- const createAnnouncementErrorCounter = new Counter({
-  name: 'create_announcement_error_counter',
-  help: 'Number of errors when creating announcements',
-});
-
- const createAttestationSuccessCounter = new Counter({
-  name: 'create_attestation_success_counter',
-  help: 'Number of attestations created succesfully',
-});
-
-const createAttestationErrorCounter = new Counter({
-  name: 'create_attestation_error_counter',
-  help: 'Number of errors when creating attestations',
-});
-
-export const metricsCounters = {
-    getHealthSuccessCounter,
-    getHealthErrorCounter,
-    getEventSuccessCounter,
-    getEventErrorCounter,
-    getAllEventsSuccessCounter,
-    getAllEventsErrorCounter,
-    getPublicKeySuccessCounter,
-    getPublicKeyErrorCounter,
-    createAnnouncementSuccessCounter,
-    createAnnouncementErrorCounter,
-    createAttestationSuccessCounter,
-    createAttestationErrorCounter,
+export function createBlockchainObserverMetricsCounters(network: PrefixedChain, version?: string) {
+  return {
+    createDLCEventCounter: createBlockchainObserverMetricsCounter(
+      network,
+      'create_dlc_event_counter',
+      'Number of create dlc events received',
+      version
+    ),
+    setStatusFundedEventCounter: createBlockchainObserverMetricsCounter(
+      network,
+      'set_status_funded_event_counter',
+      'Number of set status funded events received',
+      version
+    ),
+    closeDLCEventCounter: createBlockchainObserverMetricsCounter(
+      network,
+      'close_dlc_event_counter',
+      'Number of close dlc events received',
+      version
+    ),
+    postCloseDLCEventCounter: createBlockchainObserverMetricsCounter(
+      network,
+      'post_close_dlc_event_counter',
+      'Number of post close dlc events received',
+      version
+    ),
+  };
 }
