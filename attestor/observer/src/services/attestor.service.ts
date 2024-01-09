@@ -3,6 +3,7 @@ import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from 'tiny-secp256k1';
 import ConfigService from './config.service.js';
+import { metricsCounters } from '../config/prom-metrics.models.js';
 
 function getOrGenerateSecretFromConfig(): string {
   let secretKey: string;
@@ -52,9 +53,11 @@ export default class AttestorService {
       health.get('data').forEach((element: Iterable<readonly [PropertyKey, any]>) => {
         health_response.push(Object.fromEntries(element));
       });
+      metricsCounters.getHealthSuccessCounter.inc();
       return JSON.stringify({ data: health_response });
     } catch (error) {
       console.error(error);
+      metricsCounters.getHealthErrorCounter.inc();
       return error;
     }
   }
@@ -68,8 +71,10 @@ export default class AttestorService {
 
     try {
       await attestor.create_event(uuid, _maturation, chain);
+      metricsCounters.createAnnouncementSuccessCounter.inc();
     } catch (error) {
       console.error(error);
+      metricsCounters.createAnnouncementErrorCounter.inc();
       return error;
     }
     return { uuid: uuid, maturation: _maturation };
@@ -82,7 +87,15 @@ export default class AttestorService {
     // We can safely assume that the value is not bigger than 2^53 - 1
     const formattedOutcome = formatOutcome(Number(value));
 
-    await attestor.attest(uuid, formattedOutcome);
+    try {
+      await attestor.attest(uuid, formattedOutcome);
+      metricsCounters.createAttestationSuccessCounter.inc();
+    } catch (error) {
+      console.error(error);
+      metricsCounters.createAttestationErrorCounter.inc();
+      return error;
+    }
+
     return { uuid: uuid, outcome: Number(formattedOutcome) };
   }
 
@@ -90,9 +103,11 @@ export default class AttestorService {
     const attestor = await this.getAttestor();
     try {
       const event = await attestor.get_event(uuid);
+      metricsCounters.getEventSuccessCounter.inc();
       return event;
     } catch (error) {
       console.error(error);
+      metricsCounters.getEventErrorCounter.inc();
       return null;
     }
   }
@@ -101,9 +116,11 @@ export default class AttestorService {
     const attestor = await this.getAttestor();
     try {
       const events = await attestor.get_events();
+      metricsCounters.getAllEventsSuccessCounter.inc();
       return events;
     } catch (error) {
       console.error(error);
+      metricsCounters.getAllEventsErrorCounter.inc();
       return null;
     }
   }
@@ -112,9 +129,11 @@ export default class AttestorService {
     const attestor = await this.getAttestor();
     try {
       const publicKey = await attestor.get_pubkey();
+      metricsCounters.getPublicKeySuccessCounter.inc();
       return publicKey;
     } catch (error) {
       console.error(error);
+      metricsCounters.getPublicKeyErrorCounter.inc();
       return null;
     }
   }
