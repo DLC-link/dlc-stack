@@ -1,10 +1,14 @@
 settings:
   # The dlc-solidity branch contract deployment infos will be fetched from
   solidity-branch: dev
+
   # Endpoint for CET Storage API
-  storage-api-endpoint: http://127.0.0.1:8100
+  storage-api-endpoint: https://devnet.dlc.link/storage-api
+  # For local development:
+  # storage-api-endpoint: http://127.0.0.1:8100
+
   # Developer endpoints
-  dev-endpoints-enabled: true
+  dev-endpoints-enabled: false
 
 # Chain configurations
 # Uncomment/edit the chains you want to use
@@ -22,22 +26,19 @@ evm-chains:
   #   endpoint: wss://mainnet.infura.io/ws/v3/
   #   api_key: ${INFURA_API_KEY}
 
-  # This is how a setup looks that uses a local node,
-  # but the 'sepolia' contracts from dlc-solidity
-  # - network: sepolia
-  #   version: 1
-  #   endpoint: http://localhost:8545
-  #   # endpoint: wss://sepolia.infura.io/ws/v3/
-  #   # api_key: ${INFURA_API_KEY}
+  - network: sepolia
+    version: 1
+    endpoint: wss://sepolia.infura.io/ws/v3/
+    api_key: ${INFURA_API_KEY}
 
   # - network: goerli
   #   version: 1
   #   endpoint: wss://goerli.infura.io/ws/v3/
   #   api_key: ${INFURA_API_KEY}
 
-  # # - network: localhost
-  # #   version: '1'
-  # #   endpoint: http://localhost:8545
+  # - network: localhost
+  #   version: '1'
+  #   endpoint: http://localhost:8545
 
   # # OKX testnet
   # - network: x1test
@@ -60,7 +61,7 @@ stx-chains:
   #   deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
   #   endpoint: ws://stx-btc1.dlc.link:3999
 
-  - network: local
-    version: 1
-    deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-    endpoint: ws://localhost:3999
+  # - network: local
+  #   version: 1
+  #   deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+  #   endpoint: ws://localhost:3999
