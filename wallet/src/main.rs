@@ -7,11 +7,18 @@
 use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey};
 use bytes::Buf;
 
+use hyper::server::accept;
+
 use futures_util::future::join_all;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{header, Body, Method, Response, Server, StatusCode};
 
 use bdk::descriptor;
+use prometheus_client::encoding::text::encode;
+use prometheus_client::encoding::{EncodeLabelSet, EncodeLabelValue};
+use prometheus_client::metrics::counter::{Atomic, Counter};
+use prometheus_client::metrics::family::Family;
+use prometheus_client::registry::Registry;
 use secp256k1_zkp::SecretKey;
 use serde::{Deserialize, Serialize};
 use tokio::{task, time};
@@ -46,6 +53,25 @@ use utils::get_numerical_contract_info;
 mod utils;
 #[macro_use]
 mod macros;
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelValue)]
+enum RequestStatus {
+    Received,
+    Success,
+    Failure,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelValue)]
+enum WalletEndpoint {
+    Offer,
+    Accept,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
+struct Labels {
+    status: RequestStatus,
+    endpoint: WalletEndpoint,
+}
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 // type Result<T> = std::result::Result<T, GenericError>;
@@ -211,8 +237,15 @@ async fn process_request(
     wallet: Arc<DlcWallet>,
     active_network: String,
     blockchain_interface_url: String,
+    prometheus_registry: Arc<Registry>,
+    prometheus_counter: Family<Labels, Counter>,
 ) -> Result<Response<Body>, GenericError> {
     match (req.method(), req.uri().path()) {
+        (&Method::GET, "/metrics") => {
+            let mut buffer = String::new();
+            encode(&mut buffer, &prometheus_registry);
+            build_success_response(buffer)
+        }
         (&Method::GET, "/health") => build_success_response(
             json!({"data": [{"status": "healthy", "message": ""}]}).to_string(),
         ),
@@ -261,6 +294,12 @@ async fn process_request(
                 btc_fee_recipient: String,
                 btc_fee_basis_points: u64,
             }
+            prometheus_counter
+                .get_or_create(&Labels {
+                    status: RequestStatus::Received,
+                    endpoint: WalletEndpoint::Offer,
+                })
+                .inc();
             let result = async {
                 let attestors: HashMap<XOnlyPublicKey, Arc<AttestorClient>> = manager
                     .oracles
@@ -294,8 +333,22 @@ async fn process_request(
                 .await
             };
             match result.await {
-                Ok(offer_message) => build_success_response(offer_message),
+                Ok(offer_message) => {
+                    prometheus_counter
+                        .get_or_create(&Labels {
+                            status: RequestStatus::Success,
+                            endpoint: WalletEndpoint::Offer,
+                        })
+                        .inc();
+                    build_success_response(offer_message)
+                }
                 Err(e) => {
+                    prometheus_counter
+                        .get_or_create(&Labels {
+                            status: RequestStatus::Failure,
+                            endpoint: WalletEndpoint::Offer,
+                        })
+                        .inc();
                     warn!("Error generating offer - {}", e);
                     build_error_response(e.to_string())
                 }
@@ -304,6 +357,12 @@ async fn process_request(
         (&Method::OPTIONS, "/offer/accept") => build_success_response("".to_string()),
         (&Method::PUT, "/offer/accept") => {
             info!("Accepting offer");
+            prometheus_counter
+                .get_or_create(&Labels {
+                    status: RequestStatus::Received,
+                    endpoint: WalletEndpoint::Accept,
+                })
+                .inc();
             let result = async {
                 // Aggregate the body...
                 let whole_body = hyper::body::aggregate(req).await?;
@@ -318,8 +377,22 @@ async fn process_request(
                 accept_offer(accept_dlc, manager).await
             };
             match result.await {
-                Ok(sign_message) => build_success_response(sign_message),
+                Ok(sign_message) => {
+                    prometheus_counter
+                        .get_or_create(&Labels {
+                            status: RequestStatus::Success,
+                            endpoint: WalletEndpoint::Accept,
+                        })
+                        .inc();
+                    build_success_response(sign_message)
+                }
                 Err(e) => {
+                    prometheus_counter
+                        .get_or_create(&Labels {
+                            status: RequestStatus::Failure,
+                            endpoint: WalletEndpoint::Accept,
+                        })
+                        .inc();
                     warn!("Error accepting offer - {}", e);
                     build_error_response(e.to_string())
                 }
@@ -458,6 +531,17 @@ async fn main() -> Result<(), GenericError> {
         Arc::new(time_provider),
     )?);
 
+    let mut registry = <Registry>::default();
+    let http_requests = Family::<Labels, Counter>::default();
+
+    registry.register(
+        "wallet_requests",
+        "Number of requests to the wallet",
+        http_requests.clone(),
+    );
+
+    let registry = Arc::new(registry);
+
     let new_service = make_service_fn(move |_| {
         // For each connection, clone the counter to use in our service...
         let manager = manager.clone();
@@ -465,6 +549,8 @@ async fn main() -> Result<(), GenericError> {
         let wallet = wallet.clone();
         let blockchain_interface_url = blockchain_interface_url.clone();
         let active_network = active_network.to_string();
+        let prometheus_counter = http_requests.clone();
+        let registry_clone = Arc::clone(&registry);
 
         async move {
             Ok::<_, GenericError>(service_fn(move |req| {
@@ -475,6 +561,8 @@ async fn main() -> Result<(), GenericError> {
                     wallet.to_owned(),
                     active_network.to_owned(),
                     blockchain_interface_url.to_owned(),
+                    registry_clone.to_owned(),
+                    prometheus_counter.to_owned(),
                 )
             }))
         }
