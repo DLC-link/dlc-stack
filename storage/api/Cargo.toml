@@ -14,6 +14,9 @@ dlc-storage-writer = { path = "../writer" }
 actix-web = "4"
 actix-http = "3.4.0"
 actix-cors = "0.6.4"
+actix-web-prometheus = "0.1.2"
+prometheus = "0.13.3"
+systemstat = "0.2.3"
 diesel = { version = "2.0.0", features = ["postgres", "r2d2"] }
 diesel_migrations = { version = "2.0.0", features = ["postgres"] }
 dotenv = "0.15.0"
