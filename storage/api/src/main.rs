@@ -20,6 +20,7 @@ use diesel::r2d2::{self, ConnectionManager};
 use diesel::PgConnection;
 use dlc_storage_writer::apply_migrations;
 use dotenv::dotenv;
+use log::error;
 use prometheus::Gauge;
 use serde_json::json;
 use std::env;
@@ -103,24 +104,31 @@ async fn main() -> std::io::Result<()> {
         .register(Box::new(mem_usage.clone()))
         .expect("should register mem_usage gauge");
 
+    let cpu_load_measurement_secs =
+        env::var("CPU_LOAD_MEASUREMENT_SECS").expect("CPU_LOAD_MEASUREMENT_SECS must be set");
+
+    let cpu_load_measurement_secs_u64 = cpu_load_measurement_secs
+        .parse::<u64>()
+        .expect("should parse cpu_load_measurement_secs to u64");
+
     thread::spawn(move || loop {
         match sys.cpu_load_aggregate() {
             Ok(cpu) => {
-                thread::sleep(Duration::from_secs(1));
+                thread::sleep(Duration::from_secs(cpu_load_measurement_secs_u64));
                 let cpu = cpu.done().expect("should get cpu load");
                 cpu_usage.set(f64::trunc(
                     ((cpu.system * 100.0) + (cpu.user * 100.0)).into(),
                 ));
             }
-            Err(x) => println!("\nCPU load: error: {}", x),
+            Err(x) => error!("CPU usage: error: {}", x),
         }
         match sys.memory() {
             Ok(mem) => {
                 let memory_used = mem.total.0 - mem.free.0;
-                let pourcentage_used = (memory_used as f64 / mem.total.0 as f64) * 100.0;
-                mem_usage.set(f64::trunc(pourcentage_used));
+                let percentage_used = (memory_used as f64 / mem.total.0 as f64) * 100.0;
+                mem_usage.set(f64::trunc(percentage_used));
             }
-            Err(x) => println!("\nMemory: error: {}", x),
+            Err(x) => error!("Memory usage: error: {}", x),
         }
     });
 
