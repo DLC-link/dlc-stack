@@ -105,7 +105,7 @@ async fn main() -> std::io::Result<()> {
         .expect("should register mem_usage gauge");
 
     let cpu_load_measurement_secs =
-        env::var("CPU_LOAD_MEASUREMENT_SECS").expect("CPU_LOAD_MEASUREMENT_SECS must be set");
+        env::var("CPU_LOAD_MEASUREMENT_SECS").unwrap_or("1".to_string());
 
     let cpu_load_measurement_secs_u64 = cpu_load_measurement_secs
         .parse::<u64>()
