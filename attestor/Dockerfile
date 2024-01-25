@@ -14,6 +14,7 @@ COPY ./dlc-link-manager/ /app/dlc-link-manager
 
 COPY ./attestor/observer/src /app/attestor/observer/src
 COPY ./attestor/observer/package.json /app/attestor/observer/package.json
+COPY ./attestor/observer/package-lock.json /app/attestor/observer/package-lock.json
 COPY ./attestor/observer/tsconfig.json /app/attestor/observer/tsconfig.json
 COPY ./attestor/src /app/attestor/src
 COPY ./attestor/Cargo.toml /app/attestor/Cargo.toml
