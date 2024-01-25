@@ -102,7 +102,6 @@ export default async (config: ConfigSet): Promise<WrappedContract> => {
                     senderKey: walletKey,
                     validateWithAbi: true,
                     network: network,
-                    fee: 100000,
                     anchorMode: 1,
                     nonce: await StacksNonceService.getNonce(),
                 };
@@ -139,7 +138,6 @@ export default async (config: ConfigSet): Promise<WrappedContract> => {
                         senderKey: walletKey,
                         validateWithAbi: true,
                         network: network,
-                        fee: 100000, //0.1STX
                         anchorMode: 1,
                         nonce: await StacksNonceService.getNonce(),
                     };
