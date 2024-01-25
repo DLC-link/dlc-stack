@@ -29,7 +29,7 @@ RUN jq '. + {type: "module", main: "attestor.js"} | del(.module)' ./pkg/package.
   echo 'import { webcrypto } from "node:crypto"; globalThis.crypto = webcrypto;' >> ./pkg/attestor_bg.js
 
 WORKDIR /app/attestor/observer
-RUN npm install && \
+RUN npm ci && \
   npx tsc -p . && \
   sudo npm ci attestor
 
