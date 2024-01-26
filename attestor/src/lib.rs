@@ -264,8 +264,83 @@ impl Attestor {
     // this function should do the following:
     // if _status_ is 0 (created), but there is no Announcement, create one and return
     // if _status_ is 2 (closing), but there is no Attestation, create one with _outcome_ and return
-    pub async fn force_check(&self, uuid: String, status: u64, outcome: u64) -> JsValue {
-        true.into()
+    pub async fn force_check(
+        &self,
+        uuid: String,
+        status: u64,
+        outcome: u64,
+    ) -> Result<bool, JsValue> {
+        // get the event
+
+        //for now just handle the missing attestation case
+        if status != 2 {
+            return Ok(false);
+        }
+
+        clog!(
+            "[WASM-ATTESTOR] running force_check on event with uuid {}",
+            uuid
+        );
+
+        let res = match self
+            .oracle
+            .event_handler
+            .storage_api
+            .get(uuid.clone(), self.secret_key)
+            .await
+        {
+            Ok(val) => val,
+            Err(e) => {
+                clog!(
+                    "[WASM-ATTESTOR] Error retrieving event from StorageAPI: {:?}",
+                    e
+                );
+                panic!();
+            }
+        };
+        let event_vec = match res {
+            Some(val) => val,
+            None => {
+                clog!(
+                    "[WASM-ATTESTOR] Event missing in StorageAPI with uuid: {}",
+                    uuid
+                );
+                panic!();
+            }
+        };
+        let db_value: DbValue = serde_json::from_str(&String::from_utf8_lossy(&event_vec)).unwrap();
+        let attestation_vec_option = db_value.2.clone();
+
+        // if the attestation exists
+        match attestation_vec_option {
+            Some(attestation_vec) => {
+                let attestation: OracleAttestation =
+                    OracleAttestation::read(&mut Cursor::new(&attestation_vec)).unwrap();
+                if attestation
+                    .outcomes
+                    .iter()
+                    .any(|x| x != &outcome.to_string())
+                {
+                    clog!(
+                        "[WASM-ATTESTOR] Attestation already exists but some outcomes don't match! printing outcomes now: {:?}",
+                        attestation.outcomes
+                    );
+                } else {
+                    clog!(
+                        "[WASM-ATTESTOR] Attestation already exists in StorageAPI with matching outcomes. Skipping!"
+                    );
+                }
+            }
+            None => {
+                clog!(
+                    "[WASM-ATTESTOR] Attestation missing in StorageAPI with uuid: {}. Generating one!",
+                    uuid
+                );
+                self.attest(uuid, outcome).await;
+            }
+        };
+
+        Ok(true)
     }
 }
 
