@@ -260,6 +260,13 @@ impl Attestor {
             .0
             .to_string()
     }
+
+    // this function should do the following:
+    // if _status_ is 0 (created), but there is no Announcement, create one and return
+    // if _status_ is 2 (closing), but there is no Attestation, create one with _outcome_ and return
+    pub async fn force_check(&self, uuid: String, status: u64, outcome: u64) -> JsValue {
+        true.into()
+    }
 }
 
 #[derive(Debug, Deserialize)]

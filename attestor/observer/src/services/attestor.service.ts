@@ -3,6 +3,9 @@ import { getEnv } from '../config/read-env-configs.js';
 import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from 'tiny-secp256k1';
+import { hexToBytes } from '../chains/stacks/utilities/helper-functions.js';
+import { StacksTestnet } from '@stacks/network';
+import { bufferCV, callReadOnlyFunction, cvToValue } from '@stacks/transactions';
 
 function getOrGenerateSecretFromConfig(): string {
   let secretKey: string;
@@ -28,14 +31,11 @@ function createMaturationDate() {
 export default class AttestorService {
   private static attestor: Attestor;
 
-  private constructor() { }
+  private constructor() {}
 
   public static async getAttestor(): Promise<Attestor> {
     if (!this.attestor) {
-      this.attestor = await Attestor.new(
-        getEnv('STORAGE_API_ENDPOINT'),
-        getOrGenerateSecretFromConfig()
-      );
+      this.attestor = await Attestor.new(getEnv('STORAGE_API_ENDPOINT'), getOrGenerateSecretFromConfig());
       console.log('Attestor created');
     }
     console.log('Attestor public key:', await this.attestor.get_pubkey());
@@ -53,7 +53,7 @@ export default class AttestorService {
       health.get('data').forEach((element: Iterable<readonly [PropertyKey, any]>) => {
         health_response.push(Object.fromEntries(element));
       });
-      return JSON.stringify({ 'data': health_response });
+      return JSON.stringify({ data: health_response });
     } catch (error) {
       console.error(error);
       return error;
@@ -115,6 +115,43 @@ export default class AttestorService {
     } catch (error) {
       console.error(error);
       return null;
+    }
+  }
+
+  // An example stuck UUID is: 0xe45e6de55cd022a3fc0a4f0f05c3f22fdd6dc22a822cbcb44dafe5214006a595
+  public static async forceCheck(uuid: string) {
+    const attestor = await this.getAttestor();
+
+    // we have to get the DLC from chain, parse it's status and outcome and pass it down for rust
+    // TODO: for now, only stacks testnet hardcoded here, this will change when we merge it upstream with dev
+    async function getDLC(uuid: string) {
+      const txOptions = {
+        contractAddress: 'ST1JHQ5GPQT249ZWG6V4AWETQW5DYA5RHJB0JSMQ3',
+        contractName: 'dlc-manager-v1',
+        functionName: 'get-dlc',
+        functionArgs: [bufferCV(hexToBytes(uuid))],
+        senderAddress: 'ST1JHQ5GPQT249ZWG6V4AWETQW5DYA5RHJB0JSMQ3',
+        network: new StacksTestnet(),
+      };
+      const transaction = await callReadOnlyFunction(txOptions);
+      return cvToValue(transaction);
+    }
+
+    try {
+      const dlc = await getDLC(uuid);
+      console.log(dlc);
+
+      const status = dlc.value['status'].value;
+      let outcome = dlc.value['outcome'].value.value;
+
+      // outcome can be NULL, but we don't want to pass that to rust for now for simplicity
+      if (!outcome) outcome = 0n;
+
+      const result = await attestor.force_check(uuid, status, outcome);
+      return result;
+    } catch (error) {
+      console.error(error);
+      return error;
     }
   }
 }

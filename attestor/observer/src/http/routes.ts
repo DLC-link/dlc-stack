@@ -35,6 +35,19 @@ router.get('/publickey', async (req, res) => {
   res.status(200).send(data);
 });
 
+// NOTE: an example to check against:
+// curl localhost:3000/force-check/0xe45e6de55cd022a3fc0a4f0f05c3f22fdd6dc22a822cbcb44dafe5214006a595
+router.get('/force-check/:uuid', async (req, res) => {
+  if (!req.params.uuid) {
+    res.status(400).send('Missing UUID');
+    return;
+  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  console.log('GET /force-check with UUID:', req.params.uuid);
+  const data = await AttestorService.forceCheck(req.params.uuid as string);
+  res.status(200).send(data);
+});
+
 if (process.env.DEV_ENDPOINTS_ENABLED === 'true') {
   router.get('/create-announcement/:uuid', async (req, res) => {
     if (!req.params.uuid) {
