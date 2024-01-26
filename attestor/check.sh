@@ -1,6 +1,13 @@
 #!/bin/bash
 
-ps cax | grep sibyls > /dev/null
-if [ $? -ne 0 ]; then
-    nohup /home/ubuntu/sibyls/target/release/sibyls -s /home/ubuntu/sibyls/secret.txt &
-fi
+uuids=$(jq '.[] | select(.rust_attestation == null) | .event_id' events.json | sed 's/^"//;s/"$//')
+
+uuids=$(grep -vxFf nonstx.txt <<< "$uuids")
+
+for uuid in $uuids; do
+  curl localhost:8801/force-check/$uuid
+  curl localhost:8802/force-check/$uuid
+  curl localhost:8803/force-check/$uuid
+# lets sleep for 2 seconds to avoid overloading the attestors
+  sleep 2
+done

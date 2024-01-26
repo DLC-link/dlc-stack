@@ -7,6 +7,9 @@ import { hexToBytes } from '../chains/stacks/utilities/helper-functions.js';
 import { StacksTestnet } from '@stacks/network';
 import { bufferCV, callReadOnlyFunction, cvToValue } from '@stacks/transactions';
 
+// NOTE: temporary
+import fs from 'fs';
+
 function getOrGenerateSecretFromConfig(): string {
   let secretKey: string;
   try {
@@ -37,8 +40,8 @@ export default class AttestorService {
     if (!this.attestor) {
       this.attestor = await Attestor.new(getEnv('STORAGE_API_ENDPOINT'), getOrGenerateSecretFromConfig());
       console.log('Attestor created');
+      console.log('Attestor public key:', await this.attestor.get_pubkey());
     }
-    console.log('Attestor public key:', await this.attestor.get_pubkey());
     return this.attestor;
   }
 
@@ -138,14 +141,21 @@ export default class AttestorService {
     }
 
     try {
+      console.log('getting DLC from chain...');
       const dlc = await getDLC(uuid);
-      console.log(dlc);
 
-      const status = dlc.value['status'].value;
-      let outcome = dlc.value['outcome'].value.value;
+      if (!dlc || !dlc.value) {
+        console.log('DLC not found on chain');
+        fs.appendFileSync('nonstx.txt', uuid + '\n');
+        return null;
+      }
+
+      console.log(dlc.value);
+      const status = dlc.value['status']?.value;
+      let outcome = dlc.value['outcome']?.value?.value;
 
       // outcome can be NULL, but we don't want to pass that to rust for now for simplicity
-      if (!outcome) outcome = 0n;
+      if (!outcome || outcome == null) outcome = 0n;
 
       const result = await attestor.force_check(uuid, status, outcome);
       return result;
