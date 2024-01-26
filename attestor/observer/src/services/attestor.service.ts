@@ -64,6 +64,28 @@ export default class AttestorService {
     }
   }
 
+  public static async createPsbtEvent(
+    uuid: string,
+    psbt1: string,
+    psbt2: string,
+    ethAddress: string,
+    chain: PrefixedChain
+  ) {
+    const attestor = await this.getAttestor();
+
+    console.log('createPsbtEvent with UUID:', uuid);
+
+    try {
+      await attestor.create_psbt_event(uuid, psbt1, psbt2, ethAddress, chain);
+      attestorMetricsCounter.createAnnouncementSuccessCounter.inc();
+    } catch (error) {
+      console.error(error);
+      attestorMetricsCounter.createAnnouncementErrorCounter.inc();
+      return error;
+    }
+    return { uuid: uuid };
+  }
+
   public static async createAnnouncement(uuid: string, chain: PrefixedChain, maturation?: string) {
     const attestor = await this.getAttestor();
 

@@ -39,6 +39,10 @@ generate-key:
   cargo build --release --bin generate-key --target-dir .
   ./release/generate-key
 
+psbt:
+  cargo build --release --bin psbt --target-dir .
+  ./release/psbt
+
 generate-address-from-key:
   cargo build --release --bin generate-address-from-key --target-dir .
   ./release/generate-address-from-key

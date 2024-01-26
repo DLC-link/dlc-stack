@@ -1,18 +1,18 @@
 settings:
   # The dlc-solidity branch contract deployment infos will be fetched from
-  # solidity-branch: dev
+  solidity-branch: dev
   # For Bitcoin testnet:
-  solidity-branch: master
+  # solidity-branch: master
 
   # Endpoint for CET Storage API
-  # storage-api-endpoint: https://devnet.dlc.link/storage-api
+  storage-api-endpoint: https://devnet.dlc.link/storage-api
   # For Bitcoin testnet:
-  storage-api-endpoint: https://testnet.dlc.link/storage-api
+  # storage-api-endpoint: https://testnet.dlc.link/storage-api
   # For local development:
   # storage-api-endpoint: http://127.0.0.1:8100
 
   # Developer endpoints
-  dev-endpoints-enabled: false
+  dev-endpoints-enabled: true
 
 # Chain configurations
 # Uncomment/edit the chains you want to use
@@ -34,14 +34,14 @@ evm-chains:
   - network: sepolia
     version: 1
     # Local Ethereum node
-    endpoint: http://localhost:8545
+    # endpoint: http://localhost:8545
     # Or using Infura:
-    # endpoint: wss://sepolia.infura.io/ws/v3/
-    # api_key: ${INFURA_API_KEY}
+    endpoint: wss://sepolia.infura.io/ws/v3/
+    api_key: ${INFURA_API_KEY}
 
-  - network: goerli
-    version: 1
-    endpoint: http://localhost:8546
+  # - network: goerli
+  #   version: 1
+  #   endpoint: http://localhost:8546
   #   endpoint: wss://goerli.infura.io/ws/v3/
   #   api_key: ${INFURA_API_KEY}
 

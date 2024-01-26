@@ -3,6 +3,10 @@ set dotenv-load := true
 default:
   just --list
 
+test:
+  cargo test
+  AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang wasm-pack test --node -- --features "console_error_panic_hook"
+
 build:
   ./build_all.sh
 

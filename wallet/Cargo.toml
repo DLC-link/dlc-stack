@@ -10,7 +10,8 @@ path = "src/main.rs"
 [dependencies]
 attestor-client = { path = "../attestor-client" }
 bdk = {version = "0.28.0", default-features = false, features = ["keys-bip39", "key-value-db", "use-esplora-reqwest", "reqwest-default-tls", "async-interface"]}
-bitcoin = {version = "0.29.2"}
+miniscript = { version = "11.0.0" }
+bitcoin = { version = "0.29.2" }
 bytes = "1"
 chrono = {version = "0.4.19", features = ["serde"]}
 dlc-link-manager = { path = "../dlc-link-manager" }

@@ -1,7 +1,10 @@
-use bdk::descriptor;
+use bdk::database::MemoryDatabase;
 use bdk::keys::bip39::{Language, Mnemonic, WordCount};
 use bdk::keys::{DerivableKey, ExtendedKey, GeneratableKey, GeneratedKey};
 use bdk::miniscript::Segwitv0;
+use bdk::miniscript::Tap;
+use bdk::template::Bip84;
+use bdk::{descriptor, KeychainKind, Wallet};
 use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPubKey};
 use std::env;
 use std::str::FromStr;
@@ -23,10 +26,11 @@ fn main() {
     };
 
     let secp = Secp256k1::new();
-    let mnemonic: GeneratedKey<_, Segwitv0> =
-        Mnemonic::generate((WordCount::Words24, Language::English))
-            .expect("Mnemonic generation error");
-    let mnemonic = mnemonic.into_key();
+    // let mnemonic: GeneratedKey<_, Segwitv0> =
+    //     Mnemonic::generate((WordCount::Words24, Language::English))
+    //         .expect("Mnemonic generation error");
+    // let mnemonic = mnemonic.into_key();
+    let mnemonic = Mnemonic::from_str("shadow private easily thought say logic fault paddle word top book during ignore notable orange flight clock image wealth health outside kitten belt reform").expect("Mnemonic generation error");
     let xkey: ExtendedKey = (mnemonic.clone(), None).into_extended_key().unwrap();
     let xprv = xkey
         .into_xprv(network)
@@ -40,11 +44,20 @@ fn main() {
 
     // Generating derived keys and first address
     let external_derivation_path =
-        DerivationPath::from_str("m/44h/0h/0h/0").expect("A valid derivation path");
+        DerivationPath::from_str("m/86'/1'/2'").expect("A valid derivation path");
 
     let signing_external_descriptor = descriptor!(wpkh((
         xprv,
         external_derivation_path.extend([ChildNumber::Normal { index: 0 }])
+    )))
+    .unwrap();
+
+    let internal_derivation_path =
+        DerivationPath::from_str("m/86'/1'/2'").expect("A valid derivation path");
+
+    let signing_internal_descriptor = descriptor!(wpkh((
+        xprv,
+        internal_derivation_path.extend([ChildNumber::Normal { index: 0 }])
     )))
     .unwrap();
 
@@ -63,8 +76,23 @@ fn main() {
     let pubkey = ExtendedPubKey::from_priv(&secp, &derived_ext_xpriv).public_key;
     let secret_key = derived_ext_xpriv.private_key;
 
+    let wallet = Wallet::new(
+        Bip84(xprv, KeychainKind::External),
+        Some(Bip84(xprv, KeychainKind::Internal)),
+        network,
+        MemoryDatabase::default(),
+    )
+    .unwrap();
+
+    wallet
+        .get_descriptor_for_keychain(KeychainKind::External)
+        .at_derivation_index(0);
+
     println!(
         "{}",
-        json!({ "mnemonic": phrase, "xprv": xprv.to_string(), "fingerprint": fingerprint.to_string(), "secret_key": secret_key, "public_key": pubkey, "network": network, "address": address })
-    )
+        json!({ "mnemonic": phrase, "xprv": xprv.to_string(), "fingerprint": fingerprint.to_string(), "secret_key": secret_key, "public_key": pubkey, "network": network, "address": address,
+            "signing_internal_descriptor": signing_internal_descriptor.0.at_derivation_index(0).to_string(),
+            "signing_external_descriptor": signing_external_descriptor.0.at_derivation_index(0).to_string()
+        })
+    );
 }

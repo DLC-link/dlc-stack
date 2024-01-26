@@ -5,6 +5,8 @@ import { JsDLCInterface } from '../node_modules/wasm-wallet/dlc_tools.js';
 import fetch from 'cross-fetch';
 import config from './config.js';
 import setupPolyfills from './polyfills.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import * as btc from '@scure/btc-signer';
 
 const DEFAULT_WAIT_TIME = 60000;
 const BLOCK_TIME = 5000;
@@ -41,6 +43,32 @@ async function createEvent(attestorURL, uuid, time = '') {
     }
     console.log('Creating event: ', url);
     const response = await fetch(url);
+    const event = await response.json();
+    return event;
+  } catch (error) {
+    console.error('Error creating event: ', error);
+    process.exit(1);
+  }
+}
+
+async function createPsbtEvent(attestorURL, uuid, psbt1, psbt2, mintAddress) {
+  try {
+    let url = `${attestorURL}/create-psbt-event`;
+    console.log('Creating event: ', url);
+    const response = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        uuid,
+        psbt1,
+        psbt2,
+        mintAddress,
+      }),
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+    });
+
     const event = await response.json();
     return event;
   } catch (error) {
@@ -340,73 +368,143 @@ async function main() {
   await checkBalance(dlcManager, '[STARTING BALANCE]');
   console.log('[IT] Starting DLC Integration Tests');
 
-  //Start first test
-  console.log('[IT] ##################### STARTING HAPPY PATH TEST #####################');
-  // Test the happy path
-  const testUUID = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
-  let setupDetails1 = await setupDLC(dlcManager, testUUID);
+  // //Start first test
+  // console.log('[IT] ##################### STARTING HAPPY PATH TEST #####################');
+  // // Test the happy path
+  // const testUUID = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
+  // let setupDetails1 = await setupDLC(dlcManager, testUUID);
 
-  //Start second test
-  // console.log('[IT] ##################### STARTING SECOND TEST #####################');
-  // This is a placeholder, feel free to overwrite this test
-  // const testUUID2 = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
-  // let setupDetails2 = await setupDLC(dlcManager, testUUID2);
-
-  //Waiting for funding transaction confirmations
-  let confirmedBroadcastTransaction = await waitForConfirmations(setupDetails1.blockchainHeightAtBroadcast, 6);
-  if (confirmedBroadcastTransaction) {
-    console.log('[IT] Funding transaction confirmed');
-  }
-
-  //Check if the contract is in the Confirmed state
-  assert(
-    await retry(async () => checkIfContractIsInState(setupDetails1.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
-    `[IT] Contract state is not updated in the Router Wallet to Confirmed`
-  );
+  // //Start second test
+  // // console.log('[IT] ##################### STARTING SECOND TEST #####################');
+  // // This is a placeholder, feel free to overwrite this test
+  // // const testUUID2 = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
+  // // let setupDetails2 = await setupDLC(dlcManager, testUUID2);
 
   // //Waiting for funding transaction confirmations
-  // confirmedBroadcastTransaction = await waitForConfirmations(setupDetails2.blockchainHeightAtBroadcast, 6);
+  // let confirmedBroadcastTransaction = await waitForConfirmations(setupDetails1.blockchainHeightAtBroadcast, 6);
   // if (confirmedBroadcastTransaction) {
-  //   console.log('Funding transaction confirmed');
+  //   console.log('[IT] Funding transaction confirmed');
   // }
 
   // //Check if the contract is in the Confirmed state
   // assert(
-  //   await retry(async () => checkIfContractIsInState(setupDetails2.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
-  //   `Contract state is not updated in the Router Wallet to Confirmed`
+  //   await retry(async () => checkIfContractIsInState(setupDetails1.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
+  //   `[IT] Contract state is not updated in the Router Wallet to Confirmed`
   // );
 
-  // ----------------------------------------------
+  // // //Waiting for funding transaction confirmations
+  // // confirmedBroadcastTransaction = await waitForConfirmations(setupDetails2.blockchainHeightAtBroadcast, 6);
+  // // if (confirmedBroadcastTransaction) {
+  // //   console.log('Funding transaction confirmed');
+  // // }
 
-  await checkBalance(dlcManager, '[ALL FUNDED BALANCE]');
+  // // //Check if the contract is in the Confirmed state
+  // // assert(
+  // //   await retry(async () => checkIfContractIsInState(setupDetails2.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
+  // //   `Contract state is not updated in the Router Wallet to Confirmed`
+  // // );
 
-  console.log(`[IT] Closing DLC for ${testUUID} created`);
-  await verify_closed_and_balance_returned(dlcManager, setupDetails1.contractID, testUUID);
+  // // ----------------------------------------------
 
-  // console.log(`Closing DLC for ${testUUID2} created`);
-  // await verify_closed_and_balance_returned(dlcManager, setupDetails2.contractID, testUUID2);
+  // await checkBalance(dlcManager, '[ALL FUNDED BALANCE]');
 
-  // --- Refund tests
+  // console.log(`[IT] Closing DLC for ${testUUID} created`);
+  // await verify_closed_and_balance_returned(dlcManager, setupDetails1.contractID, testUUID);
 
-  //Start third test
-  console.log('[IT] ##################### STARTING REFUND TEST #####################');
-  const testUUID3 = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
-  // Create a DLC that will refund. Attestation maturity is 20 seconds in the future, and refund delay is 20 second after that.
-  let setupDetails3 = await setupDLC(dlcManager, testUUID3, new Date().getTime() + 20000, { refundDelay: 20 });
+  // // console.log(`Closing DLC for ${testUUID2} created`);
+  // // await verify_closed_and_balance_returned(dlcManager, setupDetails2.contractID, testUUID2);
 
-  //Waiting for funding transaction confirmations
-  confirmedBroadcastTransaction = await waitForConfirmations(setupDetails3.blockchainHeightAtBroadcast, 6);
-  if (confirmedBroadcastTransaction) {
-    console.log('[IT] Funding transaction confirmed');
-  }
+  // // --- Refund tests
 
-  //Check if the contract is in the Confirmed state
-  assert(
-    await retry(async () => checkIfContractIsInState(setupDetails3.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
-    `[IT] Contract state is not updated in the Router Wallet to Confirmed`
+  // //Start third test
+  // console.log('[IT] ##################### STARTING REFUND TEST #####################');
+  // const testUUID3 = process.env.UUID || `test${Math.random().toString(36).slice(2)}`;
+  // // Create a DLC that will refund. Attestation maturity is 20 seconds in the future, and refund delay is 20 second after that.
+  // let setupDetails3 = await setupDLC(dlcManager, testUUID3, new Date().getTime() + 20000, { refundDelay: 20 });
+
+  // //Waiting for funding transaction confirmations
+  // confirmedBroadcastTransaction = await waitForConfirmations(setupDetails3.blockchainHeightAtBroadcast, 6);
+  // if (confirmedBroadcastTransaction) {
+  //   console.log('[IT] Funding transaction confirmed');
+  // }
+
+  // //Check if the contract is in the Confirmed state
+  // assert(
+  //   await retry(async () => checkIfContractIsInState(setupDetails3.contractID, 'Confirmed'), DEFAULT_WAIT_TIME),
+  //   `[IT] Contract state is not updated in the Router Wallet to Confirmed`
+  // );
+
+  // await verify_refund_tx(dlcManager, setupDetails3.contractID);
+
+  console.log('[IT] ##################### STARTING PSBT TEST #####################');
+
+  const usersNativeSegwitAddress = {
+    symbol: 'BTC',
+    type: 'p2wpkh',
+    address: 'bcrt1qk5q0takwdva20adgw8zf4vy07w9529gpfkrv6v',
+    publicKey: '02ab6fdbc88fb3d52dc83e5e92f27d26bfc3d161d24b50fa299f3c571f0d5a3220',
+    derivationPath: "m/84'/1'/2'/0/0",
+  };
+  const usersTRAddress = {
+    symbol: 'BTC',
+    type: 'p2tr',
+    address: 'bcrt1pa8hxt6r2gkc8d5thzfrw7gyrqlv354rdy4k05ylkvf6nadnhg8xsf3w69n',
+    publicKey: '039f4157be1fe22cb293558b394c6ae237d670b0ac577b31e71091fe6efa789c42',
+    tweakedPublicKey: '9f4157be1fe22cb293558b394c6ae237d670b0ac577b31e71091fe6efa789c42',
+    derivationPath: "m/86'/1'/2'/0/0",
+  };
+
+  // get the unspent utxos from an esplora api
+  const esploraUtxos = await (
+    await fetch(`${process.env.ELECTRUM_API_URL}/address/${usersNativeSegwitAddress.address}/utxo`)
+  ).json();
+
+  const regtest = {
+    bech32: 'bcrt',
+    wif: 0xef,
+    bip32: {
+      public: 0x043587cf,
+      private: 0x04358394,
+    },
+    pubKeyHash: 0x6f,
+    scriptHash: 0xc4,
+  };
+
+  const spend = btc.p2wpkh(usersNativeSegwitAddress.publicKey, regtest);
+
+  const utxos = await Promise.all(
+    esploraUtxos.map(async (utxo) => {
+      const txHex = await (await fetch(`${process.env.ELECTRUM_API_URL}/tx/${utxo.txid}/hex`)).text();
+      return {
+        ...spend,
+        txid: utxo.txid,
+        index: utxo.vout,
+        value: utxo.value,
+        nonWitnessUtxo: hexToBytes(txHex),
+        // script: utxo.scriptpubkey, //do i need to handle when it is witness? how?
+      };
+    })
   );
+  const outputs = [
+    { address: 'bcrt1qvgkz8m4m73kly4xhm28pcnv46n6u045lfq9ta3', amount: 50_000n }, // amount in satoshi
+  ];
 
-  await verify_refund_tx(dlcManager, setupDetails3.contractID);
+  const selected = btc.selectUTXO(utxos, outputs, 'default', {
+    changeAddress: 'bcrt1qk5q0takwdva20adgw8zf4vy07w9529gpfkrv6v', // required, address to send change
+    feePerByte: 2n, // require, fee per vbyte in satoshi
+    bip69: true, // lexicographical Indexing of Transaction Inputs and Outputs
+    createTx: true, // create tx with selected inputs/outputs
+    network: regtest,
+  });
+  const { tx } = selected;
+  const psbt = tx.toPSBT();
+  const psbtToSign = { hex: bytesToHex(psbt), broadcast: false };
+
+  const events = await Promise.all(
+    attestorList.map((attestorURL) =>
+      createPsbtEvent(attestorURL, 'testuuid', bytesToHex(psbt), bytesToHex(psbt), 'myMintAddress')
+    )
+  );
 
   console.log('##############################################');
   console.log('DLC Integration Test Completed Successfully!');

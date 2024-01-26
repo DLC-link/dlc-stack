@@ -1,7 +1,10 @@
 extern crate base64;
+use std::collections::HashMap;
+
 use crate::oracle::OracleError;
+// use bitcoin::hashes::hash160::Hash;
 use dlc_clients::{
-    EventRequestParams, EventsRequestParams, NewEvent, StorageApiClient, UpdateEvent,
+    ApiError, EventRequestParams, EventsRequestParams, NewEvent, StorageApiClient, UpdateEvent,
 };
 use secp256k1_zkp::SecretKey;
 
@@ -116,10 +119,11 @@ impl StorageApiConn {
         }
     }
 
+    // I changed this from being an optional vec, what breaks? :)
     pub async fn get_all(
         &self,
         secret_key: SecretKey,
-    ) -> Result<Option<Vec<(String, Vec<u8>)>>, OracleError> {
+    ) -> Result<Vec<(String, Vec<u8>)>, OracleError> {
         let events = self
             .client
             .get_events(
@@ -137,6 +141,6 @@ impl StorageApiConn {
             let content = base64::decode(event.content).map_err(OracleError::Base64DecodeError)?;
             result.push((event.event_id, content));
         }
-        Ok(Some(result))
+        Ok(result)
     }
 }

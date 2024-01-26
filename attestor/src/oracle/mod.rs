@@ -15,7 +15,17 @@ pub struct DbValue(
     pub Option<Vec<u8>>,                  // attestation?
     pub Option<u64>,                      // outcome?
     pub String,                           // uuid
-    #[serde(default)] pub Option<String>, // chain name
+    #[serde(default)] pub Option<String>, // chain_name?
+);
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PsbtDbValue(
+    pub Vec<u8>,                          // psbt1
+    pub Vec<u8>,                          // psbt2
+    pub String,                           // corresponding mint address
+    pub String,                           // uuid
+    pub Option<u64>,                      // outcome?
+    #[serde(default)] pub Option<String>, // chain_name?
 );
 
 #[derive(Clone)]
@@ -35,7 +45,6 @@ impl Oracle {
             storage_api_endpoint,
             PublicKey::from_keypair(&key_pair).to_string(),
         );
-
         Ok(Oracle {
             event_handler,
             key_pair,

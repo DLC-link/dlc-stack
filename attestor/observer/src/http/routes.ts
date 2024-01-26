@@ -7,6 +7,7 @@ import chalk from 'chalk';
 import { PrefixedChain } from '../config/models.js';
 
 const router = express.Router();
+router.use(express.json());
 
 router.get('/health', async (req, res) => {
   const data = await AttestorService.getHealth();
@@ -32,6 +33,19 @@ router.get('/events', async (req, res) => {
 router.get('/publickey', async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   const data = await AttestorService.getPublicKey();
+  res.status(200).send(data);
+});
+
+router.post('/create-psbt-event', async (req, res) => {
+  let chain = (req.body.chain as PrefixedChain) ?? 'stx-mocknet';
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  const data = await AttestorService.createPsbtEvent(
+    req.body.uuid as string,
+    req.body.psbt1 as string,
+    req.body.psbt2 as string,
+    req.body.mintAddress as string,
+    chain
+  );
   res.status(200).send(data);
 });
 

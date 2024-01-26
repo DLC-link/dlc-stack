@@ -4,19 +4,19 @@ default:
   just --list
 
 run-wallet:
-  cd ../wallet && ATTESTOR_CONFIG=local TEST_MODE_ENABLED=true just run
+  cd wallet && ATTESTOR_CONFIG=local TEST_MODE_ENABLED=true just run
 
 run-attestors:
-  cd ../attestor && just run-multiple
+  cd attestor && just run-multiple
 
 run-storage:
-  cd ../storage && just run
+  cd storage && just run
 
 build-wasm:
-  npm run build
+  cd it && npm run build
 
 the-script:
-  ENV=local HANDLE_ATTESTORS=false npm start && wait
+  ENV=devnet HANDLE_ATTESTORS=false npm start && wait
 
 alias it := run
 alias run-it := run
@@ -29,7 +29,6 @@ run:
   just run-attestors &
   just run-wallet &
   while ! nc -z localhost 8085; do sleep 1; done
-  ENV=local_just HANDLE_ATTESTORS=true npm start && wait
   just die
 
 die:

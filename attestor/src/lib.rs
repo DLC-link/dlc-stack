@@ -5,6 +5,8 @@
 extern crate core;
 extern crate log;
 use ::hex::ToHex;
+use bitcoin::consensus::deserialize;
+use bitcoin::hashes::hex::FromHex;
 use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey};
 use serde_json::json;
 use wasm_bindgen::prelude::*;
@@ -13,7 +15,8 @@ use lightning::util::ser::{Readable, Writeable};
 
 use secp256k1_zkp::rand::thread_rng;
 use secp256k1_zkp::{
-    hashes::*, All, KeyPair, Message, Secp256k1, SecretKey, XOnlyPublicKey as SchnorrPublicKey,
+    hashes::*, All, KeyPair, Message, PublicKey, Secp256k1, SecretKey,
+    XOnlyPublicKey as SchnorrPublicKey,
 };
 use std::io::Cursor;
 use std::str::FromStr;
@@ -23,9 +26,7 @@ use serde::{Deserialize, Serialize};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 mod oracle;
-use oracle::Oracle;
-
-use oracle::DbValue;
+use oracle::{DbValue, Oracle, PsbtDbValue};
 
 use dlc_messages::oracle_msgs::{
     DigitDecompositionEventDescriptor, EventDescriptor, OracleAnnouncement, OracleAttestation,
@@ -271,16 +272,30 @@ impl Attestor {
             .await
             .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error getting all events"))?;
 
-        let events = match events {
-            Some(value) => value,
-            None => return Err(JsValue::from_str("[WASM-ATTESTOR] Error: events is None")),
-        };
-
         let events: Result<Vec<ApiOracleEvent>, JsValue> = events
             .iter()
             .map(|event| parse_database_entry(event.clone().1))
             .collect();
+        let events = events?;
 
+        serde_wasm_bindgen::to_value(&events)
+            .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error serializing events to JSON"))
+    }
+
+    pub async fn get_psbt_events(&self) -> Result<JsValue, JsValue> {
+        let events = self
+            .oracle
+            .event_handler
+            .storage_api
+            .clone()
+            .get_all(self.secret_key)
+            .await
+            .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error getting all events"))?;
+
+        let events: Result<Vec<ApiOraclePsbtEvent>, JsValue> = events
+            .iter()
+            .map(|event| parse_psbt_database_entry(event.clone().1))
+            .collect();
         let events = events?;
 
         serde_wasm_bindgen::to_value(&events)
@@ -310,10 +325,97 @@ impl Attestor {
         }
     }
 
+    pub async fn get_psbt_event(&self, uuid: String) -> Result<JsValue, JsValue> {
+        let result = self
+            .oracle
+            .event_handler
+            .storage_api
+            .clone()
+            .get(uuid, self.secret_key)
+            .await
+            .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error getting event"))?;
+
+        match result {
+            Some(event) => {
+                let parsed_event = parse_psbt_database_entry(event).map_err(|_| {
+                    JsValue::from_str("[WASM-ATTESTOR] Error parsing database entry")
+                })?;
+                serde_wasm_bindgen::to_value(&parsed_event).map_err(|_| {
+                    JsValue::from_str("[WASM-ATTESTOR] Error serializing event to JSON")
+                })
+            }
+            None => Ok(JsValue::NULL),
+        }
+    }
+
     pub async fn get_pubkey(&self) -> String {
         SchnorrPublicKey::from_keypair(&self.oracle.key_pair)
             .0
             .to_string()
+    }
+
+    pub async fn create_psbt_event(
+        &self,
+        uuid: &str,
+        psbt1: &str,
+        psbt2: &str,
+        mint_address: &str,
+        chain: &str,
+    ) -> Result<(), JsValue> {
+        let psbt1: Vec<u8> =
+            FromHex::from_hex(psbt1).map_err(|_| JsValue::from_str("Error decoding psbt1 hex"))?;
+        let psbt2: Vec<u8> =
+            FromHex::from_hex(psbt2).map_err(|_| JsValue::from_str("Error decoding psbt2 hex"))?;
+
+        let psbt1: bitcoin::psbt::PartiallySignedTransaction =
+            deserialize(&psbt1).map_err(|_| JsValue::from_str("Error decoding psbt1"))?;
+        let psbt2: bitcoin::psbt::PartiallySignedTransaction =
+            deserialize(&psbt2[..]).map_err(|_| JsValue::from_str("Error decoding psbt2"))?;
+
+        // clog!("psbt1: {:?}", psbt1);
+        // clog!("\n");
+        // clog!("psbt2: {:?}", psbt2);
+
+        // Grab the details for the prefunding tx from the PSBTs somehow.
+        // verify that the PSBTs are good, that the funding tx is good, etc. This should be done via consensus somehow...
+
+        // I guess we could leverage our FROST system for that consensus, by sending a message to the coordinator
+        // to verify all the things, and they'll only sign a message about validating the system
+        // if the threshold agrees.
+
+        // For now, assuming that's all good...
+        // We should store the PSBTs in the database, and then we can use them to sign the funding tx and payout tx later.
+
+        let psbt_db_value = PsbtDbValue(
+            bitcoin::consensus::encode::serialize(&psbt1),
+            bitcoin::consensus::encode::serialize(&psbt2),
+            mint_address.to_string(),
+            uuid.to_string(),
+            None,                    //outcome
+            Some(chain.to_string()), //chain name
+        );
+
+        let new_psbt_event = serde_json::to_string(&psbt_db_value)
+            .map_err(|_| JsValue::from_str("Error serializing new_event to JSON"))?
+            .into_bytes();
+
+        match &self
+            .oracle
+            .event_handler
+            .storage_api
+            .clone()
+            .insert(uuid.to_string(), new_psbt_event.clone(), self.secret_key)
+            .await
+        {
+            Ok(Some(_val)) => Ok(()),
+            _ => {
+                clog!(
+                    "[WASM-ATTESTOR] Event was unable to update in StorageAPI with uuid: {}, failed to create psbt locking event",
+                    uuid
+                );
+                Err(JsValue::from_str("Failed to create psbt locking event"))
+            }
+        }
     }
 }
 
@@ -359,6 +461,17 @@ struct ApiOracleEvent {
     chain: Option<String>,
 }
 
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
+struct ApiOraclePsbtEvent {
+    event_id: String,
+    uuid: String,
+    psbt1: String,
+    psbt2: String,
+    mint_address: String,
+    outcome: Option<u64>,
+    chain: Option<String>,
+}
+
 fn parse_database_entry(event: Vec<u8>) -> Result<ApiOracleEvent, JsValue> {
     let event_str = String::from_utf8_lossy(&event);
     let event: DbValue = serde_json::from_str(&event_str)
@@ -394,6 +507,31 @@ fn parse_database_entry(event: Vec<u8>) -> Result<ApiOracleEvent, JsValue> {
         rust_attestation: event.2.map(|att| att.encode_hex::<String>()),
         maturation: announcement.oracle_event.event_maturity_epoch.to_string(),
         outcome: event.3,
+        chain: event.5,
+    })
+}
+
+fn parse_psbt_database_entry(event_binary: Vec<u8>) -> Result<ApiOraclePsbtEvent, JsValue> {
+    let event_str = String::from_utf8_lossy(&event_binary);
+    let event: PsbtDbValue = serde_json::from_str(&event_str)
+        .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error parsing event from string"))?;
+
+    let (psbt1, psbt2) = (event.0.clone(), event.1.clone());
+
+    let psbt1: bitcoin::psbt::PartiallySignedTransaction =
+        deserialize(&psbt1).map_err(|_| JsValue::from_str("Error decoding psbt1"))?;
+    let psbt2: bitcoin::psbt::PartiallySignedTransaction =
+        deserialize(&psbt2).map_err(|_| JsValue::from_str("Error decoding psbt2"))?;
+
+    Ok(ApiOraclePsbtEvent {
+        event_id: event.3.clone(),
+        uuid: event.3,
+        psbt1: serde_json::to_string(&psbt1)
+            .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error serializing psbt1 to JSON"))?,
+        psbt2: serde_json::to_string(&psbt2)
+            .map_err(|_| JsValue::from_str("[WASM-ATTESTOR] Error serializing psbt2 to JSON"))?,
+        mint_address: event.2,
+        outcome: event.4,
         chain: event.5,
     })
 }
@@ -484,5 +622,102 @@ pub fn build_attestation(
         oracle_public_key: key_pair.public_key().into(),
         signatures,
         outcomes,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // use crate::blockdata::locktime::PackedLockTime;
+    // use crate::hash_types::Txid;
+    // use crate::hashes::hex::FromHex;
+    // use crate::hashes::{hash160, ripemd160, sha256, Hash};
+
+    // use secp256k1::{self, Secp256k1};
+
+    // use crate::blockdata::script::Script;
+    // use crate::blockdata::transaction::{OutPoint, Sequence, Transaction, TxIn, TxOut};
+    // use crate::consensus::encode::{deserialize, serialize, serialize_hex};
+    // use crate::internal_macros::hex_script;
+    // use crate::network::constants::Network::Bitcoin;
+    // use crate::util::bip32::{ChildNumber, ExtendedPrivKey, ExtendedPubKey, KeySource};
+    // use crate::util::psbt::map::{Input, Output};
+    // use crate::util::psbt::raw;
+
+    // use crate::blockdata::witness::Witness;
+    use std::collections::BTreeMap;
+
+    // use bitcoin::psbt;
+    // use wasm_bindgen::prelude::*;
+    // use wasm_bindgen_futures::JsFuture;
+    use wasm_bindgen_test::*;
+
+    #[test]
+    fn trivial_psbt() {
+        let psbt = bitcoin::util::psbt::PartiallySignedTransaction {
+            unsigned_tx: bitcoin::Transaction {
+                version: 2,
+                lock_time: bitcoin::blockdata::locktime::PackedLockTime::ZERO,
+                input: vec![],
+                output: vec![],
+            },
+            xpub: Default::default(),
+            version: 0,
+            proprietary: BTreeMap::new(),
+            unknown: BTreeMap::new(),
+
+            inputs: vec![],
+            outputs: vec![],
+        };
+        assert_eq!(
+            bitcoin::consensus::encode::serialize_hex(&psbt),
+            "70736274ff01000a0200000000000000000000"
+        );
+
+        let psbt1: Vec<u8> =
+            FromHex::from_hex("70736274ff0100710200000001c6a7269431c21132ad0db2c46ce7a71a79df57d9201f31fe46ee1b3d82f71ccf0000000000ffffffff0250c3000000000000160014622c23eebbf46df254d7da8e1c4d95d4f5c7d69f961cf50500000000160014b500f5f6ce6b3aa7f5a871c49ab08ff38b45150100000000000100df0100000001ce19e37c126c555f00d1af024e95dd7c7681d42831d27388897456bcf38bdff5010000006b483045022100994d614b679eed66fc5b0a2a85dcf0d993a6a8575b8af5fc164ff31015ae4a680220215badf69a74365046504141a1f2b1ce85b7280efd98fcf0a182ab8be999925c012102add319140c528a8955d76d4afe32c4d3143fea57ea353a31ce793cffb77ef861fdffffff0200e1f50500000000160014b500f5f6ce6b3aa7f5a871c49ab08ff38b451501b0fa6459000000001976a9142b19bade75a48768a5ffc142a86490303a95f41388ac00000000000000").expect("to decode psbt1 hex");
+        println!("psbt1: {:?}", psbt1);
+        assert_eq!(psbt1.len(), 351);
+
+        let psbt1: bitcoin::psbt::PartiallySignedTransaction =
+            deserialize(&psbt1).expect("to decode psbt1");
+        assert_eq!(psbt1.inputs.len(), 1);
+    }
+
+    #[wasm_bindgen_test]
+    async fn setup_new_bridge_lock_test() {
+        let attestor = Attestor::new("https://devnet.dlc.link/storage-api".to_string(), "xprv9s21ZrQH143K3UL4H8EBxF8trNkq3Pfs4ZhpSKe56oX75rJ1b6Jkj2CAcbYkdb2KASLp5LoubpzqF2KwMHUBtGKPj9DfaiZfLByUTtFkwPu".to_string())
+            .await
+            .expect("To create a test attestor");
+
+        attestor
+            .create_psbt_event(
+                "testuuid",
+                "70736274ff0100710200000001c6a7269431c21132ad0db2c46ce7a71a79df57d9201f31fe46ee1b3d82f71ccf0000000000ffffffff0250c3000000000000160014622c23eebbf46df254d7da8e1c4d95d4f5c7d69f961cf50500000000160014b500f5f6ce6b3aa7f5a871c49ab08ff38b45150100000000000100df0100000001ce19e37c126c555f00d1af024e95dd7c7681d42831d27388897456bcf38bdff5010000006b483045022100994d614b679eed66fc5b0a2a85dcf0d993a6a8575b8af5fc164ff31015ae4a680220215badf69a74365046504141a1f2b1ce85b7280efd98fcf0a182ab8be999925c012102add319140c528a8955d76d4afe32c4d3143fea57ea353a31ce793cffb77ef861fdffffff0200e1f50500000000160014b500f5f6ce6b3aa7f5a871c49ab08ff38b451501b0fa6459000000001976a9142b19bade75a48768a5ffc142a86490303a95f41388ac00000000000000",
+                "70736274ff0100710200000001c6a7269431c21132ad0db2c46ce7a71a79df57d9201f31fe46ee1b3d82f71ccf0000000000ffffffff0250c3000000000000160014622c23eebbf46df254d7da8e1c4d95d4f5c7d69f961cf50500000000160014b500f5f6ce6b3aa7f5a871c49ab08ff38b45150100000000000100df0100000001ce19e37c126c555f00d1af024e95dd7c7681d42831d27388897456bcf38bdff5010000006b483045022100994d614b679eed66fc5b0a2a85dcf0d993a6a8575b8af5fc164ff31015ae4a680220215badf69a74365046504141a1f2b1ce85b7280efd98fcf0a182ab8be999925c012102add319140c528a8955d76d4afe32c4d3143fea57ea353a31ce793cffb77ef861fdffffff0200e1f50500000000160014b500f5f6ce6b3aa7f5a871c49ab08ff38b451501b0fa6459000000001976a9142b19bade75a48768a5ffc142a86490303a95f41388ac00000000000000",
+                "mymintaddress",
+                "eth"
+            )
+            .await
+            .expect("To setup new bridge lock");
+
+        let psbt_event = attestor
+            .get_psbt_event("testuuid".to_string())
+            .await
+            .expect("To get psbt event");
+
+        let psbt_event: ApiOraclePsbtEvent =
+            serde_wasm_bindgen::from_value(psbt_event).expect("To deserialize psbt event");
+
+        assert_eq!(psbt_event.uuid, "testuuid".to_string());
+
+        let psbt_events = attestor
+            .get_psbt_events()
+            .await
+            .expect("To get psbt events");
+
+        let _psbt_events: Vec<ApiOraclePsbtEvent> =
+            serde_wasm_bindgen::from_value(psbt_events).expect("To deserialize psbt events");
     }
 }
