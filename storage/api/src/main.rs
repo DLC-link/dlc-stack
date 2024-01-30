@@ -15,13 +15,19 @@ use crate::events::get_events;
 use actix_web::dev::Service as _;
 use actix_web::web::Data;
 use actix_web::{error, get, web, App, HttpResponse, HttpServer, Responder};
+use actix_web_prometheus::PrometheusMetricsBuilder;
 use diesel::r2d2::{self, ConnectionManager};
 use diesel::PgConnection;
 use dlc_storage_writer::apply_migrations;
 use dotenv::dotenv;
+use log::error;
+use prometheus::Gauge;
 use serde_json::json;
 use std::env;
 use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
+use systemstat::{Platform, System};
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -58,6 +64,8 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     dotenv().ok();
     // e.g.: DATABASE_URL=postgresql://postgres:changeme@localhost:5432/postgres
+    let sys = System::new();
+
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
     let pool: DbPool = r2d2::Pool::builder()
@@ -76,6 +84,54 @@ async fn main() -> std::io::Result<()> {
         paths: vec!["/health".to_string(), "/request_nonce".to_string()],
     });
 
+    let prometheus = PrometheusMetricsBuilder::new("api")
+        .endpoint("/metrics")
+        .build()
+        .expect("should create Prometheus Metrics");
+
+    let cpu_usage = Gauge::new("cpu_usage", "Current CPU usage in percent")
+        .expect("should create cpu_usage gauge");
+    let mem_usage = Gauge::new("mem_usage", "Current memory usage in percent")
+        .expect("should create mem_usage gauge");
+
+    prometheus
+        .registry
+        .register(Box::new(cpu_usage.clone()))
+        .expect("should register cpu_usage gauge");
+
+    prometheus
+        .registry
+        .register(Box::new(mem_usage.clone()))
+        .expect("should register mem_usage gauge");
+
+    let cpu_load_measurement_secs =
+        env::var("CPU_LOAD_MEASUREMENT_SECS").unwrap_or("1".to_string());
+
+    let cpu_load_measurement_secs_u64 = cpu_load_measurement_secs
+        .parse::<u64>()
+        .expect("should parse cpu_load_measurement_secs to u64");
+
+    thread::spawn(move || loop {
+        match sys.cpu_load_aggregate() {
+            Ok(cpu) => {
+                thread::sleep(Duration::from_secs(cpu_load_measurement_secs_u64));
+                let cpu = cpu.done().expect("should get cpu load");
+                cpu_usage.set(f64::trunc(
+                    ((cpu.system * 100.0) + (cpu.user * 100.0)).into(),
+                ));
+            }
+            Err(x) => error!("CPU usage: error: {}", x),
+        }
+        match sys.memory() {
+            Ok(mem) => {
+                let memory_used = mem.total.0 - mem.free.0;
+                let percentage_used = (memory_used as f64 / mem.total.0 as f64) * 100.0;
+                mem_usage.set(f64::trunc(percentage_used));
+            }
+            Err(x) => error!("Memory usage: error: {}", x),
+        }
+    });
+
     //TODO: change allow_any_origin / allow_any_header / allow_any_method to something more restrictive
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -85,6 +141,7 @@ async fn main() -> std::io::Result<()> {
             .max_age(3600);
         App::new()
             .wrap(cors)
+            .wrap(prometheus.clone())
             .app_data(nonces.clone())
             .app_data(unprotected_paths.clone())
             .app_data(Data::new(pool.clone()))

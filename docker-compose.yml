@@ -28,6 +28,7 @@ services:
     environment:
       RUST_LOG: 'info'
       DATABASE_URL: 'postgresql://postgres:changeme@postgresdlc:5432/postgres'
+      CPU_LOAD_MEASUREMENT_SECS: 1
       MIGRATE: 'true'
     ports:
       - '8100:8100'
