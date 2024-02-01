@@ -13,6 +13,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 base64 = "0.13.1"
+bdk = { version = "0.28.2", default-features = false, features = ["keys-bip39", "async-interface"] }
 bitcoin = { version = "0.29.2", features = [
   "serde",
 ] } # Not using Bitcoin in this package, but listing here to recursively import the serde features downstream

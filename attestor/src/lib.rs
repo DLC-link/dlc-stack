@@ -4,8 +4,16 @@
 
 extern crate core;
 extern crate log;
-use ::hex::ToHex;
+
+use bdk::database::MemoryDatabase;
+use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
+use bdk::wallet::AddressIndex;
+use bdk::{descriptor, KeychainKind, SignOptions, Wallet};
+use bitcoin::consensus::deserialize;
+use bitcoin::hashes::hex::{FromHex, ToHex};
+use bitcoin::psbt::PartiallySignedTransaction;
 use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey};
+use bitcoin::{Network, PrivateKey};
 use serde_json::json;
 use wasm_bindgen::prelude::*;
 
@@ -17,6 +25,7 @@ use secp256k1_zkp::{
 };
 use std::io::Cursor;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +34,8 @@ use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 mod oracle;
 use oracle::Oracle;
 
-use oracle::DbValue;
+use oracle::error::GenericOracleError;
+use oracle::{DbValue, PsbtDbValue};
 
 use dlc_messages::oracle_msgs::{
     DigitDecompositionEventDescriptor, EventDescriptor, OracleAnnouncement, OracleAttestation,
@@ -315,6 +325,336 @@ impl Attestor {
             .0
             .to_string()
     }
+
+    pub async fn create_psbt_event(
+        &self,
+        uuid: &str, // can use the txid of the prefunding tx here
+        // funding_psbt: &str,
+        closing_psbt: &str,
+        mint_address: &str,
+        chain: &str,
+    ) -> Result<(), JsValue> {
+        clog!(
+            "[WASM-ATTESTOR] Creating new psbt event with uuid: {}",
+            uuid
+        );
+        // let funding_psbt: Vec<u8> = FromHex::from_hex(funding_psbt)
+        //     .map_err(|_| JsValue::from_str("Error decoding funding_psbt hex"))?;
+        // // let funding_psbt: PartiallySignedTransaction = deserialize(&funding_psbt)
+        // //     .map_err(|_| JsValue::from_str("Error decoding funding_psbt"))?;
+
+        let closing_psbt: Vec<u8> = FromHex::from_hex(closing_psbt)
+            .map_err(|_| JsValue::from_str("Error decoding closing_psbt hex"))?;
+        let closing_psbt: PartiallySignedTransaction = deserialize(&closing_psbt[..])
+            .map_err(|_| JsValue::from_str("Error decoding closing_psbt"))?;
+
+        // recreate the transactions, and make sure they match, minus the signatures
+
+        // make sure the internal tap key is invalid.
+
+        // here's how we can put the hash-preimage into the witness to spend the htlc
+        // https://github.com/lightningdevkit/rust-lightning/blob/main/lightning/src/ln/chan_utils.rs#L712
+        // https://github.com/rust-bitcoin/rust-bitcoin/blob/master/bitcoin/examples/taproot-psbt.rs
+        // https://github.com/rust-bitcoin/rust-bitcoin/blob/master/bitcoin/examples/taproot-psbt.rs#L686
+
+        // Use the bdk verify functions to verify the sigs on the PSBTs
+
+        // Grab the details for the prefunding tx from the PSBTs somehow.
+        // verify that the PSBTs are "good", that the funding tx is good, etc. This should be done via consensus somehow...
+
+        // I guess we could leverage our FROST system for that consensus, by sending a message to the coordinator
+        // to verify all the things, and they'll only sign a message about validating the system
+        // if the threshold agrees.
+
+        // For now, assuming that's all good...
+        // We should store the PSBTs in the database, and then we can use them to sign the funding tx and payout tx later.
+
+        clog!(
+            "[WASM-ATTESTOR] the inputs of the closing PSBT is the funding tx: {:?}",
+            closing_psbt.inputs
+        );
+
+        let psbt_db_value = PsbtDbValue(
+            // bitcoin::consensus::encode::serialize(&funding_psbt).to_hex(),
+            bitcoin::consensus::encode::serialize(&closing_psbt).to_hex(),
+            mint_address.to_string(),
+            uuid.to_string(),
+            None,                    //outcome
+            Some(chain.to_string()), //chain name
+        );
+        clog!("[WASM-ATTESTOR] psbt_db_value created",);
+
+        let new_psbt_event = serde_json::to_string(&psbt_db_value)
+            .map_err(|_| JsValue::from_str("Error serializing new_event to JSON"))?
+            .into_bytes();
+        clog!("[WASM-ATTESTOR] psbt_db_value serialized",);
+
+        match &self
+            .oracle
+            .event_handler
+            .storage_api
+            .clone()
+            .insert(uuid.to_string(), new_psbt_event.clone(), self.secret_key)
+            .await
+        {
+            Ok(Some(_val)) => {
+                clog!(
+                    "[WASM-ATTESTOR] PSBT Event was created in StorageAPI with uuid: {}",
+                    uuid
+                );
+                Ok(())
+            }
+            _ => {
+                clog!(
+                    "[WASM-ATTESTOR] Event was unable to update in StorageAPI with uuid: {}, failed to create psbt locking event",
+                    uuid
+                );
+                Err(JsValue::from_str("Failed to create psbt locking event"))
+            }
+        }
+    }
+
+    pub async fn close_psbt_event(&self, uuid: &str) -> Result<JsValue, JsValue> {
+        // pull these from the db
+        clog!("[WASM-ATTESTOR] Closing psbt event with uuid: {}", uuid);
+
+        let psbt_event = match self.get_psbt_event(uuid.to_string()).await {
+            Ok(psbt_event) => psbt_event,
+            Err(e) => {
+                clog!(
+                    "[WASM-ATTESTOR] Error getting psbt event with uuid: {}, error: {:?}",
+                    uuid,
+                    e
+                );
+                return Err(JsValue::from_str("Error getting psbt event"));
+            }
+        };
+
+        clog!("[WASM-ATTESTOR] Closing psbt event with uuid: {}", uuid);
+
+        let mut closing_psbt: PartiallySignedTransaction = psbt_event.closing_psbt;
+
+        // Starting the closing flow of signing and broadcasting the closing transaction
+        let secp = Secp256k1::new();
+        let xprv = ExtendedPrivKey::from_str("tprv8ZgxMBicQKsPdojQCxUVZorqp1eSvoWwMsnn4PEXwQ8i1KP9dqNffJLFP2kgjgW8petjnkVS5TjLPkruEDasiNiaBt5iG5QQ2MFdioJ9eqL").expect("A valid xprv");
+
+        // Generating derived keys and first address
+        let external_derivation_path =
+            DerivationPath::from_str("m/86'/1'/2'/1/0").expect("A valid derivation path");
+
+        let signing_external_descriptor = descriptor!(tr((
+            xprv,
+            external_derivation_path.clone() //.extend([ChildNumber::Normal { index: 0 }])
+        )))
+        .unwrap();
+
+        let derived_ext_xpriv = match xprv.derive_priv(
+            &secp,
+            &external_derivation_path.extend([
+                ChildNumber::Normal { index: 0 },
+                // ChildNumber::Normal { index: 0 },
+            ]),
+        ) {
+            Ok(derived_ext_xpriv) => derived_ext_xpriv,
+            Err(e) => {
+                clog!(
+                    "[WASM-ATTESTOR] Error deriving external key for closing psbt, error: {:?}",
+                    e
+                );
+                return Err(JsValue::from_str(
+                    "Error deriving external key for closing psbt",
+                ));
+            }
+        };
+        let keypair = KeyPair::from_secret_key(&secp, &derived_ext_xpriv.private_key);
+        let pubkey = SchnorrPublicKey::from_keypair(&keypair).0;
+        let secret_key = keypair.secret_key();
+
+        let signing_external_descriptor_str = signing_external_descriptor
+            .0
+            // .at_derivation_index(0)
+            .to_string();
+
+        clog!("[WASM-ATTESTOR] building wallet");
+        let mut wallet = match Wallet::new(
+            signing_external_descriptor,
+            None,
+            Network::Regtest,
+            MemoryDatabase::default(),
+        ) {
+            Ok(wallet) => wallet,
+            Err(e) => {
+                clog!(
+                    "[WASM-ATTESTOR] Error building wallet for closing psbt, error: {:?}",
+                    e
+                );
+                return Err(JsValue::from_str("Error building wallet for closing psbt"));
+            }
+        };
+
+        clog!(
+            "[WASM-ATTESTOR] {}",
+            json!({"xprv": xprv.to_string(), "secret_key": secret_key, "schnorr_public_key": pubkey, "network": Network::Regtest,
+                // "signing_internal_descriptor": signing_internal_descriptor.0.at_derivation_index(0).to_string(),
+                "signing_external_descriptor": signing_external_descriptor_str
+            })
+        );
+
+        let send_to = wallet
+            .get_address(AddressIndex::New)
+            .expect("A valid address");
+        clog!(
+            "a pubkey to use from the wallet {}, {}, {:?}, is tap {}",
+            send_to.script_pubkey(),
+            send_to.index,
+            send_to.address.address_type(),
+            send_to.script_pubkey().is_v1_p2tr() // send_to.script_pubkey().
+        );
+
+        let sign_options = SignOptions {
+            sign_with_tap_internal_key: false,
+            remove_partial_sigs: false,
+            try_finalize: false,
+            ..Default::default()
+        };
+
+        let priv_key = PrivateKey::new(secret_key, Network::Regtest);
+        clog!(
+            "[WASM-ATTESTOR] signing priv_key: {:?} and pubkey: {}",
+            priv_key.inner.display_secret().to_string(),
+            priv_key.public_key(&secp)
+        );
+        let signer = SignerWrapper::new(
+            priv_key,
+            SignerContext::Tap {
+                is_internal_key: false,
+            },
+        );
+        // clog!(
+        //     "[WASM-ATTESTOR]  tap scripts control block \n{:?}\nother thing\n{:?}",
+        //     closing_psbt.inputs[0]
+        //         .tap_scripts
+        //         .first_key_value()
+        //         .unwrap()
+        //         .0,
+        //     closing_psbt.inputs[0]
+        //         .tap_scripts
+        //         .first_key_value()
+        //         .unwrap()
+        //         .1
+        // );
+        wallet.add_signer(KeychainKind::External, SignerOrdering(0), Arc::new(signer));
+
+        match wallet.sign(&mut closing_psbt, sign_options) {
+            Ok(_) => clog!("[WASM-ATTESTOR] closing_psbt signed"),
+            Err(e) => clog!("[WASM-ATTESTOR] closing_psbt not signed, error: {:?}", e),
+        };
+        // clog!(
+        //     "[WASM-ATTESTOR]  tap scripts control block \n{:?}\nother thing\n{:?}",
+        //     closing_psbt.inputs[0]
+        //         .tap_scripts
+        //         .first_key_value()
+        //         .unwrap()
+        //         .0,
+        //     closing_psbt.inputs[0]
+        //         .tap_scripts
+        //         .first_key_value()
+        //         .unwrap()
+        //         .1
+        // );
+        // clog!(
+        //     "[WASM-ATTESTOR] closing_psbt after signing: \n{:?}",
+        //     closing_psbt.clone()
+        // );
+
+        match bdk::miniscript::psbt::PsbtExt::finalize_mut(&mut closing_psbt, &secp) {
+            Ok(_) => clog!("[WASM-ATTESTOR] closing_psbt finalized"),
+            Err(e) => clog!("[WASM-ATTESTOR] closing_psbt not finalized, error: {:?}", e),
+        };
+
+        let closing_tx = closing_psbt.extract_tx();
+        println!("closing_tx: {:?}", closing_tx);
+
+        let closing_tx_value = serde_wasm_bindgen::to_value(&closing_tx)
+            .map_err(|_| JsValue::from_str("Error serializing closing_tx to JSON"))?;
+        Ok(closing_tx_value)
+    }
+
+    async fn get_psbt_event(&self, uuid: String) -> Result<ApiOraclePsbtEvent, GenericOracleError> {
+        let result = self
+            .oracle
+            .event_handler
+            .storage_api
+            .clone()
+            .get(uuid, self.secret_key)
+            .await
+            .map_err(|_| GenericOracleError {
+                message: "Error getting event from storage_api".to_string(),
+            })?;
+
+        match result {
+            Some(event) => {
+                let parsed_event = parse_psbt_database_entry(event)?;
+                Ok(parsed_event)
+            }
+            None => Err(GenericOracleError {
+                message: "No event found".to_string(),
+            }),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
+struct ApiOraclePsbtEvent {
+    event_id: String,
+    uuid: String,
+    // funding_psbt: PartiallySignedTransaction,
+    closing_psbt: PartiallySignedTransaction,
+    mint_address: String,
+    outcome: Option<u64>,
+    chain: Option<String>,
+}
+
+fn parse_psbt_database_entry(
+    event_binary: Vec<u8>,
+) -> Result<ApiOraclePsbtEvent, GenericOracleError> {
+    // let event_str = String::from_utf8_lossy(&event_binary);
+    // let event: PsbtDbValue = serde_json::from_str(&event_str).map_err(|_| GenericOracleError {
+    //     message: "Unable to deserialize psbt event from db".to_string(),
+    // })?;
+
+    let event: PsbtDbValue =
+        serde_json::from_str(&String::from_utf8(event_binary.clone()).expect("to string"))
+            .map_err(|_| GenericOracleError {
+                message: "Error deserializing new_event from JSON".to_string(),
+            })?;
+
+    // let (funding_psbt, closing_psbt) = (event.0.clone(), event.1.clone());
+    let closing_psbt = event.0.clone();
+
+    // let funding_psbt: Vec<u8> =
+    //     FromHex::from_hex(&funding_psbt).expect("to decode funding_psbt hex");
+    // let funding_psbt: PartiallySignedTransaction =
+    //     deserialize(&funding_psbt).map_err(|_| GenericOracleError {
+    //         message: "Unable to deserialize funding psbt from db value".to_string(),
+    //     })?;
+
+    let closing_psbt: Vec<u8> =
+        FromHex::from_hex(&closing_psbt).expect("to decode funding_psbt hex");
+    let closing_psbt: PartiallySignedTransaction =
+        deserialize(&closing_psbt).map_err(|_| GenericOracleError {
+            message: "Unable to deserialize closing psbt event from db".to_string(),
+        })?;
+
+    Ok(ApiOraclePsbtEvent {
+        event_id: event.2.clone(),
+        uuid: event.2,
+        // funding_psbt,
+        closing_psbt,
+        mint_address: event.1,
+        outcome: event.3,
+        chain: event.4,
+    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -389,9 +729,9 @@ fn parse_database_entry(event: Vec<u8>) -> Result<ApiOracleEvent, JsValue> {
         event_id: announcement.oracle_event.event_id.clone(),
         uuid: event.4,
         rust_announcement_json,
-        rust_announcement: event.1.encode_hex::<String>(),
+        rust_announcement: event.1.to_hex(),
         rust_attestation_json: decoded_att_json,
-        rust_attestation: event.2.map(|att| att.encode_hex::<String>()),
+        rust_attestation: event.2.map(|att| att.to_hex()),
         maturation: announcement.oracle_event.event_maturity_epoch.to_string(),
         outcome: event.3,
         chain: event.5,

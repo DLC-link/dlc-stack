@@ -2,7 +2,7 @@ use secp256k1_zkp::PublicKey;
 use secp256k1_zkp::{All, KeyPair, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
 
-mod error;
+pub(crate) mod error;
 mod handler;
 use crate::oracle::handler::EventHandler;
 pub use error::OracleError;
@@ -16,6 +16,15 @@ pub struct DbValue(
     pub Option<u64>,                      // outcome?
     pub String,                           // uuid
     #[serde(default)] pub Option<String>, // chain name
+);
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PsbtDbValue(
+    pub String,                           // closing_psbt as hex of byte array
+    pub String,                           // corresponding mint address
+    pub String,                           // uuid
+    pub Option<u64>,                      // outcome?
+    #[serde(default)] pub Option<String>, // chain_name?
 );
 
 #[derive(Clone)]

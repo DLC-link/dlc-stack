@@ -139,4 +139,36 @@ export default class AttestorService {
       return null;
     }
   }
+
+  public static async createPsbtEvent(uuid: string, closing_psbt: string, ethAddress: string, chain: PrefixedChain) {
+    const attestor = await this.getAttestor();
+
+    console.log('createPsbtEvent with UUID:', uuid);
+
+    try {
+      await attestor.create_psbt_event(uuid, closing_psbt, ethAddress, chain);
+      attestorMetricsCounter.createAnnouncementSuccessCounter.inc();
+    } catch (error) {
+      console.error(error);
+      attestorMetricsCounter.createAnnouncementErrorCounter.inc();
+      return error;
+    }
+    return { uuid: uuid };
+  }
+
+  public static async closePsbtEvent(uuid: string) {
+    const attestor = await this.getAttestor();
+
+    console.log('closePsbtEvent with UUID:', uuid);
+
+    try {
+      await attestor.close_psbt_event(uuid);
+      attestorMetricsCounter.createAttestationSuccessCounter.inc();
+    } catch (error) {
+      console.error(error);
+      attestorMetricsCounter.createAttestationSuccessCounter.inc();
+      return error;
+    }
+    return { uuid: uuid };
+  }
 }

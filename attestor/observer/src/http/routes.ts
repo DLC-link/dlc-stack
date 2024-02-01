@@ -63,6 +63,27 @@ if (ConfigService.getSettings()['dev-endpoints-enabled']) {
     const data = await AttestorService.createAttestation(req.params.uuid as string, BigInt(req.params.outcome));
     res.status(200).send(data);
   });
+
+  // attestor Server side, the post sending the PSBTs.
+  router.post('/create-psbt-event', async (req, res) => {
+    let chain = (req.body.chain as PrefixedChain) ?? 'stx-mocknet';
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    const data = await AttestorService.createPsbtEvent(
+      req.body.uuid as string,
+      // req.body.psbt1 as string,
+      req.body.psbt2 as string,
+      req.body.mintAddress as string,
+      chain
+    );
+    res.status(200).send(data);
+  });
+
+  // attestor Server side, the post sending the PSBTs.
+  router.post('/close-psbt-event', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    const data = await AttestorService.closePsbtEvent(req.body.uuid as string);
+    res.status(200).send(data);
+  });
 }
 
 export default router;

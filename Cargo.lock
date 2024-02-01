@@ -304,6 +304,7 @@ name = "attestor"
 version = "0.1.0"
 dependencies = [
  "base64 0.13.1",
+ "bdk",
  "bitcoin 0.29.2",
  "console_error_panic_hook",
  "displaydoc",

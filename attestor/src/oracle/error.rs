@@ -1,8 +1,27 @@
+use std::fmt;
+
 use displaydoc::Display;
 use dlc_clients::ApiError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, OracleError>;
+
+#[derive(Debug, Clone)]
+pub struct GenericOracleError {
+    pub message: String,
+}
+
+impl fmt::Display for GenericOracleError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "GenericOracleError: {}", self.message)
+    }
+}
+
+impl std::error::Error for GenericOracleError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
 
 #[derive(Clone, Debug, Display, Error)]
 pub enum OracleError {
