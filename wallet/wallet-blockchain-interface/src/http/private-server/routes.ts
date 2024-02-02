@@ -39,7 +39,7 @@ router.post('/set-status-funded', express.json(), localhostOrDockerOnly, async (
 
 router.get('/get-all-attestors', express.json(), localhostOrDockerOnly, async (req, res) => {
     console.log('[WBI] GET /get-all-attestors');
-    let data = getAttestors();
+    let data = await getAttestors();
     console.log('AttestorList:', data);
     res.status(200).send(data);
 });
