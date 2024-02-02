@@ -279,6 +279,20 @@ async fn process_request(
                         ))
                     })?;
 
+                let signed_contract = dlc_store
+                    .check_if_signed_contract_exists_by_uuid(req.uuid.clone())
+                    .await
+                    .map_err(|e| {
+                        WalletError(format!("Error checking if contract exists: {}", e))
+                    })?;
+
+                if signed_contract.is_some() {
+                    return Err(WalletError(format!(
+                        "Couldn't create offer, signed contract with uuid {} already exists",
+                        req.uuid.clone()
+                    )));
+                }
+
                 create_new_offer(
                     manager,
                     attestors,

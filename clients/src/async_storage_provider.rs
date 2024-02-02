@@ -61,6 +61,44 @@ impl AsyncStorageApiProvider {
         }
         Ok(contracts)
     }
+
+    pub async fn check_if_signed_contract_exists_by_uuid(
+        &self,
+        uuid: String,
+    ) -> Result<Option<DlcContract>, Error> {
+        let contracts = self.get_contracts().await?;
+
+        let contract = contracts.into_iter().find(|c| match c {
+            DlcContract::Signed(c) | DlcContract::Confirmed(c) => {
+                let oracle_event_id = c
+                    .accepted_contract
+                    .offered_contract
+                    .contract_info
+                    .first()
+                    .and_then(|info| info.oracle_announcements.first())
+                    .map(|announcement| announcement.oracle_event.event_id.clone())
+                    .unwrap_or_default();
+
+                oracle_event_id == uuid
+            }
+            DlcContract::PreClosed(c) => {
+                let oracle_event_id = c
+                    .signed_contract
+                    .accepted_contract
+                    .offered_contract
+                    .contract_info
+                    .first()
+                    .and_then(|info| info.oracle_announcements.first())
+                    .map(|announcement| announcement.oracle_event.event_id.clone())
+                    .unwrap_or_default();
+
+                oracle_event_id == uuid
+            }
+            _ => false,
+        });
+
+        Ok(contract)
+    }
 }
 
 impl AsyncStorage for AsyncStorageApiProvider {
