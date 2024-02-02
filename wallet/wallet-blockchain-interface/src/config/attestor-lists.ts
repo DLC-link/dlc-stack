@@ -1,7 +1,21 @@
-const attestorLists: Array<{ name: string; domains: string[] }> = [
+async function fetchRemoteAttestorList(network: string): Promise<string[]> {
+    const branch = process.env.ATTESTOR_LIST_FETCH_BRANCH || 'main';
+    try {
+        const response = await fetch(
+            `https://raw.githubusercontent.com/DLC-link/configurations/${branch}/attestors/attestors.${network}.json`
+        );
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching remote attestor list:', error);
+        return [];
+    }
+}
+
+const attestorLists: Array<{ name: string; domains: () => Promise<string[]> }> = [
     {
         name: 'docker',
-        domains: [
+        domains: async () => [
             'http://172.20.128.5:8801', // Docker hardcoded attestors
             'http://172.20.128.6:8802',
             'http://172.20.128.7:8803',
@@ -9,7 +23,7 @@ const attestorLists: Array<{ name: string; domains: string[] }> = [
     },
     {
         name: 'local',
-        domains: [
+        domains: async () => [
             'http://127.0.0.1:8801', // Local and Just mode
             'http://127.0.0.1:8802',
             'http://127.0.0.1:8803',
@@ -17,29 +31,24 @@ const attestorLists: Array<{ name: string; domains: string[] }> = [
     },
     {
         name: 'devnet',
-        domains: [
-            'https://devnet.dlc.link/attestor-1',
-            'https://devnet.dlc.link/attestor-2',
-            'https://devnet.dlc.link/attestor-3',
-        ],
+        domains: async () => fetchRemoteAttestorList('devnet'),
     },
     {
         name: 'testnet',
-        domains: [
-            'https://testnet.dlc.link/attestor-1',
-            'https://testnet.dlc.link/attestor-2',
-            'https://testnet.dlc.link/attestor-3',
-        ],
+        domains: async () => fetchRemoteAttestorList('testnet'),
     },
-    { name: 'mainnet', domains: ['', '', ''] },
+    {
+        name: 'mainnet',
+        domains: async () => fetchRemoteAttestorList('mainnet'),
+    },
 ];
 
-function getAttestorList(config: string): string[] {
+async function getAttestorList(config: string): Promise<string[]> {
     const list = attestorLists.find((item) => item.name === config);
-    return list?.domains || [];
+    return (await list?.domains()) || [];
 }
 
-export function getAttestors(): string[] {
+export async function getAttestors(): Promise<string[]> {
     // based on two things this will return the attestor list
     // 1. if there is an ATTESTOR_LIST env variable with non-zero length, it will return that list
     // 2. if there is an ATTESTOR_CONFIG env variable, it will return the list for that config
