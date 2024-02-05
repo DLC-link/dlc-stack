@@ -13,10 +13,8 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 base64 = "0.13.1"
-bdk = { version = "0.28.2", default-features = false, features = ["keys-bip39", "async-interface"] }
-bitcoin = { version = "0.29.2", features = [
-  "serde",
-] } # Not using Bitcoin in this package, but listing here to recursively import the serde features downstream
+bdk = {version = "0.28.2", default-features = false, features = ["async-interface", "use-esplora-async"]}
+bitcoin = { version = "0.29.2", features = ["serde"] }
 displaydoc = "0.2"
 dlc = { git = "https://github.com/dlc-link/rust-dlc", rev = "c55e128", features = ["use-serde"] }
 dlc-messages = { git = "https://github.com/dlc-link/rust-dlc", rev = "c55e128", features = ["use-serde"] }

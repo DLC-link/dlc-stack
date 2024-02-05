@@ -119,7 +119,7 @@ impl StorageApiConn {
     pub async fn get_all(
         &self,
         secret_key: SecretKey,
-    ) -> Result<Option<Vec<(String, Vec<u8>)>>, OracleError> {
+    ) -> Result<Vec<(String, Vec<u8>)>, OracleError> {
         let events = self
             .client
             .get_events(
@@ -137,6 +137,6 @@ impl StorageApiConn {
             let content = base64::decode(event.content).map_err(OracleError::Base64DecodeError)?;
             result.push((event.event_id, content));
         }
-        Ok(Some(result))
+        Ok(result)
     }
 }

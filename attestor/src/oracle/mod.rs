@@ -23,6 +23,7 @@ pub struct PsbtDbValue(
     pub String,                           // closing_psbt as hex of byte array
     pub String,                           // corresponding mint address
     pub String,                           // uuid
+    pub String,                           // funding_txid
     pub Option<u64>,                      // outcome?
     #[serde(default)] pub Option<String>, // chain_name?
 );

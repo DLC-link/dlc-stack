@@ -5,6 +5,9 @@
 extern crate core;
 extern crate log;
 
+use bdk::blockchain::EsploraBlockchain;
+use bdk::esplora_client::TxStatus;
+use bdk::esplora_client::{AsyncClient, Builder as EsploraClientBuilder};
 use bitcoin::blockdata::opcodes::all;
 use bitcoin::blockdata::script::{Builder, Instruction};
 use bitcoin::consensus::deserialize;
@@ -280,17 +283,10 @@ impl Attestor {
             .await
             .map_err(|_| JsError::new("[WASM-ATTESTOR] Error getting all events"))?;
 
-        let events = match events {
-            Some(value) => value,
-            None => return Err(JsError::new("[WASM-ATTESTOR] Error: events is None")),
-        };
-
-        let events: Result<Vec<ApiOracleEvent>, JsError> = events
+        let events: Vec<ApiOracleEvent> = events
             .iter()
-            .map(|event| parse_database_entry(event.clone().1))
+            .filter_map(|event| parse_database_entry(event.clone().1).ok())
             .collect();
-
-        let events = events?;
 
         serde_wasm_bindgen::to_value(&events)
             .map_err(|_| JsError::new("[WASM-ATTESTOR] Error serializing events to JSON"))
@@ -346,9 +342,30 @@ impl Attestor {
         }
     }
 
+    // async fn get_all_psbt_events(&self) -> Result<Vec<ApiOraclePsbtEvent>, GenericOracleError> {
+    //     let psbt_events = self
+    //         .oracle
+    //         .event_handler
+    //         .storage_api
+    //         .clone()
+    //         .get_all(self.secret_key)
+    //         .await
+    //         .map_err(|_| GenericOracleError {
+    //             message: "Error getting event from storage_api".to_string(),
+    //         })?;
+
+    //     let events: Vec<ApiOraclePsbtEvent> = psbt_events
+    //         .iter()
+    //         .filter_map(|event| parse_psbt_database_entry(event.clone().1).ok())
+    //         .collect();
+
+    //     Ok(events)
+    // }
+
     pub async fn create_psbt_event(
         &self,
         uuid: &str, // can use the txid of the prefunding tx here
+        funding_txid: &str,
         closing_psbt: &str,
         mint_address: &str,
         chain: &str,
@@ -362,30 +379,11 @@ impl Attestor {
         let closing_psbt: PartiallySignedTransaction = deserialize(&closing_psbt[..])
             .map_err(|_| JsError::new("Error decoding closing_psbt"))?;
 
-        // recreate the transactions, and make sure they match, minus the signatures
-        // make sure the internal tap key is invalid.
-
-        // here's how we can put the hash-preimage into the witness to spend the htlc
-        // https://github.com/lightningdevkit/rust-lightning/blob/main/lightning/src/ln/chan_utils.rs#L712
-        // https://github.com/rust-bitcoin/rust-bitcoin/blob/master/bitcoin/examples/taproot-psbt.rs
-        // https://github.com/rust-bitcoin/rust-bitcoin/blob/master/bitcoin/examples/taproot-psbt.rs#L686
-
-        // Use the bdk verify functions to verify the sigs on the PSBTs
-
-        // Grab the details for the prefunding tx from the PSBTs somehow.
-        // verify that the PSBTs are "good", that the funding tx is good, etc. This should be done via consensus somehow...
-
-        // I guess we could leverage our FROST system for that consensus, by sending a message to the coordinator
-        // to verify all the things, and they'll only sign a message about validating the system
-        // if the threshold agrees.
-
-        // For now, assuming that's all good...
-        // We should store the PSBTs in the database, and then we can use them to sign the funding tx and payout tx later.
-
         let psbt_db_value = PsbtDbValue(
             bitcoin::consensus::encode::serialize(&closing_psbt).to_hex(),
             mint_address.to_string(),
             uuid.to_string(),
+            funding_txid.to_string(),
             None,                    //outcome
             Some(chain.to_string()), //chain name
         );
@@ -415,6 +413,10 @@ impl Attestor {
 
     // Much of the logic of this function is taken from the following rust-bitcoin example:
     // https://github.com/rust-bitcoin/rust-bitcoin/issues/1195#issuecomment-1216163286
+    // here's how we can put the hash-preimage into the witness to spend the htlc
+    // https://github.com/lightningdevkit/rust-lightning/blob/main/lightning/src/ln/chan_utils.rs#L712
+    // https://github.com/rust-bitcoin/rust-bitcoin/blob/master/bitcoin/examples/taproot-psbt.rs
+    // https://github.com/rust-bitcoin/rust-bitcoin/blob/master/bitcoin/examples/taproot-psbt.rs#L686
     pub async fn close_psbt_event(&self, uuid: &str) -> Result<JsValue, JsError> {
         // reference https://github.com/paulmillr/scure-btc-signer/blob/87989df23ed931fa6fa9aeb4391c7c8c6bae53f3/index.ts#L1213
         // const TAPROOT_UNSPENDABLE_KEY: PublicKey = sha256(ProjPoint.BASE.toRawBytes(false));
@@ -650,13 +652,46 @@ impl Attestor {
             .map_err(|_| JsError::new("Error serializing closing_tx to JSON"))?;
         Ok(closing_tx_value)
     }
+
+    /// This function is used to validate the funding tx
+    /// It will return a boolean value indicating if the funding tx is valid
+    pub async fn get_validation_status_for_uuid(&self, uuid: String) -> Result<bool, JsError> {
+        // recreate the transactions, and make sure they match, minus the signatures
+        // make sure the internal tap key is invalid.
+
+        // Use the bdk verify functions to verify the sigs on the PSBTs
+
+        let psbt_event = self.get_psbt_event(uuid.clone()).await?;
+        let funding_txid = psbt_event.funding_txid;
+
+        let blockchain = EsploraBlockchain::new("https://devnet.dlc.link/electrs", 20);
+        let tx_status = blockchain
+            .get_tx_status(&bitcoin::Txid::from_str(&funding_txid)?)
+            .await?
+            .ok_or(JsError::new(&format!(
+                "Error getting tx status, maybe tx doesnt exist tx {funding_txid}"
+            )))?;
+
+        let block_chain_height = blockchain
+            .get_height()
+            .await
+            .map_err(|e| JsError::new(&format!("Unable to get chain height {e}")))?
+            as u64;
+
+        let confirmations = match (tx_status.confirmed, tx_status.block_height) {
+            (true, Some(block_height)) => (block_chain_height - block_height as u64 + 1) as u32,
+            _ => 0,
+        };
+
+        Ok(confirmations >= 6)
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 struct ApiOraclePsbtEvent {
     event_id: String,
     uuid: String,
-    // funding_psbt: PartiallySignedTransaction,
+    funding_txid: String,
     closing_psbt: PartiallySignedTransaction,
     mint_address: String,
     outcome: Option<u64>,
@@ -666,26 +701,13 @@ struct ApiOraclePsbtEvent {
 fn parse_psbt_database_entry(
     event_binary: Vec<u8>,
 ) -> Result<ApiOraclePsbtEvent, GenericOracleError> {
-    // let event_str = String::from_utf8_lossy(&event_binary);
-    // let event: PsbtDbValue = serde_json::from_str(&event_str).map_err(|_| GenericOracleError {
-    //     message: "Unable to deserialize psbt event from db".to_string(),
-    // })?;
-
     let event: PsbtDbValue =
         serde_json::from_str(&String::from_utf8(event_binary.clone()).expect("to string"))
             .map_err(|_| GenericOracleError {
                 message: "Error deserializing new_event from JSON".to_string(),
             })?;
 
-    // let (funding_psbt, closing_psbt) = (event.0.clone(), event.1.clone());
     let closing_psbt = event.0.clone();
-
-    // let funding_psbt: Vec<u8> =
-    //     FromHex::from_hex(&funding_psbt).expect("to decode funding_psbt hex");
-    // let funding_psbt: PartiallySignedTransaction =
-    //     deserialize(&funding_psbt).map_err(|_| GenericOracleError {
-    //         message: "Unable to deserialize funding psbt from db value".to_string(),
-    //     })?;
 
     let closing_psbt: Vec<u8> =
         FromHex::from_hex(&closing_psbt).expect("to decode funding_psbt hex");
@@ -697,11 +719,11 @@ fn parse_psbt_database_entry(
     Ok(ApiOraclePsbtEvent {
         event_id: event.2.clone(),
         uuid: event.2,
-        // funding_psbt,
         closing_psbt,
+        funding_txid: event.3,
         mint_address: event.1,
-        outcome: event.3,
-        chain: event.4,
+        outcome: event.4,
+        chain: event.5,
     })
 }
 
