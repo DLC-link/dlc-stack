@@ -416,13 +416,7 @@ impl Attestor {
     // Much of the logic of this function is taken from the following rust-bitcoin example:
     // https://github.com/rust-bitcoin/rust-bitcoin/issues/1195#issuecomment-1216163286
     pub async fn close_psbt_event(&self, uuid: &str) -> Result<JsValue, JsError> {
-        // pull these from the db
-        // Another stupid decision, where lack of standard affects security.
-        // Multisig needs to be generated with some key.
-        // We are using approach from BIP 341/bitcoinjs-lib: SHA256(uncompressedDER(SECP256K1_GENERATOR_POINT))
-        // It is possible to switch SECP256K1_GENERATOR_POINT with some random point;
-        // but it's too complex to prove.
-        // Also used by bitcoin-core and bitcoinjs-lib
+        // reference https://github.com/paulmillr/scure-btc-signer/blob/87989df23ed931fa6fa9aeb4391c7c8c6bae53f3/index.ts#L1213
         // const TAPROOT_UNSPENDABLE_KEY: PublicKey = sha256(ProjPoint.BASE.toRawBytes(false));
         const TAPROOT_UNSPENDABLE_KEY: &str =
             "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
