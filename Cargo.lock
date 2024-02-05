@@ -317,6 +317,7 @@ dependencies = [
  "js-sys",
  "lightning",
  "log",
+ "reqwest",
  "secp256k1-zkp",
  "serde",
  "serde-wasm-bindgen",

@@ -70,8 +70,7 @@ if (ConfigService.getSettings()['dev-endpoints-enabled']) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     const data = await AttestorService.createPsbtEvent(
       req.body.uuid as string,
-      // req.body.psbt1 as string,
-      req.body.psbt2 as string,
+      req.body.closingPsbt as string,
       req.body.mintAddress as string,
       chain
     );
