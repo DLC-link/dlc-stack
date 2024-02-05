@@ -1,4 +1,3 @@
-#![feature(async_fn_in_trait)]
 #![deny(clippy::unwrap_used)]
 extern crate serde;
 

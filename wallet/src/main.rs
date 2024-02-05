@@ -1,4 +1,3 @@
-#![feature(async_fn_in_trait)]
 #![deny(clippy::unwrap_used)]
 #![deny(unused_mut)]
 #![deny(dead_code)]
@@ -232,7 +231,7 @@ async fn process_request(
                 Ok(chain) => build_success_response(chain),
                 Err(e) => {
                     error!("Error getting chain from attestors: {}", e);
-                    return build_error_response(e.to_string());
+                    build_error_response(e.to_string())
                 }
             }
         }

@@ -1,6 +1,5 @@
 //! # cg-oracle-client
 //! Http client wrapper for the Crypto Garage DLC oracle
-#![feature(async_fn_in_trait)]
 // Coding conventions
 #![deny(non_upper_case_globals)]
 #![deny(non_camel_case_types)]

@@ -1,4 +1,3 @@
-#![feature(async_fn_in_trait)]
 #![allow(unreachable_code)]
 #![deny(clippy::unwrap_used)]
 #![deny(unused_mut)]
