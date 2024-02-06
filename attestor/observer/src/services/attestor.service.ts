@@ -3,7 +3,7 @@ import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from 'tiny-secp256k1';
 import ConfigService from './config.service.js';
-import { PrefixedChain } from '../config/models.js';
+import { PrefixedChain } from '../config/chains.models.js';
 import { createAttestorMetricsCounters } from '../config/prom-metrics.models.js';
 
 function getOrGenerateSecretFromConfig(): string {
@@ -158,27 +158,51 @@ export default class AttestorService {
 
   public static async closePsbtEvent(uuid: string) {
     const attestor = await this.getAttestor();
-
+    let txid;
     console.log('closePsbtEvent with UUID:', uuid);
 
     try {
-      await attestor.close_psbt_event(uuid);
+      txid = await attestor.close_psbt_event(uuid);
       attestorMetricsCounter.createAttestationSuccessCounter.inc();
     } catch (error) {
       console.error(error);
       attestorMetricsCounter.createAttestationSuccessCounter.inc();
-      return error;
+      return null;
     }
-    return { uuid: uuid };
+    return txid;
   }
 
-  public static async checkEvent(uuid: string): Promise<boolean> {
+  public static async getConfirmedPSBTEvents() {
     const attestor = await this.getAttestor();
     try {
-      return await attestor.get_validation_status_for_uuid(uuid);
+      const events = await attestor.get_confirmed_psbt_events();
+      return events;
     } catch (error) {
       console.error(error);
-      return false;
+      return null;
     }
   }
+
+  public static async setPSBTEventToFunded(uuid: string) {
+    const attestor = await this.getAttestor();
+    try {
+      await attestor.set_psbt_event_to_funded(uuid);
+      return { uuid: uuid };
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  }
+
+  // TODO: ???
+  // public static async setPSBTEventToClosed(uuid: string) {
+  //   const attestor = await this.getAttestor();
+  //   try {
+  //     await attestor.set_psbt_event_closed(uuid);
+  //     return { uuid: uuid };
+  //   } catch (error) {
+  //     console.error(error);
+  //     return null;
+  //   }
+  // }
 }

@@ -1,7 +1,7 @@
 import { StacksApiSocketClient } from '@stacks/blockchain-api-client';
 import { NetworkConfig } from '../models/interfaces.js';
 import { io } from 'socket.io-client';
-import { ChainConfig, stxPrefix } from '../../../config/models.js';
+import { ChainConfig, stxPrefix } from '../../../config/chains.models.js';
 
 function setupSocketClient(endpoint: string): StacksApiSocketClient {
   const _socket = io(endpoint, {

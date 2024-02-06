@@ -1,6 +1,6 @@
 import { TransactionReceipt } from '@ethersproject/abstract-provider';
 import { TxBroadcastResult } from '@stacks/transactions';
-import { PrefixedChain } from '../../../config/models.js';
+import { PrefixedChain } from '../../../config/chains.models.js';
 import { EVMDLCInterface } from '../../ethereum/models/dlc-info.interface.js';
 export interface BlockchainInterface {
   chainName: PrefixedChain;

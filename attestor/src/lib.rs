@@ -654,6 +654,7 @@ impl Attestor {
         let closing_tx_value = serde_wasm_bindgen::to_value(&closing_tx)
             .map_err(|_| JsError::new("Error serializing closing_tx to JSON"))?;
 
+        // TODO: Status:CLosing?
         // Set the status of the psbt event to closed
         let update_psbt_db_value = PsbtDbValue(
             bitcoin::consensus::encode::serialize(&psbt_event.closing_psbt).to_hex(),
@@ -687,7 +688,7 @@ impl Attestor {
             }
         }
 
-        Ok(closing_tx_value)
+        Ok(pst_tx.txid())
     }
 
     async fn set_psbt_event_status(
@@ -732,6 +733,11 @@ impl Attestor {
     }
 
     /// callback for setting the db status to funded for PSBT events
+    pub async fn set_psbt_event_to_funded(&self, uuid: &str) -> Result<(), JsError> {
+        self.set_psbt_event_status(uuid, PsbtEventStatus::Funded)
+            .await
+    }
+
     pub async fn set_psbt_event_to_funded(&self, uuid: &str) -> Result<(), JsError> {
         self.set_psbt_event_status(uuid, PsbtEventStatus::Funded)
             .await

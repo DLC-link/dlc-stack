@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 import { DeploymentInfo } from '../../shared/models/deployment-info.interface.js';
 import { BlockchainInterface } from '../../shared/models/observer.interface.js';
 import AttestorService from '../../../services/attestor.service.js';
-import { PrefixedChain, evmPrefix } from '../../../config/models.js';
+import { PrefixedChain, evmPrefix } from '../../../config/chains.models.js';
 import { createBlockchainObserverMetricsCounters } from '../../../config/prom-metrics.models.js';
 import { TransactionReceipt } from '@ethersproject/abstract-provider';
 import { EVMDLCInterface } from '../models/dlc-info.interface.js';
@@ -23,14 +23,52 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
         console.log('TXID:', tx.transactionHash);
 
         try {
-          // NOTE: precision_shift is hardcoded to 2
-          await AttestorService.createAttestation(_uuid, outcome, 2);
-          console.log(await AttestorService.getEvent(_uuid));
+          const txid = await AttestorService.closePsbtEvent(_uuid);
+
+          // TODO: create getPSBTEvent
+          // console.log(await AttestorService.getEvent(_uuid));
+
+          await setVaultStatusPostClosed(_uuid, txid);
         } catch (error) {
           console.error(error);
         }
       }
     );
+
+    contract.on(
+      'SetStatusFunded',
+      async (_uuid: string, _btcTxId: string, _protocolWallet: string, _sender: string, tx: any) => {
+        ethereumObserverMetricsCounter.setStatusFundedEventCounter.inc();
+        const currentTime = new Date();
+        const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC funded @ ${currentTime} \n\t uuid: ${_uuid} | protocolWallet: ${_protocolWallet} | sender: ${_sender} \n`;
+        console.log(_logMessage);
+        console.log('TXID:', tx.transactionHash);
+        try {
+          await AttestorService.setPSBTEventToFunded(_uuid);
+          // console.log(await AttestorService.getEvent(_uuid));
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    );
+
+    // contract.on(
+    //   'PostCloseDLC',
+    //   async (_uuid: string, _outcome: number, _btcTxId: string, _protocolWallet: string, _sender: string, tx: any) => {
+    //     ethereumObserverMetricsCounter.postCloseDLCEventCounter.inc();
+    //     const currentTime = new Date();
+    //     const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC closed @ ${currentTime} \n\t uuid: ${_uuid} | outcome: ${_outcome} | btcTxId: ${_btcTxId} \n`;
+    //     console.log(_logMessage);
+    //     console.log('TXID:', tx.transactionHash);
+
+    //     try {
+    //       await AttestorService.set(_uuid);
+    //       // console.log(await AttestorService.getEvent(_uuid));
+    //     } catch (error) {
+    //       console.error(error);
+    //     }
+    //   }
+    // );
   }
 
   async function getAllVaults(): Promise<any> {
@@ -58,7 +96,7 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
     }
   }
 
-  async function setVaultStatusFunded(vaultUUID: string, bitcoinTransactionID: string): Promise<TransactionReceipt> {
+  async function setVaultStatusFunded(vaultUUID: string, bitcoinTransactionID: string) {
     try {
       const gasLimit = await contract.estimateGas.setStatusFunded(vaultUUID, bitcoinTransactionID);
       const transaction = await contract.setStatusFunded(vaultUUID, bitcoinTransactionID, {
@@ -69,14 +107,11 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
       return transactionReceipt;
     } catch (error) {
       console.error(error);
-      throw error;
+      return error;
     }
   }
 
-  async function setVaultStatusPostClosed(
-    vaultUUID: string,
-    bitcoinTransactionID: string
-  ): Promise<TransactionReceipt> {
+  async function setVaultStatusPostClosed(vaultUUID: string, bitcoinTransactionID: string) {
     try {
       const gasLimit = await contract.estimateGas.postCloseDLC(vaultUUID, bitcoinTransactionID);
       const transaction = await contract.postCloseDLC(vaultUUID, bitcoinTransactionID, {
@@ -87,7 +122,7 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
       return transactionReceipt;
     } catch (error) {
       console.log(error);
-      throw error;
+      return error;
     }
   }
 

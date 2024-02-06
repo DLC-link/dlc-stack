@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { ChainConfig } from '../../config/models.js';
+import { ChainConfig } from '../../config/chains.models.js';
 import getConfig from './get-network-config.js';
 import { BlockchainInterface } from '../shared/models/observer.interface.js';
 import { DlcManagerV1 } from './contracts/dlc-manager-v1.js';
@@ -16,11 +16,9 @@ export const getEthereumBlockchainInterface = async (config: ChainConfig): Promi
 
   const wallet: ethers.Wallet = new ethers.Wallet(config.private_key, provider);
 
-  const contract = new ethers.Contract(
-    deploymentInfo.contract.address,
-    deploymentInfo.contract.abi,
-    provider
-  ).connect(wallet);
+  const contract = new ethers.Contract(deploymentInfo.contract.address, deploymentInfo.contract.abi, provider).connect(
+    wallet
+  );
 
   switch (config.version) {
     case '1':

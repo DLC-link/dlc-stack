@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import yaml from 'js-yaml';
 
-import { ChainConfig, validChains } from '../config/models.js';
+import { ChainConfig, validChains } from '../config/chains.models.js';
 
 // The yaml file should be in the following format:
 interface NodeConfig {

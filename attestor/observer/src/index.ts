@@ -29,6 +29,7 @@ async function main() {
   observers.forEach((observer) => observer.startListening());
 
   // Start periodic service
+  PeriodicService.init(observers);
   await PeriodicService.start(parseInt(process.env.PERIODIC_CHECK_FREQUENCY as string) || 10);
 }
 

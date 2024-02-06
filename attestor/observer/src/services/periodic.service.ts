@@ -1,4 +1,5 @@
 import { BlockchainInterface } from '../chains/shared/models/observer.interface.js';
+import { PSBTEventInterface } from '../config/psbt.models.js';
 import AttestorService from './attestor.service.js';
 
 export default class PeriodicService {
@@ -7,6 +8,8 @@ export default class PeriodicService {
   public static init(bis: BlockchainInterface[]) {
     this.blockchainInterfaces = bis;
   }
+
+  // TODO: backchecking / manual funded setting? (for testing)
 
   public static async start(frequencyInSeconds: number): Promise<void> {
     console.log('[PeriodicService] Starting periodic checks with frequency', frequencyInSeconds, 'seconds');
@@ -17,17 +20,20 @@ export default class PeriodicService {
       // call ssF for correct chains & contracts
       // store in temp mem to avoid repinging
 
-      const list = [{ uuid: '123', closing_psbt: { fund: 'ts', close: 'sldksdlk' }, chain: 'evm-sepolia' }];
+      const events: PSBTEventInterface[] = (await AttestorService.getConfirmedPSBTEvents()) as PSBTEventInterface[];
 
-      for (const event of list) {
+      console.log(events);
+
+      for (const event of events) {
         const { chain, uuid } = event;
         const relevantBIs = this.blockchainInterfaces.filter((bi) => bi.chainName === chain);
         const bi: BlockchainInterface | undefined = relevantBIs.find((bi) => bi.checkAndGetVault(uuid));
         if (!bi) {
-          console.error('No blockchain interface found for chain', chain);
+          console.error('No blockchain interface found for UUID on this chain', uuid, chain);
           continue;
         }
-        await bi.setVaultStatusFunded(uuid, event.closing_psbt.fund);
+        console.log('Setting vault status to funded for', uuid);
+        await bi.setVaultStatusFunded(uuid, event.funding_txid);
       }
     }, 1000 * frequencyInSeconds);
   }

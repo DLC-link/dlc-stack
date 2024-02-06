@@ -3,7 +3,7 @@ import type { ContractCallTransaction } from '@stacks/stacks-blockchain-api-type
 import { ContractConfig, DeploymentInfo, FunctionName } from '../../models/interfaces.js';
 import unwrapper from '../../utilities/unwrappers.js';
 import AttestorService from '../../../../services/attestor.service.js';
-import { PrefixedChain } from '../../../../config/models.js';
+import { PrefixedChain } from '../../../../config/chains.models.js';
 import {
   BlockchainObserverMetricsCounters,
   createBlockchainObserverMetricsCounters,
@@ -29,7 +29,9 @@ export class DlcManagerV1 implements ContractConfig {
     this._contractFullName = `${deploymentInfo.deployer}.dlc-manager-v1-1`;
     this._socket = socket;
     this._deploymentInfo = deploymentInfo;
-    this.observerMetricsCounter = createBlockchainObserverMetricsCounters(this._deploymentInfo.chainName as PrefixedChain);
+    this.observerMetricsCounter = createBlockchainObserverMetricsCounters(
+      this._deploymentInfo.chainName as PrefixedChain
+    );
   }
 
   async init() {
