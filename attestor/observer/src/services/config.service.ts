@@ -57,7 +57,7 @@ export default class ConfigService {
           return this.validateApiKey(chainConfig);
         });
       }
-z
+
       config = { ...config, 'evm-chains': evmChainConfigs, 'stx-chains': stxChainConfigs };
 
       return config;
