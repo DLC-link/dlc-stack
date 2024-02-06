@@ -5,6 +5,7 @@ import AttestorService from '../../../services/attestor.service.js';
 import { PrefixedChain, evmPrefix } from '../../../config/models.js';
 import { createBlockchainObserverMetricsCounters } from '../../../config/prom-metrics.models.js';
 import { TransactionReceipt } from '@ethersproject/abstract-provider';
+import { EVMDLCInterface } from '../models/dlc-info.interface.js';
 
 export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: DeploymentInfo): BlockchainInterface => {
   const chainName = `${evmPrefix}${deploymentInfo.network.toLowerCase()}` as PrefixedChain;
@@ -37,40 +38,66 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
     return vaults;
   }
 
+  async function getDLCInfo(vaultUUID: string): Promise<EVMDLCInterface | undefined> {
+    try {
+      const dlcInfo = await contract.getDLC(vaultUUID);
+      return dlcInfo;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async function checkAndGetVault(vaultUUID: string): Promise<EVMDLCInterface | undefined> {
+    try {
+      const dlcInfo = await contract.getDLC(vaultUUID);
+      if (dlcInfo?.uuid === vaultUUID) return dlcInfo;
+    } catch (error) {
+      console.log(error);
+      throw new Error('Vault fetching failed');
+    }
+  }
+
   async function setVaultStatusFunded(vaultUUID: string, bitcoinTransactionID: string): Promise<TransactionReceipt> {
     try {
       const gasLimit = await contract.estimateGas.setStatusFunded(vaultUUID, bitcoinTransactionID);
       const transaction = await contract.setStatusFunded(vaultUUID, bitcoinTransactionID, {
-          gasLimit: gasLimit.add(10000),
+        gasLimit: gasLimit.add(10000),
       });
       const transactionReceipt = await transaction.wait();
       console.log('[SetStatusFunded] request transaction receipt: ', transactionReceipt);
       return transactionReceipt;
-  } catch (error) {
+    } catch (error) {
       console.error(error);
       throw error;
+    }
   }
-}
 
-  async function setVaultStatusPostClosed(vaultUUID: string, bitcoinTransactionID: string): Promise<TransactionReceipt> {
+  async function setVaultStatusPostClosed(
+    vaultUUID: string,
+    bitcoinTransactionID: string
+  ): Promise<TransactionReceipt> {
     try {
       const gasLimit = await contract.estimateGas.postCloseDLC(vaultUUID, bitcoinTransactionID);
       const transaction = await contract.postCloseDLC(vaultUUID, bitcoinTransactionID, {
-          gasLimit: gasLimit.add(10000),
+        gasLimit: gasLimit.add(10000),
       });
       const transactionReceipt = await transaction.wait();
       console.log('[PostCloseDLC] request transaction receipt: ', transactionReceipt);
       return transactionReceipt;
-  } catch (error) {
+    } catch (error) {
       console.log(error);
       throw error;
+    }
   }
-}
 
   return {
+    chainName,
     startListening,
     getAllVaults,
+    getDLCInfo,
+    checkAndGetVault,
     setVaultStatusFunded,
-    setVaultStatusPostClosed
+    setVaultStatusPostClosed,
   };
 };
