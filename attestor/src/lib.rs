@@ -656,7 +656,6 @@ impl Attestor {
 
         // Set the status of the psbt event to closed
         let update_psbt_db_value = PsbtDbValue(
-            // bitcoin::consensus::encode::serialize(&closing_psbt).to_hex(),
             bitcoin::consensus::encode::serialize(&psbt_event.closing_psbt).to_hex(),
             psbt_event.mint_address.to_string(),
             uuid.to_string(),
