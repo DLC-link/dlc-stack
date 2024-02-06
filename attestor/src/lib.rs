@@ -6,8 +6,6 @@ extern crate core;
 extern crate log;
 
 use bdk::blockchain::EsploraBlockchain;
-use bdk::esplora_client::TxStatus;
-use bdk::esplora_client::{AsyncClient, Builder as EsploraClientBuilder};
 use bitcoin::blockdata::opcodes::all;
 use bitcoin::blockdata::script::{Builder, Instruction};
 use bitcoin::consensus::deserialize;
@@ -365,7 +363,6 @@ impl Attestor {
     pub async fn create_psbt_event(
         &self,
         uuid: &str, // can use the txid of the prefunding tx here
-        funding_txid: &str,
         closing_psbt: &str,
         mint_address: &str,
         chain: &str,
@@ -379,11 +376,16 @@ impl Attestor {
         let closing_psbt: PartiallySignedTransaction = deserialize(&closing_psbt[..])
             .map_err(|_| JsError::new("Error decoding closing_psbt"))?;
 
+        let fuding_txid = closing_psbt.clone().extract_tx().input[0]
+            .previous_output
+            .txid
+            .to_string();
+
         let psbt_db_value = PsbtDbValue(
             bitcoin::consensus::encode::serialize(&closing_psbt).to_hex(),
             mint_address.to_string(),
             uuid.to_string(),
-            funding_txid.to_string(),
+            fuding_txid,
             None,                    //outcome
             Some(chain.to_string()), //chain name
         );
