@@ -4,6 +4,7 @@ import setupPolyfills from './polyfills.js';
 import ConfigService from './services/config.service.js';
 import { getEthereumBlockchainInterface } from './chains/ethereum/get-observer.js';
 // import getStacksObserver from './chains/stacks/get-observer.js';
+import PeriodicService from './services/periodic.service.js';
 
 async function main() {
   await AttestorService.init();
@@ -26,6 +27,9 @@ async function main() {
 
   // Start observers
   observers.forEach((observer) => observer.startListening());
+
+  // Start periodic service
+  await PeriodicService.start(parseInt(process.env.PERIODIC_CHECK_FREQUENCY as string) || 10);
 }
 
 main().catch((error) => {

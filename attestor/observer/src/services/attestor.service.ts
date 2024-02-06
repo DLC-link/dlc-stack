@@ -171,4 +171,14 @@ export default class AttestorService {
     }
     return { uuid: uuid };
   }
+
+  public static async checkEvent(uuid: string): Promise<boolean> {
+    const attestor = await this.getAttestor();
+    try {
+      return await attestor.get_validation_status_for_uuid(uuid);
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+  }
 }
