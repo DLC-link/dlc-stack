@@ -340,25 +340,25 @@ impl Attestor {
         }
     }
 
-    // async fn get_all_psbt_events(&self) -> Result<Vec<ApiOraclePsbtEvent>, GenericOracleError> {
-    //     let psbt_events = self
-    //         .oracle
-    //         .event_handler
-    //         .storage_api
-    //         .clone()
-    //         .get_all(self.secret_key)
-    //         .await
-    //         .map_err(|_| GenericOracleError {
-    //             message: "Error getting event from storage_api".to_string(),
-    //         })?;
+    async fn get_all_psbt_events(&self) -> Result<Vec<ApiOraclePsbtEvent>, GenericOracleError> {
+        let psbt_events = self
+            .oracle
+            .event_handler
+            .storage_api
+            .clone()
+            .get_all(self.secret_key)
+            .await
+            .map_err(|_| GenericOracleError {
+                message: "Error getting event from storage_api".to_string(),
+            })?;
 
-    //     let events: Vec<ApiOraclePsbtEvent> = psbt_events
-    //         .iter()
-    //         .filter_map(|event| parse_psbt_database_entry(event.clone().1).ok())
-    //         .collect();
+        let events: Vec<ApiOraclePsbtEvent> = psbt_events
+            .iter()
+            .filter_map(|event| parse_psbt_database_entry(event.clone().1).ok())
+            .collect();
 
-    //     Ok(events)
-    // }
+        Ok(events)
+    }
 
     pub async fn create_psbt_event(
         &self,
@@ -386,8 +386,9 @@ impl Attestor {
             mint_address.to_string(),
             uuid.to_string(),
             fuding_txid,
-            None,                    //outcome
-            Some(chain.to_string()), //chain name
+            None,                     //outcome
+            PsbtEventStatus::Pending, //status
+            Some(chain.to_string()),  //chain name
         );
 
         let new_psbt_event = serde_json::to_string(&psbt_db_value)
@@ -441,7 +442,7 @@ impl Attestor {
                 )));
             }
         };
-        let closing_psbt: PartiallySignedTransaction = psbt_event.closing_psbt;
+        let closing_psbt: PartiallySignedTransaction = psbt_event.clone().closing_psbt;
 
         // Starting the closing flow of signing and broadcasting the closing transaction
         let secp = Secp256k1::new();
@@ -612,7 +613,7 @@ impl Attestor {
             }
         }
 
-        let closing_tx = closing_psbt.extract_tx();
+        let closing_tx = closing_psbt.clone().extract_tx();
 
         let pst_tx = pst.extract_tx();
 
@@ -652,7 +653,121 @@ impl Attestor {
 
         let closing_tx_value = serde_wasm_bindgen::to_value(&closing_tx)
             .map_err(|_| JsError::new("Error serializing closing_tx to JSON"))?;
+
+        // Set the status of the psbt event to closed
+        let update_psbt_db_value = PsbtDbValue(
+            // bitcoin::consensus::encode::serialize(&closing_psbt).to_hex(),
+            bitcoin::consensus::encode::serialize(&psbt_event.closing_psbt).to_hex(),
+            psbt_event.mint_address.to_string(),
+            uuid.to_string(),
+            psbt_event.funding_txid,
+            None,                    //outcome
+            PsbtEventStatus::Closed, //status
+            psbt_event.chain,        //chain name
+        );
+
+        let new_psbt_event = serde_json::to_string(&update_psbt_db_value)
+            .map_err(|_| JsError::new("Error serializing new_event to JSON"))?
+            .into_bytes();
+
+        match &self
+            .oracle
+            .event_handler
+            .storage_api
+            .clone()
+            .insert(uuid.to_string(), new_psbt_event.clone(), self.secret_key)
+            .await
+        {
+            Ok(Some(_val)) => (),
+            _ => {
+                clog!(
+                "[WASM-ATTESTOR] Unable to update psbt event in StorageAPI with uuid: {}, failed to create psbt locking event",
+                uuid
+            );
+                return Err(JsError::new("Failed to update psbt closing event"));
+            }
+        }
+
         Ok(closing_tx_value)
+    }
+
+    async fn set_psbt_event_status(
+        &self,
+        uuid: &str,
+        to_status: PsbtEventStatus,
+    ) -> Result<(), JsError> {
+        let psbt_event = self.get_psbt_event(uuid.to_string()).await?;
+        let update_psbt_db_value = PsbtDbValue(
+            bitcoin::consensus::encode::serialize(&psbt_event.closing_psbt).to_hex(),
+            psbt_event.mint_address.to_string(),
+            uuid.to_string(),
+            psbt_event.funding_txid,
+            None,              //outcome
+            to_status.clone(), //status
+            psbt_event.chain,  //chain name
+        );
+
+        let new_psbt_event = serde_json::to_string(&update_psbt_db_value)
+            .map_err(|_| JsError::new("Error serializing new_event to JSON"))?
+            .into_bytes();
+
+        match &self
+            .oracle
+            .event_handler
+            .storage_api
+            .clone()
+            .insert(uuid.to_string(), new_psbt_event.clone(), self.secret_key)
+            .await
+        {
+            Ok(Some(_val)) => Ok(()),
+            _ => {
+                clog!(
+                    "[WASM-ATTESTOR] Unable to update psbt event in StorageAPI with uuid: {} to status {}",
+                    uuid, to_status
+                );
+                Err(JsError::new(&format!(
+                    "Failed to update psbt event status to {to_status}"
+                )))
+            }
+        }
+    }
+
+    /// callback for setting the db status to funded for PSBT events
+    pub async fn set_psbt_event_to_funded(&self, uuid: &str) -> Result<(), JsError> {
+        self.set_psbt_event_status(uuid, PsbtEventStatus::Funded)
+            .await
+    }
+
+    /// Iterates through psbt events that are in the pending or confirmed states
+    /// if it and have over 6 confirmations and are funded, they are set to confirmed
+    /// then all confirmed events are returned
+    pub async fn get_confirmed_psbt_events(&self) -> Result<JsValue, JsError> {
+        let psbt_events = self.get_all_psbt_events().await?;
+
+        let pending_confirmed_events: Vec<ApiOraclePsbtEvent> = psbt_events
+            .into_iter()
+            .filter(|event| {
+                [PsbtEventStatus::Pending, PsbtEventStatus::Confirmed].contains(&event.status)
+            })
+            .collect();
+
+        // TODO: change this to an async filter, like in wallet/src/main.rs:126
+        let mut to_confirm_events: Vec<ApiOraclePsbtEvent> = Vec::new();
+        for event in pending_confirmed_events {
+            let confirmed = self
+                .get_validation_status_for_uuid(event.uuid.clone())
+                .await?;
+            if confirmed {
+                to_confirm_events.push(event.clone());
+                if event.status == PsbtEventStatus::Pending {
+                    self.set_psbt_event_status(&event.uuid, PsbtEventStatus::Confirmed)
+                        .await?;
+                }
+            }
+        }
+
+        serde_wasm_bindgen::to_value(&to_confirm_events)
+            .map_err(|_| JsError::new("[WASM-ATTESTOR] Error serializing psbt events to JSON"))
     }
 
     /// This function is used to validate the funding tx
@@ -690,6 +805,26 @@ impl Attestor {
 }
 
 #[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
+pub enum PsbtEventStatus {
+    Pending,
+    Confirmed,
+    Funded,
+    Closed,
+}
+
+// implement display for PsbtEventStatus
+impl std::fmt::Display for PsbtEventStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            PsbtEventStatus::Pending => write!(f, "Pending"),
+            PsbtEventStatus::Confirmed => write!(f, "Confirmed"),
+            PsbtEventStatus::Funded => write!(f, "Funded"),
+            PsbtEventStatus::Closed => write!(f, "Closed"),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 struct ApiOraclePsbtEvent {
     event_id: String,
     uuid: String,
@@ -697,6 +832,7 @@ struct ApiOraclePsbtEvent {
     closing_psbt: PartiallySignedTransaction,
     mint_address: String,
     outcome: Option<u64>,
+    status: PsbtEventStatus,
     chain: Option<String>,
 }
 
@@ -725,7 +861,8 @@ fn parse_psbt_database_entry(
         funding_txid: event.3,
         mint_address: event.1,
         outcome: event.4,
-        chain: event.5,
+        status: event.5,
+        chain: event.6,
     })
 }
 

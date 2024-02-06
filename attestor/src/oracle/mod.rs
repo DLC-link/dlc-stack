@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) mod error;
 mod handler;
 use crate::oracle::handler::EventHandler;
+use crate::PsbtEventStatus;
 pub use error::OracleError;
 pub use error::Result;
 
@@ -25,6 +26,7 @@ pub struct PsbtDbValue(
     pub String,                           // uuid
     pub String,                           // funding_txid
     pub Option<u64>,                      // outcome?
+    pub PsbtEventStatus,                  // status
     #[serde(default)] pub Option<String>, // chain_name?
 );
 
