@@ -34,14 +34,15 @@ evm-chains:
   - network: sepolia
     version: 1
     # Local Ethereum node
-    endpoint: http://localhost:8545
+    # endpoint: http://localhost:8545
     # Or using Infura:
-    # endpoint: wss://sepolia.infura.io/ws/v3/
-    # api_key: ${INFURA_API_KEY}
+    endpoint: wss://sepolia.infura.io/ws/v3/
+    api_key: ${INFURA_API_KEY}
+    private_key: ${SEPOLIA_PRIVATE_KEY}
 
-  - network: goerli
-    version: 1
-    endpoint: http://localhost:8546
+  # - network: goerli
+  #   version: 1
+  #   endpoint: http://localhost:8546
   #   endpoint: wss://goerli.infura.io/ws/v3/
   #   api_key: ${INFURA_API_KEY}
 

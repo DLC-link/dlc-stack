@@ -2,8 +2,8 @@ import AttestorService from './services/attestor.service.js';
 import startServer from './http/server.js';
 import setupPolyfills from './polyfills.js';
 import ConfigService from './services/config.service.js';
-import { getEthObserver } from './chains/ethereum/get-observer.js';
-import getStacksObserver from './chains/stacks/get-observer.js';
+import { getEthereumBlockchainInterface } from './chains/ethereum/get-observer.js';
+// import getStacksObserver from './chains/stacks/get-observer.js';
 
 async function main() {
   await AttestorService.init();
@@ -16,16 +16,16 @@ async function main() {
 
   const evmChains = ConfigService.getEvmChainConfigs();
   const evmObservers = evmChains.map((config) => {
-    return getEthObserver(config);
+    return getEthereumBlockchainInterface(config);
   });
 
   const stxChains = ConfigService.getStxChainConfigs();
-  const stxObservers = stxChains.map((config) => getStacksObserver(config));
+  // const stxObservers = stxChains.map((config) => getStacksObserver(config));
 
-  const observers = await Promise.all([...evmObservers, ...stxObservers]);
+  const observers = await Promise.all([...evmObservers]);
 
   // Start observers
-  observers.forEach((observer) => observer.start());
+  observers.forEach((observer) => observer.startListening());
 }
 
 main().catch((error) => {

@@ -37,9 +37,12 @@ export default async (
       : await fetchDeploymentInfo(config.network, config.version);
 
   let provider;
+
   if (config.endpoint?.startsWith('http')) {
     console.log(`Connecting to ${config.endpoint}`);
-    provider = new ethers.providers.JsonRpcProvider(config.endpoint);
+    provider = new ethers.providers.JsonRpcProvider(
+      `${config.endpoint}${config.api_key ?? ''}`
+  );
   } else if (config.endpoint?.startsWith('ws')) {
     provider = new WebSocketProvider(`${config.endpoint}${config.api_key ?? ''}`);
   } else {

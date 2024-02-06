@@ -1,89 +1,76 @@
 import { ethers } from 'ethers';
 import { DeploymentInfo } from '../../shared/models/deployment-info.interface.js';
-import { Observer } from '../../shared/models/observer.interface.js';
+import { BlockchainInterface } from '../../shared/models/observer.interface.js';
 import AttestorService from '../../../services/attestor.service.js';
 import { PrefixedChain, evmPrefix } from '../../../config/models.js';
 import { createBlockchainObserverMetricsCounters } from '../../../config/prom-metrics.models.js';
+import { TransactionReceipt } from '@ethersproject/abstract-provider';
 
-export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: DeploymentInfo): Observer => {
+export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: DeploymentInfo): BlockchainInterface => {
   const chainName = `${evmPrefix}${deploymentInfo.network.toLowerCase()}` as PrefixedChain;
   const ethereumObserverMetricsCounter = createBlockchainObserverMetricsCounters(chainName);
 
+  function startListening() {
+    contract.on(
+      'CloseDLC',
+      async (_uuid: string, _outcome: number, _protocolWallet: string, _sender: string, tx: any) => {
+        ethereumObserverMetricsCounter.closeDLCEventCounter.inc();
+        const currentTime = new Date();
+        const outcome = BigInt(_outcome);
+        const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] Closing DLC... @ ${currentTime} \n\t uuid: ${_uuid} | outcome: ${outcome} \n`;
+        console.log(_logMessage);
+        console.log('TXID:', tx.transactionHash);
+
+        try {
+          // NOTE: precision_shift is hardcoded to 2
+          await AttestorService.createAttestation(_uuid, outcome, 2);
+          console.log(await AttestorService.getEvent(_uuid));
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    );
+  }
+
+  async function getAllVaults(): Promise<any> {
+    const vaults = await contract.getAllVaults();
+    return vaults;
+  }
+
+  async function setVaultStatusFunded(vaultUUID: string, bitcoinTransactionID: string): Promise<TransactionReceipt> {
+    try {
+      const gasLimit = await contract.estimateGas.setStatusFunded(vaultUUID, bitcoinTransactionID);
+      const transaction = await contract.setStatusFunded(vaultUUID, bitcoinTransactionID, {
+          gasLimit: gasLimit.add(10000),
+      });
+      const transactionReceipt = await transaction.wait();
+      console.log('[SetStatusFunded] request transaction receipt: ', transactionReceipt);
+      return transactionReceipt;
+  } catch (error) {
+      console.error(error);
+      throw error;
+  }
+}
+
+  async function setVaultStatusPostClosed(vaultUUID: string, bitcoinTransactionID: string): Promise<TransactionReceipt> {
+    try {
+      const gasLimit = await contract.estimateGas.postCloseDLC(vaultUUID, bitcoinTransactionID);
+      const transaction = await contract.postCloseDLC(vaultUUID, bitcoinTransactionID, {
+          gasLimit: gasLimit.add(10000),
+      });
+      const transactionReceipt = await transaction.wait();
+      console.log('[PostCloseDLC] request transaction receipt: ', transactionReceipt);
+      return transactionReceipt;
+  } catch (error) {
+      console.log(error);
+      throw error;
+  }
+}
+
   return {
-    start: () => {
-      contract.on(
-        'CreateDLC',
-        async (
-          _uuid: string,
-          _valueLocked: string,
-          _protocolContract: string,
-          _creator: string,
-          _protocolWallet: string,
-          _timestamp: string,
-          tx: any
-        ) => {
-          ethereumObserverMetricsCounter.createDLCEventCounter.inc();
-          const currentTime = new Date();
-          const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] New DLC Request... @ ${currentTime} \n\t uuid: ${_uuid} | creator: ${_creator} | timestamp: ${_timestamp} \n`;
-          console.log(_logMessage);
-          console.log('TXID:', tx.transactionHash);
-          try {
-            await AttestorService.createAnnouncement(_uuid, chainName);
-            console.log(await AttestorService.getEvent(_uuid));
-          } catch (error) {
-            console.error(error);
-          }
-        }
-      );
-
-      contract.on(
-        'SetStatusFunded',
-        async (_uuid: string, _btcTxId: string, _protocolWallet: string, _sender: string, tx: any) => {
-          ethereumObserverMetricsCounter.setStatusFundedEventCounter.inc();
-          const currentTime = new Date();
-          const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC funded @ ${currentTime} \n\t uuid: ${_uuid} | protocolWallet: ${_protocolWallet} | sender: ${_sender} \n`;
-          console.log(_logMessage);
-          console.log('TXID:', tx.transactionHash);
-        }
-      );
-
-      contract.on(
-        'CloseDLC',
-        async (_uuid: string, _outcome: number, _protocolWallet: string, _sender: string, tx: any) => {
-          ethereumObserverMetricsCounter.closeDLCEventCounter.inc();
-          const currentTime = new Date();
-          const outcome = BigInt(_outcome);
-          const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] Closing DLC... @ ${currentTime} \n\t uuid: ${_uuid} | outcome: ${outcome} \n`;
-          console.log(_logMessage);
-          console.log('TXID:', tx.transactionHash);
-
-          try {
-            // NOTE: precision_shift is hardcoded to 2
-            await AttestorService.createAttestation(_uuid, outcome, 2);
-            console.log(await AttestorService.getEvent(_uuid));
-          } catch (error) {
-            console.error(error);
-          }
-        }
-      );
-
-      contract.on(
-        'PostCloseDLC',
-        async (
-          _uuid: string,
-          _outcome: number,
-          _btcTxId: string,
-          _protocolWallet: string,
-          _sender: string,
-          tx: any
-        ) => {
-          ethereumObserverMetricsCounter.postCloseDLCEventCounter.inc();
-          const currentTime = new Date();
-          const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC closed @ ${currentTime} \n\t uuid: ${_uuid} | outcome: ${_outcome} | btcTxId: ${_btcTxId} \n`;
-          console.log(_logMessage);
-          console.log('TXID:', tx.transactionHash);
-        }
-      );
-    },
+    startListening,
+    getAllVaults,
+    setVaultStatusFunded,
+    setVaultStatusPostClosed
   };
 };
