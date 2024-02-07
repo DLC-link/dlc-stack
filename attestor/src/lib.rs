@@ -755,45 +755,6 @@ impl std::fmt::Display for PsbtEventStatus {
     }
 }
 
-// #[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
-// struct ApiOraclePsbtEvent {
-//     event_id: String,
-//     uuid: String,
-//     funding_txid: String,
-//     closing_psbt: PartiallySignedTransaction,
-//     mint_address: String,
-//     outcome: Option<u64>,
-//     status: PsbtEventStatus,
-//     chain: Option<String>,
-// }
-
-// fn parse_psbt_database_entry(event_binary: Vec<u8>) -> Result<PsbtEvent, GenericOracleError> {
-//     let event: PsbtEvent =
-//         serde_json::from_str(&String::from_utf8(event_binary.clone()).expect("to string"))
-//             .map_err(|_| GenericOracleError {
-//                 message: "Error deserializing new_event from JSON".to_string(),
-//             })?;
-
-//     let closing_psbt = event.closing_psbt.clone();
-//     let closing_psbt: Vec<u8> =
-//         FromHex::from_hex(&closing_psbt).expect("to decode funding_psbt hex");
-//     let closing_psbt: PartiallySignedTransaction =
-//         deserialize(&closing_psbt).map_err(|_| GenericOracleError {
-//             message: "Unable to deserialize closing psbt event from db".to_string(),
-//         })?;
-
-//     Ok(PsbtEvent {
-//         event_id: event.uuid.clone(),
-//         uuid: event.uuid,
-//         closing_psbt,
-//         funding_txid: event.funding_txid,
-//         mint_address: event.mint_address,
-//         outcome: event.outcome,
-//         status: event.status,
-//         chain: event.chain_name,
-//     })
-// }
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 enum SortOrder {
