@@ -37,7 +37,7 @@ mod oracle;
 use oracle::Oracle;
 
 use oracle::error::GenericOracleError;
-use oracle::{DbValue, PsbtDbValue};
+use oracle::{DbValue, PsbtEvent};
 
 use dlc_messages::oracle_msgs::{
     DigitDecompositionEventDescriptor, EventDescriptor, OracleAnnouncement, OracleAttestation,
@@ -323,7 +323,7 @@ impl Attestor {
             .to_string()
     }
 
-    async fn get_psbt_event(&self, uuid: String) -> Result<ApiOraclePsbtEvent, GenericOracleError> {
+    async fn get_psbt_event(&self, uuid: String) -> Result<PsbtEvent, GenericOracleError> {
         let result = self
             .oracle
             .event_handler
@@ -336,8 +336,8 @@ impl Attestor {
             })?;
 
         match result {
-            Some(event) => {
-                let parsed_event = parse_psbt_database_entry(event)?;
+            Some(event_bytes) => {
+                let parsed_event = PsbtEvent::deserialize(&event_bytes)?;
                 Ok(parsed_event)
             }
             None => Err(GenericOracleError {
@@ -346,7 +346,7 @@ impl Attestor {
         }
     }
 
-    async fn get_all_psbt_events(&self) -> Result<Vec<ApiOraclePsbtEvent>, GenericOracleError> {
+    async fn get_all_psbt_events(&self) -> Result<Vec<PsbtEvent>, GenericOracleError> {
         let psbt_events = self
             .oracle
             .event_handler
@@ -358,9 +358,9 @@ impl Attestor {
                 message: "Error getting event from storage_api".to_string(),
             })?;
 
-        let events: Vec<ApiOraclePsbtEvent> = psbt_events
+        let events: Vec<PsbtEvent> = psbt_events
             .iter()
-            .filter_map(|event| parse_psbt_database_entry(event.clone().1).ok())
+            .filter_map(|event| PsbtEvent::deserialize(&event.clone().1).ok())
             .collect();
 
         Ok(events)
@@ -390,7 +390,7 @@ impl Attestor {
             .txid
             .to_string();
 
-        self.upsert_psbt_event(PsbtDbValue {
+        self.upsert_psbt_event(PsbtEvent {
             closing_psbt: bitcoin::consensus::encode::serialize(&closing_psbt).to_hex(),
             mint_address: mint_address.to_string(),
             uuid: uuid.to_string(),
@@ -430,7 +430,7 @@ impl Attestor {
                 )));
             }
         };
-        let closing_psbt: PartiallySignedTransaction = psbt_event.clone().closing_psbt;
+        let closing_psbt: PartiallySignedTransaction = psbt_event.get_closing_psbt()?;
 
         // Starting the closing flow of signing and broadcasting the closing transaction
         let secp = Secp256k1::new();
@@ -637,13 +637,12 @@ impl Attestor {
 
         let mut update_psbt_event = psbt_event.clone();
         update_psbt_event.status = PsbtEventStatus::Closed;
-        self.upsert_psbt_event(PsbtDbValue::from(update_psbt_event.clone()))
-            .await?;
+        self.upsert_psbt_event(update_psbt_event.clone()).await?;
 
         Ok(pst_tx_value)
     }
 
-    async fn upsert_psbt_event(&self, psbt_db_value: PsbtDbValue) -> Result<(), JsError> {
+    async fn upsert_psbt_event(&self, psbt_db_value: PsbtEvent) -> Result<(), JsError> {
         let uuid = psbt_db_value.uuid.clone();
         let new_psbt_event = serde_json::to_string(&psbt_db_value)
             .map_err(|_| JsError::new("Error serializing new_event to JSON"))?
@@ -672,7 +671,7 @@ impl Attestor {
     pub async fn set_psbt_event_to_funded(&self, uuid: &str) -> Result<(), JsError> {
         let mut psbt_event = self.get_psbt_event(uuid.to_string()).await?;
         psbt_event.status = PsbtEventStatus::Funded;
-        self.upsert_psbt_event(PsbtDbValue::from(psbt_event)).await
+        self.upsert_psbt_event(psbt_event).await
     }
 
     /// Iterates through psbt events that are in the pending or confirmed states
@@ -681,7 +680,7 @@ impl Attestor {
     pub async fn get_confirmed_psbt_events(&self) -> Result<JsValue, JsError> {
         let psbt_events = self.get_all_psbt_events().await?;
 
-        let mut to_confirm_events: Vec<ApiOraclePsbtEvent> = Vec::new();
+        let mut to_confirm_events: Vec<PsbtEvent> = Vec::new();
         for mut event in psbt_events {
             match event.status {
                 PsbtEventStatus::Pending => {
@@ -690,8 +689,7 @@ impl Attestor {
                         .await?;
                     if confirmed {
                         event.status = PsbtEventStatus::Confirmed;
-                        self.upsert_psbt_event(PsbtDbValue::from(event.clone()))
-                            .await?;
+                        self.upsert_psbt_event(event.clone()).await?;
                         to_confirm_events.push(event);
                     }
                 }
@@ -757,47 +755,44 @@ impl std::fmt::Display for PsbtEventStatus {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
-struct ApiOraclePsbtEvent {
-    event_id: String,
-    uuid: String,
-    funding_txid: String,
-    closing_psbt: PartiallySignedTransaction,
-    mint_address: String,
-    outcome: Option<u64>,
-    status: PsbtEventStatus,
-    chain: Option<String>,
-}
+// #[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
+// struct ApiOraclePsbtEvent {
+//     event_id: String,
+//     uuid: String,
+//     funding_txid: String,
+//     closing_psbt: PartiallySignedTransaction,
+//     mint_address: String,
+//     outcome: Option<u64>,
+//     status: PsbtEventStatus,
+//     chain: Option<String>,
+// }
 
-fn parse_psbt_database_entry(
-    event_binary: Vec<u8>,
-) -> Result<ApiOraclePsbtEvent, GenericOracleError> {
-    let event: PsbtDbValue =
-        serde_json::from_str(&String::from_utf8(event_binary.clone()).expect("to string"))
-            .map_err(|_| GenericOracleError {
-                message: "Error deserializing new_event from JSON".to_string(),
-            })?;
+// fn parse_psbt_database_entry(event_binary: Vec<u8>) -> Result<PsbtEvent, GenericOracleError> {
+//     let event: PsbtEvent =
+//         serde_json::from_str(&String::from_utf8(event_binary.clone()).expect("to string"))
+//             .map_err(|_| GenericOracleError {
+//                 message: "Error deserializing new_event from JSON".to_string(),
+//             })?;
 
-    let closing_psbt = event.closing_psbt.clone();
+//     let closing_psbt = event.closing_psbt.clone();
+//     let closing_psbt: Vec<u8> =
+//         FromHex::from_hex(&closing_psbt).expect("to decode funding_psbt hex");
+//     let closing_psbt: PartiallySignedTransaction =
+//         deserialize(&closing_psbt).map_err(|_| GenericOracleError {
+//             message: "Unable to deserialize closing psbt event from db".to_string(),
+//         })?;
 
-    let closing_psbt: Vec<u8> =
-        FromHex::from_hex(&closing_psbt).expect("to decode funding_psbt hex");
-    let closing_psbt: PartiallySignedTransaction =
-        deserialize(&closing_psbt).map_err(|_| GenericOracleError {
-            message: "Unable to deserialize closing psbt event from db".to_string(),
-        })?;
-
-    Ok(ApiOraclePsbtEvent {
-        event_id: event.uuid.clone(),
-        uuid: event.uuid,
-        closing_psbt,
-        funding_txid: event.funding_txid,
-        mint_address: event.mint_address,
-        outcome: event.outcome,
-        status: event.status,
-        chain: event.chain_name,
-    })
-}
+//     Ok(PsbtEvent {
+//         event_id: event.uuid.clone(),
+//         uuid: event.uuid,
+//         closing_psbt,
+//         funding_txid: event.funding_txid,
+//         mint_address: event.mint_address,
+//         outcome: event.outcome,
+//         status: event.status,
+//         chain: event.chain_name,
+//     })
+// }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
