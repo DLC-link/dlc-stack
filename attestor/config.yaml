@@ -44,16 +44,17 @@ evm-chains:
     # Or using Infura:
     endpoint: wss://sepolia.infura.io/ws/v3/
     api_key: ${INFURA_API_KEY}
-    private_key: ${SEPOLIA_PRIVATE_KEY}
+    private_key: ${EVM_PRIVATE_KEY}
 
   # - network: localhost
   #   version: '1'
   #   endpoint: http://localhost:8545
 
-  # # OKX testnet
-  # - network: x1test
-  #   version: 1
-  #   endpoint: wss://x1testws.okx.com
+  # OKX testnet
+  - network: x1test
+    version: 1
+    endpoint: wss://x1testws.okx.com
+    private_key: ${EVM_PRIVATE_KEY}
 
 stx-chains:
   # - network: mainnet
