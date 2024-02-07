@@ -1,6 +1,7 @@
 #![deny(clippy::unwrap_used)]
 #![deny(unused_mut)]
 #![deny(dead_code)]
+#![allow(async_fn_in_trait)] // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html
 //! #Manager a component to create and update DLCs.
 
 extern crate dlc_manager;
