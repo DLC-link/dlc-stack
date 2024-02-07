@@ -16,20 +16,20 @@ async function main() {
   startServer();
 
   const evmChains = ConfigService.getEvmChainConfigs();
-  const evmObservers = evmChains.map((config) => {
+  const evmBIs = evmChains.map((config) => {
     return getEthereumBlockchainInterface(config);
   });
 
   const stxChains = ConfigService.getStxChainConfigs();
-  // const stxObservers = stxChains.map((config) => getStacksObserver(config));
+  // const stxBIs = stxChains.map((config) => getStacksObserver(config));
 
-  const observers = await Promise.all([...evmObservers]);
+  const blockchainInterfaces = await Promise.all([...evmBIs]);
 
   // Start observers
-  observers.forEach((observer) => observer.startListening());
+  blockchainInterfaces.forEach((bi) => bi.startListening());
 
   // Start periodic service
-  PeriodicService.init(observers);
+  PeriodicService.init(blockchainInterfaces);
   await PeriodicService.start(parseInt(process.env.PERIODIC_CHECK_FREQUENCY as string) || 10);
 }
 
