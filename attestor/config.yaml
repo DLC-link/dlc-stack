@@ -44,7 +44,7 @@ evm-chains:
     # Or using Infura:
     endpoint: wss://sepolia.infura.io/ws/v3/
     api_key: ${INFURA_API_KEY}
-    private_key: ${SEPOLIA_PRIVATE_KEY}
+    private_key: ${EVM_SEPOLIA_PRIVATE_KEY}
 
   # - network: localhost
   #   version: '1'
@@ -65,11 +65,14 @@ stx-chains:
   #   version: 1
   #   deployer: ST1JHQ5GPQT249ZWG6V4AWETQW5DYA5RHJB0JSMQ3
   #   endpoint: wss://api.testnet.hiro.so/
+  #   private_key: ${STX_MOCKNET_PRIVATE_KEY}
 
-  # - network: mocknet
-  #   version: 1
-  #   deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-  #   endpoint: ws://stx-btc1.dlc.link:3999
+
+  - network: mocknet
+    version: 1
+    deployer: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+    endpoint: ws://stx-btc1.dlc.link:3999
+    private_key: ${STX_MOCKNET_PRIVATE_KEY}
 
   # - network: local
   #   version: 1

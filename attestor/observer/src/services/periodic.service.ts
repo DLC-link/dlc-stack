@@ -1,4 +1,4 @@
-import { BlockchainInterface } from '../chains/shared/models/observer.interface.js';
+import { BlockchainInterface } from '../config/blockchain-interface.interface.js';
 import { PSBTEventInterface } from '../config/psbt.models.js';
 import AttestorService from './attestor.service.js';
 
@@ -25,11 +25,12 @@ export default class PeriodicService {
       console.log(events);
 
       for (const event of events) {
-        const { chain, uuid } = event;
-        const relevantBIs = this.blockchainInterfaces.filter((bi) => bi.chainName === chain);
+        const { chain_name, uuid } = event;
+        const relevantBIs = this.blockchainInterfaces.filter((bi) => bi.chainName === chain_name);
+        console.log('Relevant BIs', relevantBIs);
         const bi: BlockchainInterface | undefined = relevantBIs.find((bi) => bi.checkAndGetVault(uuid));
         if (!bi) {
-          console.error('No blockchain interface found for UUID on this chain', uuid, chain);
+          console.error('No blockchain interface found for UUID on this chain', uuid, chain_name);
           continue;
         }
         console.log('Setting vault status to funded for', uuid);

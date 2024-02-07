@@ -16,5 +16,5 @@ export interface PSBTEventInterface {
   mint_address: string;
   outcome: string | undefined;
   status: string;
-  chain: string;
+  chain_name: string;
 }

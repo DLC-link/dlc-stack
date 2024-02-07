@@ -1,12 +1,10 @@
 import { TransactionReceipt } from '@ethersproject/abstract-provider';
 import { TxBroadcastResult } from '@stacks/transactions';
-import { PrefixedChain } from '../../../config/chains.models.js';
-import { EVMDLCInterface } from '../../ethereum/models/dlc-info.interface.js';
+import { PrefixedChain } from './chains.models.js';
+import { EVMDLCInterface } from '../chains/ethereum/models/ethereum-dlc.interface.js';
 export interface BlockchainInterface {
   chainName: PrefixedChain;
   startListening(): void;
-  getAllVaults(): Promise<any>;
-  getDLCInfo(vaultUUID: string): Promise<EVMDLCInterface | undefined>;
   checkAndGetVault(vaultUUID: string): Promise<EVMDLCInterface | undefined>;
   setVaultStatusFunded(
     vaultUUID: string,

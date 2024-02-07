@@ -1,11 +1,11 @@
 import { ethers } from 'ethers';
 import { ChainConfig } from '../../config/chains.models.js';
-import getConfig from './get-network-config.js';
-import { BlockchainInterface } from '../shared/models/observer.interface.js';
+import getEthereumNetworkConfig from './get-ethereum-network-config.js';
+import { BlockchainInterface } from '../../config/blockchain-interface.interface.js';
 import { DlcManagerV1 } from './contracts/dlc-manager-v1.js';
 
 export const getEthereumBlockchainInterface = async (config: ChainConfig): Promise<BlockchainInterface> => {
-  const networkConfig = await getConfig(config);
+  const networkConfig = await getEthereumNetworkConfig(config);
   if (!networkConfig) throw new Error(`Could not load config for ${config.network}.`);
 
   console.log(`\n[${config.network}] Loaded config:`);
