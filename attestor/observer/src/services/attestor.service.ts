@@ -38,7 +38,7 @@ export default class AttestorService {
       this.attestor = await Attestor.new(
         ConfigService.getSettings()['storage-api-endpoint'],
         getOrGenerateSecretFromConfig(),
-        'https://devnet.dlc.link/electrs'
+        ConfigService.getSettings()['esplora-api-endpoint']
       );
       console.log('Attestor created');
     }

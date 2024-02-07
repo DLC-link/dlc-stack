@@ -11,6 +11,12 @@ settings:
   # For local development:
   # storage-api-endpoint: http://127.0.0.1:8100
 
+  # Endpoint for esplora
+  # For Devnet:
+  esplora-api-endpoint: https://devnet.dlc.link/electrs
+  # For Bitcoin testnet:
+  # esplora-api-endpoint: https://testnet.dlc.link/electrs
+
   # Developer endpoints
   dev-endpoints-enabled: true
 

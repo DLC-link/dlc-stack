@@ -9,6 +9,7 @@ interface NodeConfig {
   settings: {
     'solidity-branch': string;
     'storage-api-endpoint': string;
+    'esplora-api-endpoint': string;
     'dev-endpoints-enabled'?: boolean;
     'mocknet-address'?: string;
   };

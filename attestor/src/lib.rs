@@ -674,11 +674,6 @@ impl Attestor {
         self.upsert_psbt_event(psbt_event).await
     }
 
-    pub async fn set_psbt_event_to_funded(&self, uuid: &str) -> Result<(), JsError> {
-        self.set_psbt_event_status(uuid, PsbtEventStatus::Funded)
-            .await
-    }
-
     /// Iterates through psbt events that are in the pending or confirmed states
     /// if it and have over 6 confirmations and are funded, they are set to confirmed
     /// then all confirmed events are returned
