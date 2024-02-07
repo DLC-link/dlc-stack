@@ -1,3 +1,4 @@
+use bitcoin::hashes::hex::ToHex;
 use secp256k1_zkp::PublicKey;
 use secp256k1_zkp::{All, KeyPair, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
@@ -5,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) mod error;
 mod handler;
 use crate::oracle::handler::EventHandler;
-use crate::PsbtEventStatus;
+use crate::{ApiOraclePsbtEvent, PsbtEventStatus};
 pub use error::OracleError;
 pub use error::Result;
 
@@ -20,15 +21,30 @@ pub struct DbValue(
 );
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct PsbtDbValue(
-    pub String,                           // closing_psbt as hex of byte array
-    pub String,                           // corresponding mint address
-    pub String,                           // uuid
-    pub String,                           // funding_txid
-    pub Option<u64>,                      // outcome?
-    pub PsbtEventStatus,                  // status
-    #[serde(default)] pub Option<String>, // chain_name?
-);
+pub struct PsbtDbValue {
+    pub closing_psbt: String,    // closing_psbt as hex of byte array
+    pub mint_address: String,    // corresponding mint address
+    pub uuid: String,            // uuid
+    pub funding_txid: String,    // funding_txid
+    pub outcome: Option<u64>,    // outcome?
+    pub status: PsbtEventStatus, // status
+    #[serde(default)]
+    pub chain_name: Option<String>, // chain_name?
+}
+
+impl From<ApiOraclePsbtEvent> for PsbtDbValue {
+    fn from(psbt_event: ApiOraclePsbtEvent) -> Self {
+        PsbtDbValue {
+            closing_psbt: bitcoin::consensus::encode::serialize(&psbt_event.closing_psbt).to_hex(),
+            mint_address: psbt_event.mint_address,
+            uuid: psbt_event.uuid,
+            funding_txid: psbt_event.funding_txid,
+            outcome: psbt_event.outcome,
+            status: psbt_event.status,
+            chain_name: psbt_event.chain,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct Oracle {
