@@ -33,7 +33,7 @@ async function main() {
 
   // Start periodic service
   PeriodicService.init(blockchainInterfaces);
-  // await PeriodicService.start(parseInt(process.env.PERIODIC_CHECK_FREQUENCY as string) || 10);
+  await PeriodicService.start(parseInt(process.env.PERIODIC_CHECK_FREQUENCY as string) || 10);
 }
 
 main().catch((error) => {

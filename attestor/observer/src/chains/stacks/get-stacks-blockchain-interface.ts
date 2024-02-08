@@ -16,7 +16,8 @@ export const getStackBlockchainInterface= async (config: ChainConfig): Promise<B
   const deploymentInfo = networkConfig.deploymentInfo;
   const socket = networkConfig.socket;
 
-  const stacksNetwork = getStacksNetwork(config.network, config.endpoint);
+  const endpoint = config.endpoint.replace("ws://", "http://").replace("wss://", "https://");
+  const stacksNetwork = getStacksNetwork(config.network, endpoint);
   const wallet = { privateKey: config.private_key, address: getAddressFromPrivateKey(config.private_key, stacksNetwork.version) };
 
   switch (config.version) {
