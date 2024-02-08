@@ -20,7 +20,6 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
         const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] Closing DLC... @ ${currentTime} \n\t uuid: ${_uuid}\n`;
         console.log(_logMessage);
 
-
         try {
           const transactionID = await AttestorService.closePsbtEvent(_uuid);
 
@@ -41,7 +40,7 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
         const currentTime = new Date();
         const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC funded @ ${currentTime} \n\t uuid: ${_uuid}\n`;
         console.log(_logMessage);
-        
+
         try {
           await AttestorService.setPSBTEventToFunded(_uuid);
           // console.log(await AttestorService.getEvent(_uuid));

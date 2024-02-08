@@ -3,21 +3,31 @@ import type { ContractCallTransaction } from '@stacks/stacks-blockchain-api-type
 import { Transaction } from '@stacks/stacks-blockchain-api-types';
 import { BlockchainInterface } from '../../../config/blockchain-interface.interface.js';
 import { PrefixedChain } from '../../../config/chains.models.js';
-import {
-  createBlockchainObserverMetricsCounters
-} from '../../../config/prom-metrics.models.js';
+import { createBlockchainObserverMetricsCounters } from '../../../config/prom-metrics.models.js';
 import AttestorService from '../../../services/attestor.service.js';
 import { DeploymentInfo, FunctionName } from '../models/interfaces.js';
 import unwrapper from '../utilities/unwrappers.js';
 import { fetchTXInfo } from '../utilities/api-calls.js';
-import { ContractPrincipal, SignedContractCallOptions, TxBroadcastResult, addressToString, broadcastTransaction, bufferCV, callReadOnlyFunction, contractPrincipalCV, cvToValue, makeContractCall, parsePrincipalString, stringAsciiCV } from '@stacks/transactions';
+import {
+  ContractPrincipal,
+  SignedContractCallOptions,
+  TxBroadcastResult,
+  addressToString,
+  broadcastTransaction,
+  bufferCV,
+  callReadOnlyFunction,
+  contractPrincipalCV,
+  cvToValue,
+  makeContractCall,
+  parsePrincipalString,
+  stringAsciiCV,
+} from '@stacks/transactions';
 import { StacksNetwork } from '@stacks/network';
 import { uuidToCV } from '../utilities/helper-functions.js';
 import { StacksWallet } from '../models/stacks-wallet.model.js';
 import StacksNonceService from '../../../services/stacks-nonce.service.js';
 import { hexToBytes } from '@stacks/common';
 import { BigNumber } from 'ethers';
-
 
 const functionNames: Array<FunctionName> = [
   'create-dlc',
@@ -31,12 +41,12 @@ const functionNames: Array<FunctionName> = [
 async function getCallbackContract(uuid: string, contractName: string, deployer: string, network: StacksNetwork) {
   const functionName = 'get-callback-contract';
   const txOptions = {
-      contractAddress: deployer,
-      contractName: contractName,
-      functionName: functionName,
-      functionArgs: [uuidToCV(uuid)],
-      senderAddress: deployer,
-      network: network,
+    contractAddress: deployer,
+    contractName: contractName,
+    functionName: functionName,
+    functionArgs: [uuidToCV(uuid)],
+    senderAddress: deployer,
+    network: network,
   };
   const transaction: any = await callReadOnlyFunction(txOptions);
   const callbackContract = cvToValue(transaction.value);
@@ -44,11 +54,18 @@ async function getCallbackContract(uuid: string, contractName: string, deployer:
   return parsePrincipalString(callbackContract) as ContractPrincipal;
 }
 
-export const DlcManagerV1 = (socket: StacksApiSocketClient, deploymentInfo: DeploymentInfo, network: StacksNetwork, wallet: StacksWallet): BlockchainInterface => {
+export const DlcManagerV1 = (
+  socket: StacksApiSocketClient,
+  deploymentInfo: DeploymentInfo,
+  network: StacksNetwork,
+  wallet: StacksWallet
+): BlockchainInterface => {
   const chainName = deploymentInfo.chainName as PrefixedChain;
   const contractName = 'dlc-manager-v1-1';
   const contractFullName = `${deploymentInfo.deployer}.dlc-manager-v1-1`;
-  const stacksObserverMetricsCounter = createBlockchainObserverMetricsCounters(deploymentInfo.chainName as PrefixedChain);
+  const stacksObserverMetricsCounter = createBlockchainObserverMetricsCounters(
+    deploymentInfo.chainName as PrefixedChain
+  );
   const eventSourceAPIVersion = 'v1';
   const eventSources = functionNames.map((name) => `dlclink:${name}:${eventSourceAPIVersion}`);
 
@@ -92,7 +109,7 @@ export const DlcManagerV1 = (socket: StacksApiSocketClient, deploymentInfo: Depl
             // console.log(await AttestorService.getEvent(_uuid));
           } catch (error) {
             console.error(error);
-          };
+          }
           break;
         }
       }
@@ -130,101 +147,109 @@ export const DlcManagerV1 = (socket: StacksApiSocketClient, deploymentInfo: Depl
         }
       }
     );
-  };
+  }
 
   async function checkAndGetVault(vaultUUID: string) {
     try {
-        console.log('Getting DLC info...');
-        const functionName = 'get-dlc';
+      console.log('Getting DLC info...');
+      const functionName = 'get-dlc';
 
-        const transactionOptions = {
-            contractAddress: deploymentInfo.deployer,
-            contractName: contractName,
-            functionName: functionName,
-            functionArgs: [uuidToCV(vaultUUID)],
-            senderAddress: deploymentInfo.deployer,
-            network: network,
-        };
-        const transaction: any = await callReadOnlyFunction(transactionOptions);
-        const dlcInfo = cvToValue(transaction.value);
-        if (dlcInfo?.dlcUUID === vaultUUID) return dlcInfo;
-      } catch (error) {
-        console.log(error);
-        return error;
-    }
-};
-
-  async function setVaultStatusFunded(vaultUUID:string, bitcoinTransactionID: string) {
-    try {
-        const callbackContractPrincipal = await getCallbackContract(vaultUUID, contractName, deploymentInfo.deployer, network);
-        const functionName = 'set-status-funded';
-
-        const transactionOptions: SignedContractCallOptions = {
-            contractAddress: deploymentInfo.deployer,
-            contractName: contractName,
-            functionName: functionName,
-            functionArgs: [
-                uuidToCV(vaultUUID),
-                stringAsciiCV(bitcoinTransactionID),
-                contractPrincipalCV(addressToString(callbackContractPrincipal.address), callbackContractPrincipal.contractName.content),
-            ],
-            senderKey: wallet.privateKey,
-            validateWithAbi: true,
-            network: network,
-            anchorMode: 1,
-            nonce: await StacksNonceService.getNonce(network, wallet.address),
-        };
-
-        const transaction = await makeContractCall(transactionOptions);
-        console.log('Transaction payload:', transaction.payload);
-        const broadcastResponse: TxBroadcastResult = await broadcastTransaction(transaction, network);
-        console.log('Broadcast response: ', broadcastResponse);
-        return broadcastResponse;
+      const transactionOptions = {
+        contractAddress: deploymentInfo.deployer,
+        contractName: contractName,
+        functionName: functionName,
+        functionArgs: [uuidToCV(vaultUUID)],
+        senderAddress: deploymentInfo.deployer,
+        network: network,
+      };
+      const transaction: any = await callReadOnlyFunction(transactionOptions);
+      const dlcInfo = cvToValue(transaction.value);
+      if (dlcInfo?.dlcUUID === vaultUUID) return dlcInfo;
     } catch (error) {
-        console.log(error);
-        throw error;
+      console.log(error);
+      return error;
     }
-};
+  }
 
-async function setVaultStatusPostClosed(vaultUUID: string, bitcoinTransactionID: string) {
-  try {
+  async function setVaultStatusFunded(vaultUUID: string, bitcoinTransactionID: string) {
+    try {
       const callbackContractPrincipal = await getCallbackContract(
-          vaultUUID,
-          contractName,
-          deploymentInfo.deployer,
-          network
+        vaultUUID,
+        contractName,
+        deploymentInfo.deployer,
+        network
+      );
+      const functionName = 'set-status-funded';
+
+      const transactionOptions: SignedContractCallOptions = {
+        contractAddress: deploymentInfo.deployer,
+        contractName: contractName,
+        functionName: functionName,
+        functionArgs: [
+          uuidToCV(vaultUUID),
+          stringAsciiCV(bitcoinTransactionID),
+          contractPrincipalCV(
+            addressToString(callbackContractPrincipal.address),
+            callbackContractPrincipal.contractName.content
+          ),
+        ],
+        senderKey: wallet.privateKey,
+        validateWithAbi: true,
+        network: network,
+        anchorMode: 1,
+        nonce: await StacksNonceService.getNonce(network, wallet.address),
+      };
+
+      const transaction = await makeContractCall(transactionOptions);
+      console.log('Transaction payload:', transaction.payload);
+      const broadcastResponse: TxBroadcastResult = await broadcastTransaction(transaction, network);
+      console.log('Broadcast response: ', broadcastResponse);
+      return broadcastResponse;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async function setVaultStatusPostClosed(vaultUUID: string, bitcoinTransactionID: string) {
+    try {
+      const callbackContractPrincipal = await getCallbackContract(
+        vaultUUID,
+        contractName,
+        deploymentInfo.deployer,
+        network
       );
       const functionName = 'post-close';
 
       const transactionOptions: SignedContractCallOptions = {
-              contractAddress: deploymentInfo.deployer,
-              contractName: contractName,
-              functionName: functionName,
-              functionArgs: [
-                  bufferCV(hexToBytes(vaultUUID)),
-                  stringAsciiCV(bitcoinTransactionID),
-                  contractPrincipalCV(
-                      addressToString(callbackContractPrincipal.address),
-                      callbackContractPrincipal.contractName.content
-                  ),
-              ],
-              senderKey: wallet.privateKey,
-              validateWithAbi: true,
-              network: network,
-              anchorMode: 1,
-              nonce: await StacksNonceService.getNonce(network, wallet.address),
-          };
+        contractAddress: deploymentInfo.deployer,
+        contractName: contractName,
+        functionName: functionName,
+        functionArgs: [
+          bufferCV(hexToBytes(vaultUUID)),
+          stringAsciiCV(bitcoinTransactionID),
+          contractPrincipalCV(
+            addressToString(callbackContractPrincipal.address),
+            callbackContractPrincipal.contractName.content
+          ),
+        ],
+        senderKey: wallet.privateKey,
+        validateWithAbi: true,
+        network: network,
+        anchorMode: 1,
+        nonce: await StacksNonceService.getNonce(network, wallet.address),
+      };
 
       const transaction = await makeContractCall(transactionOptions);
       console.log('Transaction payload:', transaction.payload);
       const broadcastResponse = await broadcastTransaction(transaction, network);
       console.log('Broadcast response: ', broadcastResponse);
       return broadcastResponse;
-  } catch (error) {
+    } catch (error) {
       console.log(error);
       throw error;
+    }
   }
-};
 
   return {
     chainName,
@@ -233,4 +258,4 @@ async function setVaultStatusPostClosed(vaultUUID: string, bitcoinTransactionID:
     setVaultStatusFunded,
     setVaultStatusPostClosed,
   };
-}
+};

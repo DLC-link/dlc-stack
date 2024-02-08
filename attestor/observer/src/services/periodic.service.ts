@@ -26,7 +26,20 @@ export default class PeriodicService {
         const { chain_name, uuid } = event;
         const lastProcessed = this.uuidLastProcessed.get(uuid);
 
-        console.log('lastProcessed', lastProcessed, 'now', now, 'retryInterval', this.retryInterval, 'diff', lastProcessed && now - lastProcessed, 'uuid', uuid, 'chain_name', chain_name);
+        console.log(
+          'lastProcessed',
+          lastProcessed,
+          'now',
+          now,
+          'retryInterval',
+          this.retryInterval,
+          'diff',
+          lastProcessed && now - lastProcessed,
+          'uuid',
+          uuid,
+          'chain_name',
+          chain_name
+        );
         if (lastProcessed && now - lastProcessed < this.retryInterval) {
           console.log(`Skipping ${uuid} as it was processed recently.`);
           return;

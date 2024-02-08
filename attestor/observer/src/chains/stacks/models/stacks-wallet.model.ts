@@ -1,4 +1,4 @@
 export interface StacksWallet {
-    privateKey: string;
-    address: string;
+  privateKey: string;
+  address: string;
 }

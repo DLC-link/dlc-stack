@@ -6,7 +6,7 @@ import { NetworkConfig } from './models/interfaces.js';
 import { getStacksNetwork } from './utilities/get-stacks-network.js';
 import getStacksNetworkConfig from './get-stacks-network-config.js';
 
-export const getStackBlockchainInterface= async (config: ChainConfig): Promise<BlockchainInterface> => {
+export const getStackBlockchainInterface = async (config: ChainConfig): Promise<BlockchainInterface> => {
   const networkConfig: NetworkConfig = await getStacksNetworkConfig(config);
   if (!networkConfig) throw new Error(`Could not load config for ${config.network}.`);
 
@@ -16,9 +16,12 @@ export const getStackBlockchainInterface= async (config: ChainConfig): Promise<B
   const deploymentInfo = networkConfig.deploymentInfo;
   const socket = networkConfig.socket;
 
-  const endpoint = config.endpoint.replace("ws://", "http://").replace("wss://", "https://");
+  const endpoint = config.endpoint.replace('ws://', 'http://').replace('wss://', 'https://');
   const stacksNetwork = getStacksNetwork(config.network, endpoint);
-  const wallet = { privateKey: config.private_key, address: getAddressFromPrivateKey(config.private_key, stacksNetwork.version) };
+  const wallet = {
+    privateKey: config.private_key,
+    address: getAddressFromPrivateKey(config.private_key, stacksNetwork.version),
+  };
 
   switch (config.version) {
     case '1':
