@@ -22,8 +22,8 @@ async function main() {
   });
 
   const stxChains = ConfigService.getStxChainConfigs();
-  const stxBlockchainInterfaces = stxChains.map((config) => {
-    return getStackBlockchainInterface(config);
+  const stxBlockchainInterfaces = stxChains.map(async (config) => {
+    return await getStackBlockchainInterface(config);
   });
 
   const blockchainInterfaces = await Promise.all([...evmBlockchainInterfaces, ...stxBlockchainInterfaces]);

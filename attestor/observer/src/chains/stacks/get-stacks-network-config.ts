@@ -1,4 +1,5 @@
 import { StacksApiSocketClient } from '@stacks/blockchain-api-client';
+import { connectWebSocketClient } from '@stacks/blockchain-api-client';
 import { io } from 'socket.io-client';
 import { Chain, ChainConfig, stxPrefix } from '../../config/chains.models.js';
 import { NetworkConfig } from './models/interfaces.js';
@@ -25,6 +26,11 @@ function setupSocketClient(endpoint: string): StacksApiSocketClient {
   _stacksSocket.socket.on('connect', async () => {
     console.log('[Stacks] (Re)Connected stacksSocket');
   });
+
+  // TODO: FIXME: It does not hear events actually.
+  _stacksSocket.subscribeBlocks();
+
+  _stacksSocket.subscribeAddressTransactions('ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM');
 
   setInterval(() => {
     if (_stacksSocket.socket.disconnected) {

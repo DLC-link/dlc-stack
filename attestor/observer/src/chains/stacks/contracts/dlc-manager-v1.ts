@@ -54,12 +54,13 @@ async function getCallbackContract(uuid: string, contractName: string, deployer:
   return parsePrincipalString(callbackContract) as ContractPrincipal;
 }
 
-export const DlcManagerV1 = (
+export const DlcManagerV1 = async (
   socket: StacksApiSocketClient,
   deploymentInfo: DeploymentInfo,
   network: StacksNetwork,
   wallet: StacksWallet
-): BlockchainInterface => {
+): Promise<BlockchainInterface> => {
+  const _socket = socket;
   const chainName = deploymentInfo.chainName as PrefixedChain;
   const contractName = 'dlc-manager-v1-1';
   const contractFullName = `${deploymentInfo.deployer}.dlc-manager-v1-1`;
@@ -69,11 +70,13 @@ export const DlcManagerV1 = (
   const eventSourceAPIVersion = 'v1';
   const eventSources = functionNames.map((name) => `dlclink:${name}:${eventSourceAPIVersion}`);
 
+  _socket.subscribeAddressTransactions(contractFullName);
+
   function checkAddresses(address: string): boolean {
     return contractFullName == address;
   }
 
-  function handleTransaction(transaction: ContractCallTransaction) {
+  async function handleTransaction(transaction: ContractCallTransaction) {
     console.log(`[Stacks] Received tx: ${transaction.tx_id}`);
     const unwrappedEvents = unwrapper(transaction, eventSources, contractName);
     if (!unwrappedEvents.length) return;
@@ -83,6 +86,10 @@ export const DlcManagerV1 = (
       const currentTime = new Date().toLocaleString();
 
       switch (eventSource.event) {
+        case 'create-dlc': {
+          console.log('create');
+          break;
+        }
         case 'close-dlc': {
           stacksObserverMetricsCounter.closeDLCEventCounter.inc();
           const _uuid = printEvent['uuid']?.value;
@@ -117,13 +124,12 @@ export const DlcManagerV1 = (
   }
 
   function startListening() {
-    socket.subscribeAddressTransactions(contractFullName);
+    // console.log('socket:', _socket);
 
-    console.log('socket:', socket);
-
-    socket.socket.on(
+    _socket.socket.on(
       'address-transaction',
       async (address: string, txWithTransfers: AddressTransactionWithTransfers) => {
+        console.log('heard smth');
         try {
           const tx = txWithTransfers.tx as Transaction;
           if (tx.tx_status !== 'success') {
@@ -147,6 +153,15 @@ export const DlcManagerV1 = (
         }
       }
     );
+    _socket.socket.on('block', (block: any) => {
+      console.log(`[Stacks] New block: ${block.height}`);
+    });
+
+    _socket.socket.on('transaction', (tx: any) => {
+      console.log(`[Stacks] New tx: ${tx.tx_id}`);
+    });
+
+    // console.dir(_socket.socket, { depth: 5 });
   }
 
   async function checkAndGetVault(vaultUUID: string) {

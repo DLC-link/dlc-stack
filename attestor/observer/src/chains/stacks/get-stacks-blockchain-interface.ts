@@ -14,7 +14,6 @@ export const getStackBlockchainInterface = async (config: ChainConfig): Promise<
   console.dir(networkConfig.deploymentInfo, { depth: 1 });
 
   const deploymentInfo = networkConfig.deploymentInfo;
-  const socket = networkConfig.socket;
 
   const endpoint = config.endpoint.replace('ws://', 'http://').replace('wss://', 'https://');
   const stacksNetwork = getStacksNetwork(config.network, endpoint);
@@ -25,7 +24,7 @@ export const getStackBlockchainInterface = async (config: ChainConfig): Promise<
 
   switch (config.version) {
     case '1':
-      return DlcManagerV1(socket, deploymentInfo, stacksNetwork, wallet);
+      return await DlcManagerV1(networkConfig.socket, deploymentInfo, stacksNetwork, wallet);
     default:
       throw new Error(`Version ${config.version} is not supported.`);
   }
