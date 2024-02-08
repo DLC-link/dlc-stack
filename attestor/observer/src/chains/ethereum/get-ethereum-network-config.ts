@@ -1,8 +1,8 @@
-import { ChainConfig } from '../../config/models.js';
+import { ChainConfig } from '../../config/chains.models.js';
 import fetch from 'cross-fetch';
 import { ethers } from 'ethers';
 import { WebSocketProvider } from './utilities/websocket-provider.js';
-import { DeploymentInfo } from '../shared/models/deployment-info.interface.js';
+import { DeploymentInfo } from './models/ethereum-deployment-info.interface.js';
 import fs from 'fs';
 import ConfigService from '../../services/config.service.js';
 
@@ -37,9 +37,10 @@ export default async (
       : await fetchDeploymentInfo(config.network, config.version);
 
   let provider;
+
   if (config.endpoint?.startsWith('http')) {
     console.log(`Connecting to ${config.endpoint}`);
-    provider = new ethers.providers.JsonRpcProvider(config.endpoint);
+    provider = new ethers.providers.JsonRpcProvider(`${config.endpoint}${config.api_key ?? ''}`);
   } else if (config.endpoint?.startsWith('ws')) {
     provider = new WebSocketProvider(`${config.endpoint}${config.api_key ?? ''}`);
   } else {

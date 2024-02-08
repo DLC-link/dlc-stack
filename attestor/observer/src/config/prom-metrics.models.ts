@@ -1,5 +1,5 @@
 import { Counter } from 'prom-client';
-import { PrefixedChain } from './models.js';
+import { PrefixedChain } from './chains.models.js';
 
 const createAttestorMetricsCounter = (name: string, help: string) =>
   new Counter({ name: `${'attestor_js'}_${name}`, help });
@@ -57,7 +57,12 @@ export function createAttestorMetricsCounters() {
   };
 }
 
-const createBlockchainObserverMetricsCounter = (network: PrefixedChain, name: string, help: string, version?: string) => {
+const createBlockchainObserverMetricsCounter = (
+  network: PrefixedChain,
+  name: string,
+  help: string,
+  version?: string
+) => {
   const formattedNetwork = network.replace(/-/g, '_');
   return new Counter({ name: `${'blockchain'}_${formattedNetwork}_${version ?? '1'}_${name}`, help });
 };

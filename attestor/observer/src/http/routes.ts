@@ -4,7 +4,7 @@ dotenv.config();
 import AttestorService from '../services/attestor.service.js';
 import ConfigService from '../services/config.service.js';
 import chalk from 'chalk';
-import { PrefixedChain } from '../config/models.js';
+import { PrefixedChain } from '../config/chains.models.js';
 
 const router = express.Router();
 

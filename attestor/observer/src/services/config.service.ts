@@ -2,13 +2,14 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import yaml from 'js-yaml';
 
-import { ChainConfig, validChains } from '../config/models.js';
+import { ChainConfig, validChains } from '../config/chains.models.js';
 
 // The yaml file should be in the following format:
 interface NodeConfig {
   settings: {
     'solidity-branch': string;
     'storage-api-endpoint': string;
+    'esplora-api-endpoint': string;
     'dev-endpoints-enabled'?: boolean;
     'mocknet-address'?: string;
   };
@@ -40,6 +41,7 @@ export default class ConfigService {
         evmChainConfigs = evmChainConfigs.map((chainConfig) => {
           this.validateNetwork(chainConfig);
           chainConfig.version = chainConfig.version.toString();
+          chainConfig = this.validatePrivateKey(chainConfig);
           return this.validateApiKey(chainConfig);
         });
       }
@@ -52,6 +54,7 @@ export default class ConfigService {
         stxChainConfigs = stxChainConfigs.map((chainConfig) => {
           this.validateNetwork(chainConfig);
           chainConfig.version = chainConfig.version.toString();
+          chainConfig = this.validatePrivateKey(chainConfig);
           return this.validateApiKey(chainConfig);
         });
       }
@@ -96,6 +99,14 @@ export default class ConfigService {
         throw new Error(`Environment variable ${envVariable} is required but not found.`);
       }
       chainConfig.api_key = process.env[envVariable];
+    }
+    return chainConfig;
+  }
+
+  private static validatePrivateKey(chainConfig: ChainConfig): ChainConfig {
+    if (chainConfig.private_key.startsWith('${') && chainConfig.private_key.endsWith('}')) {
+      const envVariable = chainConfig.private_key.slice(2, -1);
+      chainConfig.private_key = this.getEnv(envVariable);
     }
     return chainConfig;
   }

@@ -3,7 +3,7 @@ import { generateMnemonic, mnemonicToSeedSync } from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from 'tiny-secp256k1';
 import ConfigService from './config.service.js';
-import { PrefixedChain } from '../config/models.js';
+import { PrefixedChain } from '../config/chains.models.js';
 import { createAttestorMetricsCounters } from '../config/prom-metrics.models.js';
 
 function getOrGenerateSecretFromConfig(): string {
@@ -38,7 +38,7 @@ export default class AttestorService {
       this.attestor = await Attestor.new(
         ConfigService.getSettings()['storage-api-endpoint'],
         getOrGenerateSecretFromConfig(),
-        'https://devnet.dlc.link/electrs'
+        ConfigService.getSettings()['esplora-api-endpoint']
       );
       console.log('Attestor created');
     }
@@ -159,17 +159,51 @@ export default class AttestorService {
 
   public static async closePsbtEvent(uuid: string) {
     const attestor = await this.getAttestor();
-
+    let txid;
     console.log('closePsbtEvent with UUID:', uuid);
 
     try {
-      await attestor.close_psbt_event(uuid);
+      txid = await attestor.close_psbt_event(uuid);
       attestorMetricsCounter.createAttestationSuccessCounter.inc();
     } catch (error) {
       console.error(error);
       attestorMetricsCounter.createAttestationSuccessCounter.inc();
-      return error;
+      return null;
     }
-    return { uuid: uuid };
+    return txid;
   }
+
+  public static async getConfirmedPSBTEvents() {
+    const attestor = await this.getAttestor();
+    try {
+      const events = await attestor.get_confirmed_psbt_events();
+      return events;
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  }
+
+  public static async setPSBTEventToFunded(uuid: string) {
+    const attestor = await this.getAttestor();
+    try {
+      await attestor.set_psbt_event_to_funded(uuid);
+      return { uuid: uuid };
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  }
+
+  // TODO: ???
+  // public static async setPSBTEventToClosed(uuid: string) {
+  //   const attestor = await this.getAttestor();
+  //   try {
+  //     await attestor.set_psbt_event_closed(uuid);
+  //     return { uuid: uuid };
+  //   } catch (error) {
+  //     console.error(error);
+  //     return null;
+  //   }
+  // }
 }
