@@ -1,11 +1,11 @@
 import { ethers } from 'ethers';
-import { DeploymentInfo } from '../../shared/models/deployment-info.interface.js';
-import { BlockchainInterface } from '../../shared/models/observer.interface.js';
+import { DeploymentInfo } from '../models/ethereum-deployment-info.interface.js';
+import { BlockchainInterface } from '../../../config/blockchain-interface.interface.js';
 import AttestorService from '../../../services/attestor.service.js';
 import { PrefixedChain, evmPrefix } from '../../../config/chains.models.js';
 import { createBlockchainObserverMetricsCounters } from '../../../config/prom-metrics.models.js';
 import { TransactionReceipt } from '@ethersproject/abstract-provider';
-import { EVMDLCInterface } from '../models/dlc-info.interface.js';
+import { EVMDLCInterface } from '../models/ethereum-dlc.interface.js';
 
 export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: DeploymentInfo): BlockchainInterface => {
   const chainName = `${evmPrefix}${deploymentInfo.network.toLowerCase()}` as PrefixedChain;
@@ -17,18 +17,16 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
       async (_uuid: string, _outcome: number, _protocolWallet: string, _sender: string, tx: any) => {
         ethereumObserverMetricsCounter.closeDLCEventCounter.inc();
         const currentTime = new Date();
-        const outcome = BigInt(_outcome);
-        const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] Closing DLC... @ ${currentTime} \n\t uuid: ${_uuid} | outcome: ${outcome} \n`;
+        const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] Closing DLC... @ ${currentTime} \n\t uuid: ${_uuid}\n`;
         console.log(_logMessage);
-        console.log('TXID:', tx.transactionHash);
 
         try {
-          const txid = await AttestorService.closePsbtEvent(_uuid);
+          const transactionID = await AttestorService.closePsbtEvent(_uuid);
 
           // TODO: create getPSBTEvent
           // console.log(await AttestorService.getEvent(_uuid));
 
-          await setVaultStatusPostClosed(_uuid, txid);
+          await setVaultStatusPostClosed(_uuid, transactionID);
         } catch (error) {
           console.error(error);
         }
@@ -40,9 +38,9 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
       async (_uuid: string, _btcTxId: string, _protocolWallet: string, _sender: string, tx: any) => {
         ethereumObserverMetricsCounter.setStatusFundedEventCounter.inc();
         const currentTime = new Date();
-        const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC funded @ ${currentTime} \n\t uuid: ${_uuid} | protocolWallet: ${_protocolWallet} | sender: ${_sender} \n`;
+        const _logMessage = `[${deploymentInfo.network}][${deploymentInfo.contract.name}] DLC funded @ ${currentTime} \n\t uuid: ${_uuid}\n`;
         console.log(_logMessage);
-        console.log('TXID:', tx.transactionHash);
+
         try {
           await AttestorService.setPSBTEventToFunded(_uuid);
           // console.log(await AttestorService.getEvent(_uuid));
@@ -69,21 +67,6 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
     //     }
     //   }
     // );
-  }
-
-  async function getAllVaults(): Promise<any> {
-    const vaults = await contract.getAllVaults();
-    return vaults;
-  }
-
-  async function getDLCInfo(vaultUUID: string): Promise<EVMDLCInterface | undefined> {
-    try {
-      const dlcInfo = await contract.getDLC(vaultUUID);
-      return dlcInfo;
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
   }
 
   async function checkAndGetVault(vaultUUID: string): Promise<EVMDLCInterface | undefined> {
@@ -129,8 +112,6 @@ export const DlcManagerV1 = (contract: ethers.Contract, deploymentInfo: Deployme
   return {
     chainName,
     startListening,
-    getAllVaults,
-    getDLCInfo,
     checkAndGetVault,
     setVaultStatusFunded,
     setVaultStatusPostClosed,

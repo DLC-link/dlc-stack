@@ -2,7 +2,7 @@ import { ChainConfig } from '../../config/chains.models.js';
 import fetch from 'cross-fetch';
 import { ethers } from 'ethers';
 import { WebSocketProvider } from './utilities/websocket-provider.js';
-import { DeploymentInfo } from '../shared/models/deployment-info.interface.js';
+import { DeploymentInfo } from './models/ethereum-deployment-info.interface.js';
 import fs from 'fs';
 import ConfigService from '../../services/config.service.js';
 

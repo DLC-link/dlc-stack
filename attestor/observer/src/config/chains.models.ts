@@ -4,7 +4,7 @@ export interface ChainConfig {
   api_key?: string;
   private_key: string;
   deployer?: string;
-  endpoint: string; 
+  endpoint: string;
 }
 
 export const evmPrefix = 'evm-';
