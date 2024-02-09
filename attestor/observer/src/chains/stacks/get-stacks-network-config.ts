@@ -28,7 +28,7 @@ function setupSocketClient(endpoint: string): StacksApiSocketClient {
   });
 
   // TODO: FIXME: It does not hear events actually.
-  _stacksSocket.subscribeBlocks();
+  // _stacksSocket.subscribeBlocks();
 
   _stacksSocket.subscribeAddressTransactions('ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM');
 

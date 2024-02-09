@@ -153,13 +153,13 @@ export const DlcManagerV1 = async (
         }
       }
     );
-    _socket.socket.on('block', (block: any) => {
-      console.log(`[Stacks] New block: ${block.height}`);
-    });
+    // _socket.socket.on('block', (block: any) => {
+    //   console.log(`[Stacks] New block: ${block.height}`);
+    // });
 
-    _socket.socket.on('transaction', (tx: any) => {
-      console.log(`[Stacks] New tx: ${tx.tx_id}`);
-    });
+    // _socket.socket.on('transaction', (tx: any) => {
+    //   console.log(`[Stacks] New tx: ${tx.tx_id}`);
+    // });
 
     // console.dir(_socket.socket, { depth: 5 });
   }
