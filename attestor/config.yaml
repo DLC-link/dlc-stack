@@ -54,6 +54,10 @@ evm-chains:
   #   version: 1
   #   endpoint: wss://x1testws.okx.com
 
+  # - network: bobtest
+  #   version: 1
+  #   endpoint: https://testnet.rpc.gobob.xyz/
+
 stx-chains:
   # - network: mainnet
   #   version: 1

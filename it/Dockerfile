@@ -1,4 +1,4 @@
-FROM cimg/rust:1.71.0-node AS it-build
+FROM cimg/rust:1.74.0-node AS it-build
 
 USER circleci
 
