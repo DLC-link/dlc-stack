@@ -1,5 +1,5 @@
-# Use cimg/rust:1.71.0-node as the base image
-FROM cimg/rust:1.71.0-node AS attestor-build
+# Use cimg/rust:1.74.0-node as the base image
+FROM cimg/rust:1.74.0-node AS attestor-build
 
 USER circleci
 
