@@ -9,7 +9,7 @@ export interface ChainConfig {
 
 export const evmPrefix = 'evm-';
 export type EthChain = 'mainnet' | 'sepolia' | 'goerli' | 'localhost';
-export type L2Chains = 'x1test';
+export type L2Chains = 'x1test' | 'bobtest';
 
 export const stxPrefix = 'stx-';
 export type StacksChain = 'mainnet' | 'testnet' | 'mocknet' | 'local';
@@ -25,4 +25,5 @@ export const validChains: Chain[] = [
     'mocknet',
     'local',
     'x1test',
+    'bobtest',
 ];

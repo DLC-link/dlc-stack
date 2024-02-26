@@ -44,6 +44,10 @@ evm-chains:
     #   endpoint: https://x1testrpc.okx.com
     #   private_key: ${X1TEST_PRIVATE_KEY}
 
+    - network: bobtest
+      version: 1
+      endpoint: https://testnet.rpc.gobob.xyz/
+
 stx-chains:
     # - network: mainnet
     #   version: 1
