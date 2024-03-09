@@ -141,7 +141,7 @@ services:
       - it
     container_name: integration-test
     hostname: integration-test
-    image: 903295530547.dkr.ecr.us-east-1.amazonaws.com/dlc-integration-test:${IMAGE_TAG}
+    image: 903295530547.dkr.ecr.us-east-1.amazonaws.com/dlc-integration-test:${IT_IMAGE_TAG}
     environment:
       - ENV=docker
       - HANDLE_ATTESTORS=true

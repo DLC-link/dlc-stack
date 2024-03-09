@@ -224,6 +224,7 @@ jobs:
               fi
             else
               echo "Waiting for test to complete, current status: $status"
+              docker logs --since=5s integration-test
             fi
             sleep 5
           done
